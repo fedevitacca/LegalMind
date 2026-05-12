@@ -1,0 +1,11 @@
+instalaciones backend:
+cd backend
+npm init -y
+npm install express
+npm install -D nodemon  
+
+IA trabaja en un mismo repositorio que frontend y misma carpeta que backend
+
+server.js en backend = donde vive el backend y se crea
+
+dos terminales para correr dos servers - frontend y backend, la IA se levanta con el de back
