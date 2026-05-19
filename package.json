@@ -1,0 +1,26 @@
+{
+  "name": "legalmind",
+  "version": "1.0.0",
+  "description": "instalaciones backend:\r cd backend\r npm init -y\r npm install express\r npm install -D nodemon",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fedevitacca/LegalMind.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/fedevitacca/LegalMind/issues"
+  },
+  "homepage": "https://github.com/fedevitacca/LegalMind#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
