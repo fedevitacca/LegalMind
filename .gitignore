@@ -3,10 +3,7 @@
 # dependencies
 /node_modules
 node_modules/
-<<<<<<< HEAD
-=======
 **/node_modules/
->>>>>>> 1d505e39503b67bf90df5777fdab338b8cd71ba1
 /.pnp
 .pnp.*
 .yarn/*
@@ -38,10 +35,7 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
-<<<<<<< HEAD
 !**/.env.example
-=======
->>>>>>> 1d505e39503b67bf90df5777fdab338b8cd71ba1
 
 # vercel
 .vercel
