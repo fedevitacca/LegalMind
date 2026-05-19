@@ -1,11 +1,36 @@
-instalaciones backend:
+LegalMind
+
+Backend - Sprint 1
+
+Stack:
+- Node.js
+- Express
+- PostgreSQL
+
+Estructura principal:
+- backend/src/server.js: levanta el servidor.
+- backend/src/app.js: configura Express, middlewares y rutas.
+- backend/src/config/db.js: conexion a PostgreSQL.
+- backend/src/config/init.sql: esquema inicial de base de datos.
+- backend/src/controllers: controladores HTTP.
+- backend/src/routes: rutas de la API.
+- backend/src/models: espacio reservado para modelos futuros.
+
+Configuracion:
+1. Crear backend/.env tomando backend/.env.example como base.
+2. Completar PORT y DATABASE_URL.
+
+Comandos backend:
+```bash
 cd backend
-npm init -y
-npm install express
-npm install -D nodemon  
+npm install
+npm run db:init
+npm run dev
+```
 
-IA trabaja en un mismo repositorio que frontend y misma carpeta que backend
+Rutas de prueba:
+- GET http://localhost:3000/
+- GET http://localhost:3000/api/health
+- GET http://localhost:3000/api/health/db
 
-server.js en backend = donde vive el backend y se crea
-
-dos terminales para correr dos servers - frontend y backend, la IA se levanta con el de back
+Frontend y backend se corren en terminales separadas.
