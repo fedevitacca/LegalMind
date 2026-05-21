@@ -1,6 +1,6 @@
 const OpenAI = require("openai");
-const { LEGALMIND_PROMPT_BASE } = require("./promptBase");
-const { legalMindAnalysisSchema } = require("./schema");
+const { LEGALMIND_PROMPT_BASE } = require("./instruccionesBase");
+const { legalMindAnalysisSchema } = require("./esquema");
 
 function createOpenAIClient() {
   if (!process.env.OPENAI_API_KEY) {

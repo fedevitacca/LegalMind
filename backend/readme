@@ -8,12 +8,12 @@ Stack:
 - PostgreSQL
 
 Estructura principal:
-- backend/src/server.js: levanta el servidor.
-- backend/src/app.js: configura Express, middlewares y rutas.
-- backend/src/config/db.js: conexion a PostgreSQL.
-- backend/src/config/init.sql: esquema inicial de base de datos.
-- backend/src/controllers: controladores HTTP.
-- backend/src/routes: rutas de la API.
+- backend/src/servidor.js: levanta el servidor.
+- backend/src/aplicacion.js: configura Express, middlewares y rutas.
+- backend/src/configuracion/baseDatos.js: conexion a PostgreSQL.
+- backend/src/configuracion/inicializacion.sql: esquema inicial de base de datos.
+- backend/src/controladores: controladores HTTP.
+- backend/src/rutas: rutas de la API.
 - backend/src/models: espacio reservado para modelos futuros.
 
 Configuracion:

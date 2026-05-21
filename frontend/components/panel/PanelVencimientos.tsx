@@ -1,4 +1,4 @@
-export default function DeadlinePanel({
+export default function PanelVencimientos({
   items,
   title,
 }: {

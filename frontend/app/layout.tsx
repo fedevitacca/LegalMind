@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Vend_Sans } from "next/font/google";
-import Footer from "../components/ui/Footer";
-import Header from "../components/ui/Header";
+import Encabezado from "../components/interfaz/Encabezado";
+import PieDePagina from "../components/interfaz/PieDePagina";
 import "./globals.css";
 
 const vendSans = Vend_Sans({
@@ -29,9 +29,9 @@ export default function RootLayout({
       <body
         className={`${vendSans.variable} ${spaceGrotesk.variable} flex h-screen flex-col overflow-hidden`}
       >
-        <Header />
+        <Encabezado />
         <main className="min-h-0 flex-1">{children}</main>
-        <Footer />
+        <PieDePagina />
       </body>
     </html>
   );

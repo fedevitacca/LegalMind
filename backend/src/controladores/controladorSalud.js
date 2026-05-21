@@ -1,4 +1,4 @@
-const { pool } = require("../config/db");
+const { pool } = require("../configuracion/baseDatos");
 
 const getApiHealth = (req, res) => {
   res.json({

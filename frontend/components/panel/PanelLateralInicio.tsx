@@ -4,9 +4,13 @@ type Alert = {
   title: string;
 };
 
-const shortcuts = ["Analisis IA", "Documentos", "Agenda"];
+const shortcuts = [
+  { label: "Analisis IA", href: "#" },
+  { label: "Nuevo caso", href: "/casos/nuevo" },
+  { label: "Agenda", href: "#" },
+];
 
-export default function DashboardAside({ alerts }: { alerts: Alert[] }) {
+export default function PanelLateralInicio({ alerts }: { alerts: Alert[] }) {
   return (
     <aside className="h-full overflow-y-auto border-l border-[#84A2BD]/45 bg-white/90 px-5 py-6">
       <div className="space-y-4">
@@ -29,10 +33,10 @@ export default function DashboardAside({ alerts }: { alerts: Alert[] }) {
             {shortcuts.map((shortcut) => (
               <a
                 className="rounded-lg bg-white/10 px-3 py-2 font-medium transition hover:bg-white/15"
-                href="#"
-                key={shortcut}
+                href={shortcut.href}
+                key={shortcut.label}
               >
-                {shortcut}
+                {shortcut.label}
               </a>
             ))}
           </div>

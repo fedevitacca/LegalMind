@@ -1,4 +1,4 @@
-export default function Header() {
+export default function Encabezado() {
   return (
     <header className="flex h-[64px] shrink-0 items-center justify-between border-b border-[#84A2BD]/35 bg-white/95 px-6 shadow-[0_1px_12px_rgba(15,32,68,0.06)]">
       <div className="flex items-center gap-3">

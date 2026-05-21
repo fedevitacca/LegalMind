@@ -12,8 +12,8 @@ La IA debe asistir al abogado, no reemplazar su criterio profesional.
 
 La version actual tiene dos motores:
 
-- `openaiAnalyzer.js`: usa la API de OpenAI con Structured Outputs para devolver JSON estable.
-- `analyzer.js`: analizador local por reglas, usado como respaldo si falta la API key o falla la llamada externa.
+- `analizadorOpenAI.js`: usa la API de OpenAI con Structured Outputs para devolver JSON estable.
+- `analizador.js`: analizador local por reglas, usado como respaldo si falta la API key o falla la llamada externa.
 
 Actualmente puede:
 
@@ -117,8 +117,8 @@ Si luego aparece `429 You exceeded your current quota`, la conexion con OpenAI y
 
 ## Archivos
 
-- `analyzer.js`: analizador local principal.
-- `openaiAnalyzer.js`: integracion con OpenAI.
-- `schema.js`: schema JSON que la respuesta de IA debe respetar.
-- `promptBase.js`: prompt base del proyecto para una futura integracion con modelos de lenguaje.
+- `analizador.js`: analizador local principal.
+- `analizadorOpenAI.js`: integracion con OpenAI.
+- `esquema.js`: schema JSON que la respuesta de IA debe respetar.
+- `instruccionesBase.js`: prompt base del proyecto para una futura integracion con modelos de lenguaje.
 - `README.md`: documentacion de la parte de IA.

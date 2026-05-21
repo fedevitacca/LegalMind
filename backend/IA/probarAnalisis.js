@@ -1,7 +1,7 @@
 require("dotenv").config({ quiet: true });
 
-const { analyzeLegalText } = require("./analyzer");
-const { analyzeLegalTextWithOpenAI } = require("./openaiAnalyzer");
+const { analyzeLegalText } = require("./analizador");
+const { analyzeLegalTextWithOpenAI } = require("./analizadorOpenAI");
 
 const sampleText = `
 En la causa nro 1234/26 se investiga el hecho ocurrido el 12/05/2026.

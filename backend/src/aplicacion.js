@@ -1,8 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 
-const healthRoutes = require("./routes/healthRoutes");
-const iaRoutes = require("./routes/iaRoutes");
+const healthRoutes = require("./rutas/rutasSalud");
+const iaRoutes = require("./rutas/rutasIA");
 
 const app = express();
 

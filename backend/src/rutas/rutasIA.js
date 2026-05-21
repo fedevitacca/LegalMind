@@ -1,32 +1,11 @@
-require("dotenv").config({ quiet: true });
-
 const express = require("express");
-const { analyzeLegalText } = require("./IA/analyzer");
-const { analyzeLegalTextWithOpenAI } = require("./IA/openaiAnalyzer");
 
-const app = express();
+const { analyzeLegalText } = require("../../IA/analizador");
+const { analyzeLegalTextWithOpenAI } = require("../../IA/analizadorOpenAI");
 
-const PORT = process.env.PORT || 5000;
+const router = express.Router();
 
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-
-  return next();
-});
-
-app.use(express.json({ limit: "2mb" }));
-
-app.get("/", (req, res) => {
-  res.send("LegalMind backend running");
-});
-
-app.get("/api/ia/health", (req, res) => {
+router.get("/health", (req, res) => {
   res.json({
     status: "ok",
     module: "LegalMind IA",
@@ -35,12 +14,12 @@ app.get("/api/ia/health", (req, res) => {
   });
 });
 
-app.post("/api/ia/analyze", async (req, res) => {
+router.post("/analyze", async (req, res) => {
   const { text, mode = "auto" } = req.body;
 
-  if (typeof text !== "string") {
+  if (typeof text !== "string" || text.trim().length === 0) {
     return res.status(400).json({
-      error: "El campo 'text' es obligatorio y debe ser un string.",
+      error: "El campo 'text' es obligatorio y debe ser un string no vacio.",
     });
   }
 
@@ -90,6 +69,4 @@ app.post("/api/ia/analyze", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+module.exports = router;

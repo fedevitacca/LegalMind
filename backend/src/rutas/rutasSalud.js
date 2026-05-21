@@ -3,7 +3,7 @@ const { Router } = require("express");
 const {
   getApiHealth,
   getDatabaseHealth,
-} = require("../controllers/healthController");
+} = require("../controladores/controladorSalud");
 
 const router = Router();
 

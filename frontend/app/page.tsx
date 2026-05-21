@@ -1,8 +1,8 @@
-import DashboardAside from "../components/dashboard/DashboardAside";
-import DeadlinePanel from "../components/dashboard/DeadlinePanel";
-import RecentCases from "../components/dashboard/RecentCases";
-import SearchBar from "../components/dashboard/SearchBar";
-import AppFrame from "../components/layout/AppFrame";
+import BarraBusqueda from "../components/panel/BarraBusqueda";
+import CasosRecientes from "../components/panel/CasosRecientes";
+import MarcoAplicacion from "../components/estructura/MarcoAplicacion";
+import PanelLateralInicio from "../components/panel/PanelLateralInicio";
+import PanelVencimientos from "../components/panel/PanelVencimientos";
 
 const recentCases = [
   {
@@ -55,16 +55,16 @@ const alerts = [
 
 export default function Home() {
   return (
-    <AppFrame>
+    <MarcoAplicacion activeSection="Dashboard">
       <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_285px] bg-[#F4F7F5] text-[#0F2044]">
         <section className="h-full overflow-y-auto px-8 py-5">
           <div className="mx-auto flex max-w-5xl flex-col gap-6">
-            <SearchBar />
-            <RecentCases cases={recentCases} />
+            <BarraBusqueda />
+            <CasosRecientes cases={recentCases} />
 
             <section className="grid gap-4 lg:grid-cols-2">
-              <DeadlinePanel title="Vencimientos hoy" items={todayDeadlines} />
-              <DeadlinePanel
+              <PanelVencimientos title="Vencimientos hoy" items={todayDeadlines} />
+              <PanelVencimientos
                 title="Vencimientos esta semana"
                 items={weekDeadlines}
               />
@@ -72,8 +72,8 @@ export default function Home() {
           </div>
         </section>
 
-        <DashboardAside alerts={alerts} />
+        <PanelLateralInicio alerts={alerts} />
       </div>
-    </AppFrame>
+    </MarcoAplicacion>
   );
 }

@@ -4,7 +4,7 @@ type RecentCase = {
   status: string;
 };
 
-export default function RecentCases({ cases }: { cases: RecentCase[] }) {
+export default function CasosRecientes({ cases }: { cases: RecentCase[] }) {
   return (
     <section>
       <div className="mb-3 flex items-end justify-between">
