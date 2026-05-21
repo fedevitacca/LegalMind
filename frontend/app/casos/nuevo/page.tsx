@@ -41,6 +41,27 @@ export default function NewCasePage() {
                 />
               </label>
 
+              <section className="mt-4 rounded-lg border border-[#84A2BD]/35 bg-[#F4F7F5] p-4">
+                <div className="flex items-start gap-3">
+                  <input
+                    className="mt-1 h-4 w-4 accent-[#546FC0]"
+                    defaultChecked
+                    id="analisis-ia-inicial"
+                    type="checkbox"
+                  />
+                  <label htmlFor="analisis-ia-inicial">
+                    <span className="block text-sm font-semibold">
+                      Generar resumen IA al crear el caso
+                    </span>
+                    <span className="mt-1 block text-sm font-medium leading-5 text-[#0F2044]/62">
+                      Si se elige esta opcion, el expediente va a mostrar un
+                      resumen fijo de IA cuando se consulten sus areas de
+                      trabajo, como Imputados.
+                    </span>
+                  </label>
+                </div>
+              </section>
+
               <div className="mt-5 flex flex-wrap justify-end gap-3 border-t border-[#84A2BD]/28 pt-4">
                 <button className="rounded-full px-4 py-2 text-sm font-semibold text-[#0F2044] transition hover:bg-[#84A2BD]/20">
                   Guardar borrador

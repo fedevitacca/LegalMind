@@ -1,11 +1,15 @@
+"use client";
+
 export default function BarraBusqueda({
   actionHref,
   actionLabel = "Nuevo caso",
+  actionOnClick,
   actionTone = "primary",
   placeholder = "Buscar casos, vencimientos o documentos",
 }: {
   actionHref?: string;
   actionLabel?: string;
+  actionOnClick?: () => void;
   actionTone?: "primary" | "soft";
   placeholder?: string;
 }) {
@@ -30,7 +34,9 @@ export default function BarraBusqueda({
           {actionLabel}
         </a>
       ) : (
-        <button className={actionStyles}>{actionLabel}</button>
+        <button className={actionStyles} onClick={actionOnClick} type="button">
+          {actionLabel}
+        </button>
       )}
     </div>
   );
