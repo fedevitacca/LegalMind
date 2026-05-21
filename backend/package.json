@@ -6,6 +6,7 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "db:init": "node scripts/initDatabase.js",
+    "test:ia": "node --test IA/analyzer.test.js IA/textFile.test.js src/routes/iaRoutes.test.js",
     "test:ia:local": "node IA/testAnalyze.js local",
     "test:ia:openai": "node IA/testAnalyze.js openai"
   },
@@ -17,6 +18,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "multer": "^2.1.1",
     "openai": "^6.38.0",
     "pg": "^8.21.0"
   },

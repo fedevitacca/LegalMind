@@ -180,7 +180,9 @@ function extractDefendants(text, people, sentences) {
 
 function extractGeneralData(text) {
   const data = [];
-  const caseNumber = text.match(/\b(?:causa|expediente)\s*(?:nro\.?|numero|n[°o])?\s*[:#-]?\s*([\w/-]+)/i);
+  const caseNumber = text.match(
+    /\b(?:causa|expediente|expte\.?|legajo)\s*(?:nro\.?|numero|n[°o])?\s*[:#-]?\s*([\w/-]+)/i
+  );
 
   if (caseNumber) {
     data.push(`Identificador de causa o expediente: ${caseNumber[1]}`);

@@ -25,6 +25,7 @@ Actualmente puede:
 - Marcar fechas que podrian requerir alerta.
 - Clasificar contenido por categorias juridicas basicas.
 - Detectar hechos relevantes y actuaciones pendientes.
+- Analizar archivos TXT enviados como `multipart/form-data`.
 - Devolver una salida JSON estable para integrar con frontend y base de datos.
 
 ## Endpoint Disponible
@@ -68,6 +69,50 @@ Respuesta:
 }
 ```
 
+La ruta HTTP agrega un campo `_metadata` para indicar que motor genero la respuesta:
+
+```json
+{
+  "_metadata": {
+    "engine": "openai",
+    "model": "gpt-5.4-mini",
+    "fallback_used": false
+  }
+}
+```
+
+Cuando `auto` debe recurrir al analizador local, `_metadata.fallback_used` pasa a `true` y se incluye `fallback_reason`.
+
+Para analizar un archivo TXT:
+
+```http
+POST /api/ia/analyze-file
+Content-Type: multipart/form-data
+```
+
+Campos del formulario:
+
+- `file`: archivo `.txt` con texto juridico. Limite actual: 5 MB.
+- `mode`: `auto`, `openai` o `local`. Si no se envia, usa `auto`.
+
+Ejemplo:
+
+```bash
+curl -X POST http://localhost:5000/api/ia/analyze-file \
+  -F "file=@documento.txt" \
+  -F "mode=local"
+```
+
+La respuesta usa el mismo contrato del analisis por texto y agrega `_metadata.source_file` con nombre, tipo MIME y tamano del archivo recibido.
+
+Tambien esta disponible:
+
+```http
+GET /api/ia/health
+```
+
+Esta ruta informa si OpenAI esta configurado y que modelo usara el backend.
+
 ## Mejor Forma de Continuar
 
 1. Mantener este formato JSON como contrato fijo entre IA, backend y frontend.
@@ -75,7 +120,7 @@ Respuesta:
 3. Ajustar reglas locales para detectar mejor imputados, fechas, hechos y actuaciones.
 4. Guardar los resultados en PostgreSQL cuando el backend tenga modelos definidos.
 5. Comparar la salida de reglas locales contra la salida de OpenAI para validar calidad.
-6. Agregar carga de archivos PDF/DOCX/TXT y enviar el texto extraido a este endpoint.
+6. Agregar extractores de archivos PDF y DOCX sobre el flujo de carga ya iniciado con TXT.
 7. Guardar los resultados en PostgreSQL asociados a causa, documento e imputados.
 
 ## Configuracion de OpenAI
@@ -91,6 +136,12 @@ OPENAI_MODEL=gpt-5.4-mini
 El modelo por defecto es `gpt-5.4-mini`, elegido como una opcion potente y mas economica que el modelo frontier completo para extraccion y resumen de textos.
 
 ## Pruebas y Errores Comunes
+
+Probar regresiones del analizador local:
+
+```bash
+npm run test:ia
+```
 
 Probar IA local:
 
@@ -120,5 +171,6 @@ Si luego aparece `429 You exceeded your current quota`, la conexion con OpenAI y
 - `analyzer.js`: analizador local principal.
 - `openaiAnalyzer.js`: integracion con OpenAI.
 - `schema.js`: schema JSON que la respuesta de IA debe respetar.
-- `promptBase.js`: prompt base del proyecto para una futura integracion con modelos de lenguaje.
+- `promptBase.js`: prompt base usado por la integracion con OpenAI.
+- `textFile.js`: validacion y extraccion inicial de archivos TXT.
 - `README.md`: documentacion de la parte de IA.
