@@ -1,8 +1,8 @@
 const assert = require("node:assert/strict");
 const { describe, it } = require("node:test");
 
-const { analyzeLegalText } = require("./analyzer");
-const { legalMindAnalysisSchema } = require("./schema");
+const { analyzeLegalText } = require("./analizador");
+const { legalMindAnalysisSchema } = require("./esquema");
 
 function assertAnalysisContract(analysis) {
   for (const key of legalMindAnalysisSchema.required) {

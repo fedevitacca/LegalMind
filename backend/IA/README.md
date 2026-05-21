@@ -113,6 +113,16 @@ GET /api/ia/health
 
 Esta ruta informa si OpenAI esta configurado y que modelo usara el backend.
 
+## Prueba desde Frontend
+
+El frontend expone la pantalla `/analisis` para analizar texto o archivos TXT desde la interfaz.
+
+Por defecto apunta al backend local en `http://localhost:5000`. Si el backend usa otra URL, crear `frontend/.env.local` tomando `frontend/.env.example` como base y ajustar:
+
+```env
+NEXT_PUBLIC_LEGALMIND_API_URL=http://localhost:5000
+```
+
 ## Mejor Forma de Continuar
 
 1. Mantener este formato JSON como contrato fijo entre IA, backend y frontend.
@@ -168,8 +178,8 @@ Si luego aparece `429 You exceeded your current quota`, la conexion con OpenAI y
 
 ## Archivos
 
-- `analyzer.js`: analizador local principal.
-- `openaiAnalyzer.js`: integracion con OpenAI.
-- `schema.js`: schema JSON que la respuesta de IA debe respetar.
-- `promptBase.js`: prompt base del proyecto para una futura integracion con modelos de lenguaje.
+- `analizador.js`: analizador local principal.
+- `analizadorOpenAI.js`: integracion con OpenAI.
+- `esquema.js`: schema JSON que la respuesta de IA debe respetar.
+- `instruccionesBase.js`: prompt base del proyecto para la integracion con modelos de lenguaje.
 - `README.md`: documentacion de la parte de IA.

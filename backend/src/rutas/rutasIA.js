@@ -1,8 +1,13 @@
 const express = require("express");
 const multer = require("multer");
 
-const { analyzeLegalText } = require("../../IA/analyzer");
-const { analyzeLegalTextWithOpenAI } = require("../../IA/openaiAnalyzer");
+const { analyzeLegalText } = require("../../IA/analizador");
+const { analyzeLegalTextWithOpenAI } = require("../../IA/analizadorOpenAI");
+const {
+  MAX_TEXT_FILE_SIZE_BYTES,
+  extractTextFromTxtFile,
+  isTxtFile,
+} = require("../../IA/textFile");
 
 const router = express.Router();
 const uploadTextFile = multer({

@@ -48,8 +48,8 @@ causa -> actuaciones
 ```
 
 Rutas de prueba:
-- GET http://localhost:3000/
-- GET http://localhost:3000/api/health
-- GET http://localhost:3000/api/health/db
+- GET http://localhost:5000/
+- GET http://localhost:5000/api/health
+- GET http://localhost:5000/api/health/db
 
 Frontend y backend se corren en terminales separadas.

@@ -4,7 +4,9 @@
   "description": "instalaciones backend:\r cd backend\r npm init -y\r npm install express\r npm install -D nodemon",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm --prefix backend test",
+    "build": "npm --prefix frontend run build",
+    "lint": "npm --prefix frontend run lint"
   },
   "repository": {
     "type": "git",

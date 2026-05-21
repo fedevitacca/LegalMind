@@ -3,6 +3,9 @@
 :root {
   --background: #f4f7f5;
   --foreground: #0f2044;
+  --font-vend-sans: Aptos, "Segoe UI", Arial, Helvetica, sans-serif;
+  --font-space-grotesk: "Trebuchet MS", Aptos, "Segoe UI", Arial, Helvetica,
+    sans-serif;
 }
 
 @theme inline {

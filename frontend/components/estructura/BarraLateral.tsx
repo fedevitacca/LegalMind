@@ -2,7 +2,7 @@ const sideItems = [
   { label: "Dashboard", href: "/" },
   { label: "Casos", href: "/casos" },
   { label: "Nuevo caso", href: "/casos/nuevo" },
-  { label: "Analisis IA", href: "#" },
+  { label: "Analisis IA", href: "/analisis" },
   { label: "Agenda", href: "#" },
   { label: "Configuracion", href: "#" },
 ];

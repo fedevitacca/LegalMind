@@ -185,7 +185,8 @@ Objetivo: cerrar el sistema, corregir errores y preparar la demo.
 ```text
 LegalMind/
   backend/
-    server.js
+    src/
+      servidor.js
     IA/
   frontend/
   README.md
@@ -193,7 +194,7 @@ LegalMind/
 
 ## Notas de Desarrollo
 
-- El backend vive en `backend/server.js`.
+- El backend vive en `backend/src/servidor.js`.
 - La IA trabaja dentro del mismo repositorio, inicialmente dentro de `backend/IA`.
 - El frontend y backend se ejecutan en terminales separadas.
 - La IA se integra desde el backend para procesar textos y devolver informacion estructurada.

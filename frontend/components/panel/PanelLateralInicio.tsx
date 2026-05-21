@@ -5,7 +5,7 @@ type Alert = {
 };
 
 const shortcuts = [
-  { label: "Analisis IA", href: "#" },
+  { label: "Analisis IA", href: "/analisis" },
   { label: "Nuevo caso", href: "/casos/nuevo" },
   { label: "Agenda", href: "#" },
 ];

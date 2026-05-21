@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { after, before, describe, it } = require("node:test");
 
-const app = require("../app");
+const app = require("../aplicacion");
 
 describe("IA file routes", () => {
   let baseUrl;
