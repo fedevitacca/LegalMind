@@ -1,9 +1,24 @@
 const express = require("express");
+const multer = require("multer");
 
-const { analyzeLegalText } = require("../../IA/analizador");
-const { analyzeLegalTextWithOpenAI } = require("../../IA/analizadorOpenAI");
+const { analyzeLegalText } = require("../../IA/analyzer");
+const { analyzeLegalTextWithOpenAI } = require("../../IA/openaiAnalyzer");
 
 const router = express.Router();
+const uploadTextFile = multer({
+  limits: {
+    fileSize: MAX_TEXT_FILE_SIZE_BYTES,
+    files: 1,
+  },
+  fileFilter(req, file, callback) {
+    if (!isTxtFile(file)) {
+      callback(new Error("Por ahora solo se admiten archivos .txt."));
+      return;
+    }
+
+    callback(null, true);
+  },
+}).single("file");
 
 router.get("/health", (req, res) => {
   res.json({
@@ -23,6 +38,35 @@ router.post("/analyze", async (req, res) => {
     });
   }
 
+  return sendAnalysisResponse(res, text, mode);
+});
+
+router.post("/analyze-file", (req, res) => {
+  uploadTextFile(req, res, async (uploadError) => {
+    if (uploadError) {
+      return res.status(400).json({
+        error: getUploadErrorMessage(uploadError),
+      });
+    }
+
+    try {
+      const text = extractTextFromTxtFile(req.file);
+      const sourceFile = {
+        name: req.file.originalname,
+        mime_type: req.file.mimetype,
+        size_bytes: req.file.size,
+      };
+
+      return sendAnalysisResponse(res, text, req.body.mode || "auto", sourceFile);
+    } catch (error) {
+      return res.status(400).json({
+        error: error.message,
+      });
+    }
+  });
+});
+
+async function sendAnalysisResponse(res, text, mode, sourceFile) {
   if (!["auto", "openai", "local"].includes(mode)) {
     return res.status(400).json({
       error: "El campo 'mode' debe ser 'auto', 'openai' o 'local'.",
@@ -35,6 +79,7 @@ router.post("/analyze", async (req, res) => {
       _metadata: {
         engine: "local",
         fallback_used: false,
+        ...buildSourceFileMetadata(sourceFile),
       },
     });
   }
@@ -48,6 +93,7 @@ router.post("/analyze", async (req, res) => {
         engine: "openai",
         model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
         fallback_used: false,
+        ...buildSourceFileMetadata(sourceFile),
       },
     });
   } catch (error) {
@@ -64,9 +110,22 @@ router.post("/analyze", async (req, res) => {
         engine: "local",
         fallback_used: true,
         fallback_reason: error.message,
+        ...buildSourceFileMetadata(sourceFile),
       },
     });
   }
-});
+}
+
+function buildSourceFileMetadata(sourceFile) {
+  return sourceFile ? { source_file: sourceFile } : {};
+}
+
+function getUploadErrorMessage(error) {
+  if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+    return "El archivo supera el limite de 5 MB.";
+  }
+
+  return error.message;
+}
 
 module.exports = router;

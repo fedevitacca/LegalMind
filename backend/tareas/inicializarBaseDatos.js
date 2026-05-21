@@ -12,11 +12,26 @@ const inicializarBaseDatos = async () => {
     await pool.query(sql);
     console.log("Initial database schema verified");
   } catch (error) {
-    console.error("Could not initialize database:", error.message);
+    console.error("Could not initialize database:", formatDatabaseError(error));
     process.exitCode = 1;
   } finally {
     await pool.end();
   }
+};
+
+const formatDatabaseError = (error) => {
+  if (error.message) {
+    return error.message;
+  }
+
+  if (Array.isArray(error.errors) && error.errors.length > 0) {
+    return error.errors
+      .map((nestedError) => nestedError.message)
+      .filter(Boolean)
+      .join(" | ");
+  }
+
+  return error.code || "Unknown database error";
 };
 
 inicializarBaseDatos();

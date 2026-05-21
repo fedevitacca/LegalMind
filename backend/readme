@@ -19,6 +19,7 @@ Estructura principal:
 Configuracion:
 1. Crear backend/.env tomando backend/.env.example como base.
 2. Completar PORT y DATABASE_URL.
+3. Tener PostgreSQL disponible en la direccion indicada por DATABASE_URL antes de correr `npm run db:init`.
 
 Comandos backend:
 ```bash
@@ -26,6 +27,24 @@ cd backend
 npm install
 npm run db:init
 npm run dev
+```
+
+Base de datos inicial:
+- `causas`: ficha general de cada caso.
+- `imputados`: personas que pueden asociarse a una o mas causas.
+- `causa_imputados`: relacion entre causas e imputados.
+- `documentos`: archivos y texto extraido vinculados a una causa.
+- `analisis_ia`: resultado completo de IA guardado como `JSONB` por causa o documento.
+- `fechas_relevantes`: fechas y vencimientos extraidos o cargados para consultar y alertar.
+- `actuaciones`: tareas o actuaciones procesales pendientes, manuales o sugeridas por IA.
+- `app_metadata`: marca tecnica de inicializacion del backend.
+
+Relacion minima:
+```text
+causa -> documentos -> analisis_ia
+causa -> imputados
+causa -> fechas_relevantes
+causa -> actuaciones
 ```
 
 Rutas de prueba:
