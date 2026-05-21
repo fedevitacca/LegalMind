@@ -1,11 +1,25 @@
-import BarraBusqueda from "../../../../components/panel/BarraBusqueda";
-import EspacioImputados from "../../../../components/casos/EspacioImputados";
+import DetalleImputadosCaso from "../../../../components/casos/DetalleImputadosCaso";
 import MarcoAplicacion from "../../../../components/estructura/MarcoAplicacion";
-import NavegacionAreasCaso from "../../../../components/casos/NavegacionAreasCaso";
-import PanelAnalisisCaso from "../../../../components/casos/PanelAnalisisCaso";
 
 const cases = {
   "caso-gomez": {
+    analisis: {
+      datosClave: [
+        "Hay dos imputados que deben compararse dentro del mismo expediente.",
+        "El vencimiento informado requiere revisar actuaciones pendientes.",
+        "Parte de los datos personales todavia necesita validacion manual.",
+      ],
+      documentosBase: [
+        "Escrito de inicio",
+        "Informe policial",
+        "Actuaciones cargadas del expediente",
+      ],
+      generado: "al crear el caso",
+      observacion:
+        "Este resumen sirve como lectura rapida. Las fichas de imputados siguen siendo la fuente de trabajo editable.",
+      resumen:
+        "La causa contiene una imputacion principal y una persona vinculada para contrastar datos, actuaciones y documentacion antes del proximo vencimiento.",
+    },
     name: "Caso Gomez",
     deadline: "Vence en 2 dias",
     status: "Activo",
@@ -39,6 +53,23 @@ const cases = {
     ],
   },
   "caso-perez": {
+    analisis: {
+      datosClave: [
+        "La audiencia proxima concentra la prioridad del caso.",
+        "Hay fichas individuales en distinto estado de carga.",
+        "Conviene revisar las actuaciones compartidas entre imputados.",
+      ],
+      documentosBase: [
+        "Citacion a audiencia",
+        "Documentacion recibida",
+        "Notas iniciales del expediente",
+      ],
+      generado: "durante la carga inicial",
+      observacion:
+        "El analisis muestra contexto general del expediente y no reemplaza la revision profesional.",
+      resumen:
+        "El expediente tiene dos imputados vinculados a actuaciones previas a audiencia, con informacion lista para ordenar y comparar.",
+    },
     name: "Caso Perez",
     deadline: "Audiencia en 6 dias",
     status: "Activo",
@@ -72,6 +103,21 @@ const cases = {
     ],
   },
   "caso-rodriguez": {
+    analisis: {
+      datosClave: [
+        "La informacion surgio de la documentacion general cargada.",
+        "Los campos extraidos necesitan confirmacion.",
+      ],
+      documentosBase: [
+        "Documentacion general del expediente",
+        "Informe preliminar",
+      ],
+      generado: "cuando se subieron los archivos",
+      observacion:
+        "El resumen queda disponible para consulta aunque los datos editables se completen despues.",
+      resumen:
+        "El caso esta en revision inicial y el material cargado permitio extraer una primera ficha del imputado.",
+    },
     name: "Caso Rodriguez",
     deadline: "Sin vencimiento hoy",
     status: "Revision",
@@ -103,43 +149,11 @@ export default async function PaginaImputados({
 
   return (
     <MarcoAplicacion activeSection="Casos">
-      <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_285px] bg-[#F4F7F5] text-[#0F2044]">
-        <section className="h-full overflow-y-auto px-8 py-5">
-          <div className="mx-auto flex max-w-5xl flex-col gap-5">
-            <BarraBusqueda
-              actionLabel="Minimizar"
-              actionTone="soft"
-              placeholder="Buscar dentro del caso"
-            />
-
-            <NavegacionAreasCaso activeArea="Imputados" caseSlug={idCaso} />
-
-            <header className="rounded-lg border border-[#84A2BD]/35 bg-white px-5 py-4 shadow-[0_10px_28px_rgba(15,32,68,0.06)]">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#546FC0]">
-                Expediente abierto
-              </p>
-              <h1 className="mt-1 text-3xl font-semibold">
-                {legalCase.name}
-              </h1>
-              <div className="mt-3 flex flex-wrap gap-2 text-sm font-semibold">
-                <span className="rounded-full bg-[#F4F7F5] px-3 py-1.5">
-                  {legalCase.status}
-                </span>
-                <span className="rounded-full bg-[#F4F7F5] px-3 py-1.5">
-                  {legalCase.defendants.length} imputados
-                </span>
-                <span className="rounded-full bg-[#A68147]/15 px-3 py-1.5 text-[#0F2044]">
-                  {legalCase.deadline}
-                </span>
-              </div>
-            </header>
-
-            <EspacioImputados defendants={legalCase.defendants} />
-          </div>
-        </section>
-
-        <PanelAnalisisCaso />
-      </div>
+      <DetalleImputadosCaso
+        analisis={legalCase.analisis}
+        caso={legalCase}
+        idCaso={idCaso}
+      />
     </MarcoAplicacion>
   );
 }
