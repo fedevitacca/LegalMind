@@ -59,4 +59,33 @@ describe("analyzeLegalText", () => {
       "Identificador de causa o expediente: MPF-123/2026",
     ]);
   });
+  it("extrae datos generales penales y clasifica fechas utiles", () => {
+    const analysis = analyzeLegalText(`
+      Causa nro 9988/2026. Caratula: Perez Juan s/ robo agravado.
+      Juzgado Federal N. 2, Secretaria Penal.
+      Se investiga el hecho ocurrido el 03/04/2026 en perjuicio de la victima Laura Rios.
+      El imputado Juan Perez fue detenido y se le atribuye el delito de robo agravado.
+      Obra informe pericial y acta de allanamiento vinculados al imputado Juan Perez.
+      Se fija audiencia de indagatoria para el 18 de abril de 2026.
+      La defensa debera presentar documentacion hasta el 22/04/2026.
+    `);
+
+    assertAnalysisContract(analysis);
+    assert.ok(
+      analysis.causa.datos_generales.some((item) =>
+        item.includes("Organo interviniente: Federal N")
+      )
+    );
+    assert.ok(
+      analysis.causa.datos_generales.some((item) =>
+        item.includes("Delito o calificacion mencionada: robo agravado")
+      )
+    );
+    assert.equal(analysis.imputados[0].nombre, "Juan Perez");
+    assert.ok(analysis.imputados[0].documentos_mencionados.length > 0);
+    assert.ok(analysis.fechas_relevantes.some((date) => date.tipo === "audiencia"));
+    assert.ok(analysis.fechas_relevantes.some((date) => date.tipo === "vencimiento"));
+    assert.ok(analysis.categorias.includes("detencion_y_medidas"));
+    assert.ok(analysis.categorias.includes("personas_y_partes"));
+  });
 });
