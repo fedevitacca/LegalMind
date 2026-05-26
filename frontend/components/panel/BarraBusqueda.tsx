@@ -1,7 +1,7 @@
 "use client";
 
 export default function BarraBusqueda({
-  actionHref,
+  actionHref = "/nuevo",
   actionLabel = "Nuevo caso",
   actionOnClick,
   actionTone = "primary",
@@ -29,14 +29,14 @@ export default function BarraBusqueda({
           type="search"
         />
       </label>
-      {actionHref ? (
-        <a className={actionStyles} href={actionHref}>
-          {actionLabel}
-        </a>
-      ) : (
+      {actionOnClick ? (
         <button className={actionStyles} onClick={actionOnClick} type="button">
           {actionLabel}
         </button>
+      ) : (
+        <a className={actionStyles} href={actionHref}>
+          {actionLabel}
+        </a>
       )}
     </div>
   );

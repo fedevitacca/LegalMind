@@ -8,27 +8,9 @@ const recentCases = [
   {
     name: "Caso Gomez",
     detail: "Vence hoy",
-    href: "/casos/caso-gomez/agenda",
-    status: "Urgente",
-  },
-  {
-    name: "Caso Perez",
-    detail: "Audiencia en 6 dias",
-    href: "/casos/caso-perez/agenda",
-    status: "Proximo",
-  },
-  {
-    name: "Caso Rodriguez",
-    detail: "Resumen IA actualizado",
-    href: "/casos/caso-rodriguez/imputados",
-    status: "Activo",
-  },
-  {
-    name: "Caso Fernandez",
-    detail: "Documentacion pendiente",
     href: "/casos",
-    status: "Revision",
-  },
+    status: "Urgente",
+  }
 ];
 
 const todayDeadlines = [

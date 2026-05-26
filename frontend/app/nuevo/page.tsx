@@ -1,5 +1,5 @@
-import MarcoAplicacion from "../../../components/estructura/MarcoAplicacion";
-import FormularioNuevoCaso from "../../../components/casos/FormularioNuevoCaso";
+import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
+import FormularioNuevoCaso from "../../components/nuevo/FormularioNuevoCaso";
 
 const exampleFiles = [
   "Escrito de inicio.pdf",

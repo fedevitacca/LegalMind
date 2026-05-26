@@ -52,10 +52,12 @@ export const caseAreas: CaseArea[] = [
   {
     label: "Documentos",
     summary: "Escritos y archivos",
+    path: "documentos",
   },
   {
     label: "Agenda",
     summary: "Fechas del expediente",
+    path: "agenda",
   },
   {
     label: "Jurisprudencia",
@@ -68,18 +70,6 @@ export const sampleCases: CaseListItem[] = [
     name: "Caso Gomez",
     slug: "caso-gomez",
     caption: "Vence hoy",
-    areas: caseAreas,
-  },
-  {
-    name: "Caso Perez",
-    slug: "caso-perez",
-    caption: "Audiencia proxima",
-    areas: caseAreas,
-  },
-  {
-    name: "Caso Rodriguez",
-    slug: "caso-rodriguez",
-    caption: "En revision",
     areas: caseAreas,
   },
 ];

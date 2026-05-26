@@ -6,8 +6,8 @@ type Alert = {
 
 const shortcuts = [
   { label: "Analisis IA", href: "/analisis" },
-  { label: "Nuevo caso", href: "/casos/nuevo" },
-  { label: "Agenda", href: "#" },
+  { label: "Nuevo caso", href: "/nuevo" },
+  { label: "Agenda", href: "/agenda" },
 ];
 
 export default function PanelLateralInicio({ alerts }: { alerts: Alert[] }) {

@@ -3,36 +3,15 @@ import ListaCasos from "../../components/casos/ListaCasos";
 import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
 import { fetchCases } from "../../lib/legalmindApi";
 
-const caseAreas = [
-  {
-    label: "Imputados",
-    summary: "Fichas y comparaciones",
-    path: "imputados",
-  },
-  {
-    label: "Documentos",
-    summary: "Escritos y archivos",
-    path: "documentos",
-  },
-  {
-    label: "Agenda",
-    summary: "Fechas del expediente",
-    path: "agenda",
-  },
-  {
-    label: "Jurisprudencia",
-    summary: "Material de consulta",
-  },
-];
 export default async function CasesPage() {
-  const cases = await fetchCases();
+  const cases = (await fetchCases()).slice(0, 1);
 
   return (
     <MarcoAplicacion activeSection="Casos">
       <section className="h-full overflow-y-auto bg-[#F4F7F5] px-8 py-5 text-[#0F2044]">
         <div className="mx-auto flex max-w-6xl flex-col gap-6">
           <BarraBusqueda
-            actionHref="/casos/nuevo"
+            actionHref="/nuevo"
             actionLabel="Nuevo caso"
             placeholder="Buscar por causa, imputado o documento"
           />

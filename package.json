@@ -4,6 +4,9 @@
   "description": "instalaciones backend:\r cd backend\r npm init -y\r npm install express\r npm install -D nodemon",
   "main": "index.js",
   "scripts": {
+    "dev:frontend": "npm --prefix frontend run dev:stable",
+    "dev:frontend:lowmem": "npm --prefix frontend run dev:lowmem",
+    "dev:backend": "npm --prefix backend run dev",
     "test": "npm --prefix backend test",
     "build": "npm --prefix frontend run build",
     "lint": "npm --prefix frontend run lint"
