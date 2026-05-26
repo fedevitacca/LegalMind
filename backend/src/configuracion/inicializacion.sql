@@ -5,6 +5,13 @@ CREATE TABLE IF NOT EXISTS app_metadata (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS conexion_neon_prueba (
+  id SERIAL PRIMARY KEY,
+  mensaje TEXT NOT NULL,
+  backend VARCHAR(80) NOT NULL DEFAULT 'LegalMind',
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS causas (
   id SERIAL PRIMARY KEY,
   identificador VARCHAR(160),
@@ -155,3 +162,10 @@ INSERT INTO app_metadata (key, value)
 VALUES ('backend_initialized', 'true')
 ON CONFLICT (key) DO UPDATE
 SET value = EXCLUDED.value;
+
+INSERT INTO conexion_neon_prueba (id, mensaje, backend)
+VALUES (1, 'Conexion backend LegalMind -> Neon verificada', 'LegalMind')
+ON CONFLICT (id) DO UPDATE
+SET
+  mensaje = EXCLUDED.mensaje,
+  backend = EXCLUDED.backend;
