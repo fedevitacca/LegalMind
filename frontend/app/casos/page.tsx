@@ -11,10 +11,12 @@ const caseAreas = [
   {
     label: "Documentos",
     summary: "Escritos y archivos",
+    path: "documentos",
   },
   {
     label: "Agenda",
     summary: "Fechas del expediente",
+    path: "agenda",
   },
   {
     label: "Jurisprudencia",

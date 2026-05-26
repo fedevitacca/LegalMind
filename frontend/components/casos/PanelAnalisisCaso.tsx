@@ -2,8 +2,11 @@ export type AnalisisCaso = {
   datosClave: string[];
   documentosBase: string[];
   generado: string;
+  inconsistencias?: string[];
   observacion: string;
   resumen: string;
+  tituloDatosClave?: string;
+  tituloDocumentos?: string;
 };
 
 export default function PanelAnalisisCaso({
@@ -23,11 +26,20 @@ export default function PanelAnalisisCaso({
 
       <div className="mt-4 grid gap-3">
         <BloqueAnalisis titulo="Resumen" texto={analisis.resumen} />
-        <ListaAnalisis items={analisis.datosClave} titulo="Datos clave" />
+        <ListaAnalisis
+          items={analisis.datosClave}
+          titulo={analisis.tituloDatosClave ?? "Datos clave"}
+        />
         <ListaAnalisis
           items={analisis.documentosBase}
-          titulo="Archivos considerados"
+          titulo={analisis.tituloDocumentos ?? "Archivos considerados"}
         />
+        {analisis.inconsistencias ? (
+          <ListaAnalisis
+            items={analisis.inconsistencias}
+            titulo="Inconsistencias"
+          />
+        ) : null}
         <BloqueAnalisis titulo="Observacion" texto={analisis.observacion} />
       </div>
     </aside>

@@ -6,8 +6,8 @@ type CaseAreaItem = {
 
 const caseAreas: CaseAreaItem[] = [
   { href: "imputados", label: "Imputados", ready: true },
-  { href: "documentos", label: "Documentos" },
-  { href: "agenda", label: "Agenda" },
+  { href: "documentos", label: "Documentos", ready: true },
+  { href: "agenda", label: "Agenda", ready: true },
   { href: "jurisprudencia", label: "Jurisprudencia" },
 ];
 
