@@ -3,6 +3,7 @@ const cors = require("cors");
 
 const healthRoutes = require("./rutas/rutasSalud");
 const iaRoutes = require("./rutas/rutasIA");
+const caseRoutes = require("./rutas/rutasCasos");
 
 const app = express();
 
@@ -18,10 +19,23 @@ app.get("/", (req, res) => {
 
 app.use("/api/health", healthRoutes);
 app.use("/api/ia", iaRoutes);
+app.use("/api/casos", caseRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
     message: "Route not found",
+  });
+});
+
+app.use((error, req, res, next) => {
+  const statusCode = error.statusCode || 500;
+
+  res.status(statusCode).json({
+    error:
+      statusCode === 500
+        ? "Error interno del servidor."
+        : error.message,
+    details: statusCode === 500 ? error.message : undefined,
   });
 });
 

@@ -20,9 +20,11 @@ Actualmente puede:
 - Generar un resumen inicial.
 - Detectar tipo probable de documento.
 - Extraer identificador de causa o expediente.
+- Extraer datos generales como organo interviniente, caratula, delito o calificacion mencionada y victima/damnificado cuando surgen del texto.
 - Detectar posibles imputados mencionados de forma explicita.
+- Vincular imputados con datos asociados, hechos, imputaciones y documentos mencionados.
 - Extraer fechas en formatos comunes.
-- Marcar fechas que podrian requerir alerta.
+- Clasificar fechas como audiencia, vencimiento o fecha mencionada, y marcar las que podrian requerir alerta.
 - Clasificar contenido por categorias juridicas basicas.
 - Detectar hechos relevantes y actuaciones pendientes.
 - Analizar archivos TXT enviados como `multipart/form-data`.

@@ -59,9 +59,13 @@ const apiUrl = (
   process.env.NEXT_PUBLIC_LEGALMIND_API_URL || "http://localhost:5000"
 ).replace(/\/$/, "");
 
-const sampleText = `En el expte. nro 4567/26 se investiga el hecho ocurrido el 12/05/2026.
-El imputado Juan Perez fue citado a audiencia el 20 de mayo de 2026.
-Debera presentar documentacion antes del vencimiento del plazo.`;
+const sampleText = `Causa nro 9988/2026. Caratula: Perez Juan s/ robo agravado.
+Juzgado Federal N. 2, Secretaria Penal.
+Se investiga el hecho ocurrido el 03/04/2026 en perjuicio de la victima Laura Rios.
+El imputado Juan Perez fue detenido y se le atribuye el delito de robo agravado.
+Obra informe pericial y acta de allanamiento vinculados al imputado Juan Perez.
+Se fija audiencia de indagatoria para el 18 de abril de 2026.
+La defensa debera presentar documentacion hasta el 22/04/2026.`;
 
 const analysisModes: { label: string; value: AnalysisMode }[] = [
   { label: "Auto", value: "auto" },
@@ -341,6 +345,8 @@ function AnalysisResult({ analysis }: { analysis?: Analysis }) {
       </div>
 
       <div className="mt-5 grid gap-4">
+        <AnalysisInsights analysis={analysis} />
+
         <ResultBlock title="Resumen">
           <p className="text-sm font-medium leading-6 text-[#0F2044]/72">
             {analysis.resumen || "Sin resumen."}
@@ -381,8 +387,24 @@ function AnalysisResult({ analysis }: { analysis?: Analysis }) {
                 >
                   <h4 className="font-semibold">{defendant.nombre}</h4>
                   <TextList
+                    compact
+                    empty="Sin datos asociados."
+                    items={defendant.datos_asociados}
+                  />
+                  <TextList
+                    compact
                     empty="Sin imputaciones detectadas."
                     items={defendant.imputaciones}
+                  />
+                  <TextList
+                    compact
+                    empty="Sin hechos vinculados."
+                    items={defendant.hechos_vinculados}
+                  />
+                  <TextList
+                    compact
+                    empty="Sin documentos mencionados."
+                    items={defendant.documentos_mencionados}
                   />
                 </article>
               ))}
@@ -404,6 +426,9 @@ function AnalysisResult({ analysis }: { analysis?: Analysis }) {
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <h4 className="font-semibold">{date.fecha}</h4>
+                    <span className="rounded-full bg-[#F4F7F5] px-2 py-1 text-xs font-semibold">
+                      {date.tipo}
+                    </span>
                     {date.requiere_alerta ? (
                       <span className="rounded-full bg-[#A68147]/18 px-2 py-1 text-xs font-semibold">
                         alerta
@@ -474,13 +499,72 @@ function ResultBlock({
   );
 }
 
-function TextList({ empty, items }: { empty: string; items: string[] }) {
+function AnalysisInsights({ analysis }: { analysis: Analysis }) {
+  const alertDates = analysis.fechas_relevantes.filter(
+    (date) => date.requiere_alerta,
+  ).length;
+  const facts = analysis.causa.hechos_relevantes.length;
+
+  return (
+    <section className="grid gap-3 md:grid-cols-4">
+      <InsightCard label="Imputados" value={analysis.imputados.length} />
+      <InsightCard label="Fechas" value={analysis.fechas_relevantes.length} />
+      <InsightCard label="Alertas" value={alertDates} tone="alert" />
+      <InsightCard label="Hechos" value={facts} />
+    </section>
+  );
+}
+
+function InsightCard({
+  label,
+  tone = "default",
+  value,
+}: {
+  label: string;
+  tone?: "alert" | "default";
+  value: number;
+}) {
+  return (
+    <article
+      className={`rounded-lg px-4 py-3 ${
+        tone === "alert" ? "bg-[#A68147]/15" : "bg-[#F4F7F5]"
+      }`}
+    >
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#0F2044]/48">
+        {label}
+      </p>
+      <p className="mt-1 text-2xl font-semibold">{value}</p>
+    </article>
+  );
+}
+
+function TextList({
+  compact = false,
+  empty,
+  items,
+}: {
+  compact?: boolean;
+  empty: string;
+  items: string[];
+}) {
   if (!items.length) {
-    return <p className="text-sm font-medium text-[#0F2044]/58">{empty}</p>;
+    return (
+      <p
+        className={`font-medium text-[#0F2044]/58 ${
+          compact ? "mt-2 text-xs" : "text-sm"
+        }`}
+      >
+        {empty}
+      </p>
+    );
   }
 
   return (
-    <ul className="grid gap-1.5 text-sm font-medium leading-5 text-[#0F2044]/68">
+    <ul
+      className={`grid gap-1.5 font-medium leading-5 text-[#0F2044]/68 ${
+        compact ? "mt-2 text-xs" : "text-sm"
+      }`}
+    >
       {items.map((item) => (
         <li className="rounded-md bg-white px-3 py-2" key={item}>
           {item}

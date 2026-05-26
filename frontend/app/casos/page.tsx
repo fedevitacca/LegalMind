@@ -1,49 +1,11 @@
 import BarraBusqueda from "../../components/panel/BarraBusqueda";
 import ListaCasos from "../../components/casos/ListaCasos";
 import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
+import { fetchCases } from "../../lib/legalmindApi";
 
-const caseAreas = [
-  {
-    label: "Imputados",
-    summary: "Fichas y comparaciones",
-    path: "imputados",
-  },
-  {
-    label: "Documentos",
-    summary: "Escritos y archivos",
-  },
-  {
-    label: "Agenda",
-    summary: "Fechas del expediente",
-  },
-  {
-    label: "Jurisprudencia",
-    summary: "Material de consulta",
-  },
-];
+export default async function CasesPage() {
+  const cases = await fetchCases();
 
-const cases = [
-  {
-    name: "Caso Gomez",
-    slug: "caso-gomez",
-    caption: "Vence hoy",
-    areas: caseAreas,
-  },
-  {
-    name: "Caso Perez",
-    slug: "caso-perez",
-    caption: "Audiencia proxima",
-    areas: caseAreas,
-  },
-  {
-    name: "Caso Rodriguez",
-    slug: "caso-rodriguez",
-    caption: "En revision",
-    areas: caseAreas,
-  },
-];
-
-export default function CasesPage() {
   return (
     <MarcoAplicacion activeSection="Casos">
       <section className="h-full overflow-y-auto bg-[#F4F7F5] px-8 py-5 text-[#0F2044]">

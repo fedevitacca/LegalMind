@@ -1,4 +1,5 @@
 import MarcoAplicacion from "../../../components/estructura/MarcoAplicacion";
+import FormularioNuevoCaso from "../../../components/casos/FormularioNuevoCaso";
 
 const exampleFiles = [
   "Escrito de inicio.pdf",
@@ -23,54 +24,7 @@ export default function NewCasePage() {
           </header>
 
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-            <form className="rounded-lg border border-[#84A2BD]/35 bg-white p-5 shadow-[0_10px_28px_rgba(15,32,68,0.06)]">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Nombre del caso" placeholder="Caso Gomez" />
-                <Field label="Numero de expediente" placeholder="EXP-000123" />
-                <Field label="Juzgado o fiscalia" placeholder="Fiscalia N. 4" />
-                <Field label="Fecha importante" placeholder="dd/mm/aaaa" />
-              </div>
-
-              <label className="mt-4 block">
-                <span className="text-sm font-semibold">
-                  Observaciones iniciales
-                </span>
-                <textarea
-                  className="mt-2 min-h-32 w-full rounded-lg border border-[#84A2BD]/55 bg-[#F4F7F5] px-4 py-3 text-sm font-medium outline-none placeholder:text-[#0F2044]/38 focus:border-[#546FC0] focus:bg-white focus:ring-4 focus:ring-[#84A2BD]/20"
-                  placeholder="Datos que conviene tener presentes al abrir el caso."
-                />
-              </label>
-
-              <section className="mt-4 rounded-lg border border-[#84A2BD]/35 bg-[#F4F7F5] p-4">
-                <div className="flex items-start gap-3">
-                  <input
-                    className="mt-1 h-4 w-4 accent-[#546FC0]"
-                    defaultChecked
-                    id="analisis-ia-inicial"
-                    type="checkbox"
-                  />
-                  <label htmlFor="analisis-ia-inicial">
-                    <span className="block text-sm font-semibold">
-                      Generar resumen IA al crear el caso
-                    </span>
-                    <span className="mt-1 block text-sm font-medium leading-5 text-[#0F2044]/62">
-                      Si se elige esta opcion, el expediente va a mostrar un
-                      resumen fijo de IA cuando se consulten sus areas de
-                      trabajo, como Imputados.
-                    </span>
-                  </label>
-                </div>
-              </section>
-
-              <div className="mt-5 flex flex-wrap justify-end gap-3 border-t border-[#84A2BD]/28 pt-4">
-                <button className="rounded-full px-4 py-2 text-sm font-semibold text-[#0F2044] transition hover:bg-[#84A2BD]/20">
-                  Guardar borrador
-                </button>
-                <button className="rounded-full bg-[#546FC0] px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(84,111,192,0.22)] transition hover:bg-[#0F2044]">
-                  Crear caso
-                </button>
-              </div>
-            </form>
+            <FormularioNuevoCaso />
 
             <aside className="rounded-lg border border-[#84A2BD]/35 bg-white p-5 shadow-[0_10px_28px_rgba(15,32,68,0.06)]">
               <h2 className="text-xl font-semibold">Archivos iniciales</h2>
@@ -97,18 +51,5 @@ export default function NewCasePage() {
         </div>
       </section>
     </MarcoAplicacion>
-  );
-}
-
-function Field({ label, placeholder }: { label: string; placeholder: string }) {
-  return (
-    <label className="block">
-      <span className="text-sm font-semibold">{label}</span>
-      <input
-        className="mt-2 h-11 w-full rounded-lg border border-[#84A2BD]/55 bg-[#F4F7F5] px-4 text-sm font-medium outline-none placeholder:text-[#0F2044]/38 focus:border-[#546FC0] focus:bg-white focus:ring-4 focus:ring-[#84A2BD]/20"
-        placeholder={placeholder}
-        type="text"
-      />
-    </label>
   );
 }
