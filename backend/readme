@@ -14,7 +14,7 @@ Estructura principal:
 - backend/src/configuracion/inicializacion.sql: esquema inicial de base de datos.
 - backend/src/controladores: controladores HTTP.
 - backend/src/rutas: rutas de la API.
-- backend/src/models: espacio reservado para modelos futuros.
+- backend/src/modelos: consultas SQL y acceso a datos.
 
 Configuracion:
 1. Crear backend/.env tomando backend/.env.example como base.
@@ -38,6 +38,7 @@ Base de datos inicial:
 - `fechas_relevantes`: fechas y vencimientos extraidos o cargados para consultar y alertar.
 - `actuaciones`: tareas o actuaciones procesales pendientes, manuales o sugeridas por IA.
 - `app_metadata`: marca tecnica de inicializacion del backend.
+- `conexion_neon_prueba`: tabla simple para verificar visualmente la conexion con Neon.
 
 Relacion minima:
 ```text
@@ -51,5 +52,6 @@ Rutas de prueba:
 - GET http://localhost:5000/
 - GET http://localhost:5000/api/health
 - GET http://localhost:5000/api/health/db
+- GET http://localhost:5000/api/casos
 
 Frontend y backend se corren en terminales separadas.
