@@ -4,7 +4,7 @@ El frontend arranca con el dashboard como pantalla principal de LegalMind.
 
 ## Estado actual
 
-- Dashboard con resumen de casos, vencimientos y alertas.
+- Dashboard con casos recientes, alertas laterales y una mesa de trabajo para seguimiento; se quitaron los vencimientos centrales para evitar repetir informacion urgente/proxima y dejar mas espacio operativo.
 - Pantalla de Casos con buscador, acceso a Nuevo caso y una ficha de expediente de ejemplo para no sobrecargar la vista.
 - Pantalla de Analisis IA conectada al backend para probar texto y archivos TXT.
 - Subpantallas internas por caso: Imputados, Documentos y Agenda.
@@ -43,6 +43,7 @@ El frontend arranca con el dashboard como pantalla principal de LegalMind.
 Desde la raiz del proyecto:
 
 - `npm run dev:frontend`: levanta el frontend con Webpack.
+- `npm run dev:frontend:lowmem`: levanta el frontend con Webpack y limite de memoria para evitar consumo excesivo en Windows.
 - `npm run dev:frontend:lowmem`: levanta el frontend con Webpack y limite de memoria para evitar consumo excesivo en Windows.
 - `npm run dev:backend`: levanta el backend.
 

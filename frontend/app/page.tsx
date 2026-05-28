@@ -1,8 +1,8 @@
 import BarraBusqueda from "../components/panel/BarraBusqueda";
 import CasosRecientes from "../components/panel/CasosRecientes";
 import MarcoAplicacion from "../components/estructura/MarcoAplicacion";
+import MesaTrabajo from "../components/panel/MesaTrabajo";
 import PanelLateralInicio from "../components/panel/PanelLateralInicio";
-import PanelVencimientos from "../components/panel/PanelVencimientos";
 
 const recentCases = [
   {
@@ -11,19 +11,6 @@ const recentCases = [
     href: "/casos",
     status: "Urgente",
   }
-];
-
-const todayDeadlines = [
-  "Presentar escrito en Caso Gomez",
-  "Controlar documentacion de Caso Fernandez",
-  "Confirmar turno con fiscalia",
-];
-
-const weekDeadlines = [
-  "Audiencia preliminar de Caso Perez",
-  "Actualizar ficha de imputados en Caso Rodriguez",
-  "Revisar jurisprudencia enviada por IA",
-  "Preparar cedula de notificacion",
 ];
 
 const alerts = [
@@ -39,6 +26,27 @@ const alerts = [
   },
 ];
 
+const workItems = [
+  {
+    label: "Proximo paso",
+    title: "Revisar escrito del Caso Gomez",
+    detail: "Dejar listo el documento antes de cargarlo como presentacion.",
+    href: "/casos/caso-gomez/documentos",
+  },
+  {
+    label: "Agenda",
+    title: "Ordenar eventos de la semana",
+    detail: "Ver tareas y vencimientos en la agenda general editable.",
+    href: "/agenda",
+  },
+  {
+    label: "IA",
+    title: "Analizar texto pendiente",
+    detail: "Usar el analizador para resumir o extraer datos relevantes.",
+    href: "/analisis",
+  },
+];
+
 export default function Home() {
   return (
     <MarcoAplicacion activeSection="Dashboard">
@@ -46,15 +54,11 @@ export default function Home() {
         <section className="h-full overflow-y-auto px-8 py-5">
           <div className="mx-auto flex max-w-5xl flex-col gap-6">
             <BarraBusqueda />
-            <CasosRecientes cases={recentCases} />
 
-            <section className="grid gap-4 lg:grid-cols-2">
-              <PanelVencimientos title="Vencimientos hoy" items={todayDeadlines} />
-              <PanelVencimientos
-                title="Vencimientos esta semana"
-                items={weekDeadlines}
-              />
-            </section>
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.7fr)]">
+              <CasosRecientes cases={recentCases} />
+              <MesaTrabajo items={workItems} />
+            </div>
           </div>
         </section>
 
