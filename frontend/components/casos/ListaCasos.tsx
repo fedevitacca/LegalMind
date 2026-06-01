@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 type CaseArea = {
   label: string;
   path?: string;
@@ -26,24 +28,24 @@ export default function ListaCasos({ cases }: { cases: LegalCase[] }) {
               </p>
               <h2 className="mt-1 text-2xl font-semibold">{legalCase.name}</h2>
             </div>
-            <a
+            <Link
               className="rounded-full bg-[#F4F7F5] px-4 py-2 text-sm font-semibold text-[#0F2044] transition hover:bg-[#84A2BD]/25"
-              href={`/casos/${legalCase.slug}/imputados`}
+              href={`/casos/${legalCase.slug}`}
             >
               Abrir caso
-            </a>
+            </Link>
           </div>
 
           <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {legalCase.areas.map((area) =>
               area.path ? (
-                <a
+                <Link
                   className="rounded-lg border border-transparent bg-[#F4F7F5] px-4 py-3 transition hover:border-[#84A2BD]/55 hover:bg-white"
                   href={`/casos/${legalCase.slug}/${area.path}`}
                   key={area.label}
                 >
                   <AreaCopy area={area} />
-                </a>
+                </Link>
               ) : (
                 <div
                   className="rounded-lg bg-[#F4F7F5] px-4 py-3 text-[#0F2044]/72"

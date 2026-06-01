@@ -62,6 +62,7 @@ export const caseAreas: CaseArea[] = [
   {
     label: "Jurisprudencia",
     summary: "Material de consulta",
+    path: "jurisprudencia",
   },
 ];
 
@@ -215,43 +216,38 @@ export const sampleCaseDetails: Record<string, CaseDetail> = {
   },
 };
 
-export const apiUrl = (
-  process.env.NEXT_PUBLIC_LEGALMIND_API_URL || "http://localhost:5000"
-).replace(/\/$/, "");
-
 export async function fetchCases(): Promise<CaseListItem[]> {
-  try {
-    const response = await fetch(`${apiUrl}/api/casos`, {
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      throw new Error("No se pudieron cargar los casos.");
-    }
-
-    const body = (await response.json()) as { cases: CaseListItem[] };
-    return body.cases.map((legalCase) => ({
-      ...legalCase,
-      areas: caseAreas,
-    }));
-  } catch {
-    return sampleCases;
-  }
+  return sampleCases;
 }
 
 export async function fetchCaseDetail(idCaso: string): Promise<CaseDetail> {
-  try {
-    const response = await fetch(`${apiUrl}/api/casos/${idCaso}`, {
-      cache: "no-store",
-    });
+  return sampleCaseDetails[idCaso] ?? buildSampleCaseFromSlug(idCaso);
+}
 
-    if (!response.ok) {
-      throw new Error("No se pudo cargar el caso.");
-    }
+function buildSampleCaseFromSlug(slug: string): CaseDetail {
+  const name = slug
+    .split("-")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 
-    const body = (await response.json()) as { case: CaseDetail };
-    return body.case;
-  } catch {
-    return sampleCaseDetails[idCaso] ?? sampleCaseDetails["caso-gomez"];
-  }
+  return {
+    analisis: {
+      datosClave: [
+        "Caso creado como ejemplo de trabajo frontend.",
+        "La informacion real se conectara cuando el backend de casos entre en alcance.",
+      ],
+      documentosBase: [],
+      generado: "desde la pantalla de nuevo caso",
+      observacion:
+        "Esta ficha permite recorrer el flujo sin depender de la base de datos.",
+      resumen:
+        "El expediente queda disponible para navegar sus secciones y validar la experiencia de uso.",
+    },
+    deadline: "Sin vencimiento cargado",
+    defendants: [],
+    name: name || "Caso nuevo",
+    slug,
+    status: "Borrador",
+  };
 }

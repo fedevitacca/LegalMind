@@ -2,15 +2,12 @@ export default function Encabezado() {
   return (
     <header className="flex h-[64px] shrink-0 items-center justify-between border-b border-[#84A2BD]/35 bg-white/95 px-6 shadow-[0_1px_12px_rgba(15,32,68,0.06)]">
       <div className="flex items-center gap-3">
-        <div className="brand-font grid h-9 w-9 place-items-center rounded-lg bg-[#0F2044] text-lg font-semibold text-white shadow-sm">
-          LM
+        <div className="brand-font text-lg font-semibold text-[#0F2044]">
+          logo
         </div>
         <div>
           <p className="brand-font text-2xl font-semibold leading-none">
             LegalMind
-          </p>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#546FC0]">
-            Panel legal
           </p>
         </div>
       </div>

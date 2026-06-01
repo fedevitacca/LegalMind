@@ -6,12 +6,15 @@ El frontend arranca con el dashboard como pantalla principal de LegalMind.
 
 - Dashboard con casos recientes, alertas laterales y una mesa de trabajo para seguimiento; se quitaron los vencimientos centrales para evitar repetir informacion urgente/proxima y dejar mas espacio operativo.
 - Pantalla de Casos con buscador, acceso a Nuevo caso y una ficha de expediente de ejemplo para no sobrecargar la vista.
+- Al abrir un caso se llega primero a una home del expediente. Lo hicimos para que la abogada tenga una vista rapida antes de entrar al detalle.
+- La home del caso muestra accesos con preview a Imputados, Documentos, Agenda y Jurisprudencia.
 - Pantalla de Analisis IA conectada al backend para probar texto y archivos TXT.
-- Subpantallas internas por caso: Imputados, Documentos y Agenda.
+- Subpantallas internas por caso: Imputados, Documentos, Agenda y Jurisprudencia.
+- Jurisprudencia sigue el esquema propuesto por UX/UI: buscador, fallos relacionados, detalle del fallo y panel de Analisis IA.
 - Agenda general en `/agenda` con proximas entregas/trabajos, calendario mensual editable, carga de eventos desplegable y eliminacion con doble confirmacion.
 - Agenda dentro del caso como vista de consulta, con acceso para editar desde la Agenda general.
-- Navegacion interna del caso para cambiar entre Imputados, Documentos y Agenda sin volver al Dashboard.
-- Acceso de regreso desde las subpantallas internas hacia la home de Casos.
+- Navegacion interna del caso para cambiar entre Resumen, Imputados, Documentos, Agenda y Jurisprudencia sin volver al Dashboard.
+- Desde una subpantalla se vuelve al resumen del caso; desde el resumen se puede volver a la home de Casos.
 - Dashboard con casos recientes navegables hacia sus pantallas de caso.
 - Menu lateral con las secciones principales: Dashboard, Casos, Nuevo caso, Analisis IA, Agenda y Configuracion.
 - Header y footer compartidos para todas las pantallas.
@@ -22,11 +25,13 @@ El frontend arranca con el dashboard como pantalla principal de LegalMind.
 
 - `/`: dashboard principal.
 - `/casos`: home de casos y expedientes.
+- `/casos/[idCaso]`: home del caso seleccionado con preview de sus secciones.
 - `/nuevo`: herramienta para crear un nuevo caso.
 - `/agenda`: agenda general editable con eventos de todos los casos.
 - `/casos/[idCaso]/imputados`: imputados vinculados al caso.
 - `/casos/[idCaso]/documentos`: documentos cargados o asociados al caso.
 - `/casos/[idCaso]/agenda`: fechas clave, audiencias y vencimientos del caso en modo consulta.
+- `/casos/[idCaso]/jurisprudencia`: fallos relacionados, detalle y lectura asistida por IA.
 - `/analisis`: pantalla de prueba de Analisis IA.
 
 ## Estructura funcional

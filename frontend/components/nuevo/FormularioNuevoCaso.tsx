@@ -1,16 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiUrl } from "../../lib/legalmindApi";
-
-type CreateCaseResponse = {
-  case?: {
-    slug: string;
-  };
-  details?: string;
-  error?: string;
-};
 
 export default function FormularioNuevoCaso() {
   const router = useRouter();
@@ -23,7 +15,7 @@ export default function FormularioNuevoCaso() {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -33,36 +25,7 @@ export default function FormularioNuevoCaso() {
     }
 
     setIsSaving(true);
-
-    try {
-      const response = await fetch(`${apiUrl}/api/casos`, {
-        body: JSON.stringify({
-          caratula,
-          descripcion: buildDescription({ descripcion, fechaImportante, juzgado }),
-          identificador,
-          imputados: imputados
-            .split(",")
-            .map((name) => name.trim())
-            .filter(Boolean),
-        }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        method: "POST",
-      });
-      const body = (await response.json()) as CreateCaseResponse;
-
-      if (!response.ok || !body.case) {
-        throw new Error([body.error, body.details].filter(Boolean).join(" "));
-      }
-
-      router.push(`/casos/${body.case.slug}/imputados`);
-      router.refresh();
-    } catch (saveError) {
-      setError(getErrorMessage(saveError));
-    } finally {
-      setIsSaving(false);
-    }
+    router.push(`/casos/${buildSlug(caratula)}`);
   }
 
   return (
@@ -145,12 +108,12 @@ export default function FormularioNuevoCaso() {
       ) : null}
 
       <div className="mt-5 flex flex-wrap justify-end gap-3 border-t border-[#84A2BD]/28 pt-4">
-        <a
+        <Link
           className="rounded-full px-4 py-2 text-sm font-semibold text-[#0F2044] transition hover:bg-[#84A2BD]/20"
           href="/casos"
         >
           Cancelar
-        </a>
+        </Link>
         <button
           className="rounded-full bg-[#546FC0] px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(84,111,192,0.22)] transition hover:bg-[#0F2044] disabled:cursor-wait disabled:bg-[#84A2BD]"
           disabled={isSaving}
@@ -191,26 +154,14 @@ function Field({
   );
 }
 
-function buildDescription({
-  descripcion,
-  fechaImportante,
-  juzgado,
-}: {
-  descripcion: string;
-  fechaImportante: string;
-  juzgado: string;
-}) {
-  return [
-    juzgado.trim() ? `Juzgado o fiscalia: ${juzgado.trim()}` : "",
-    fechaImportante.trim() ? `Fecha importante: ${fechaImportante.trim()}` : "",
-    descripcion.trim(),
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error && error.message
-    ? error.message
-    : "No se pudo crear el caso.";
+function buildSlug(value: string) {
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "caso-nuevo"
+  );
 }

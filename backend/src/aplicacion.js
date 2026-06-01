@@ -1,13 +1,21 @@
 const express = require("express");
-const cors = require("cors");
 
 const healthRoutes = require("./rutas/rutasSalud");
 const iaRoutes = require("./rutas/rutasIA");
-const caseRoutes = require("./rutas/rutasCasos");
 
 const app = express();
 
-app.use(cors());
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  return next();
+});
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -19,7 +27,6 @@ app.get("/", (req, res) => {
 
 app.use("/api/health", healthRoutes);
 app.use("/api/ia", iaRoutes);
-app.use("/api/casos", caseRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
