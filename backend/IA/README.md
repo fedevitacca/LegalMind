@@ -4,13 +4,129 @@ Este modulo contiene la primera version del procesamiento inteligente de textos 
 
 ## Objetivo
 
-Recibir texto de documentos penales y devolver informacion estructurada para que el sistema pueda mostrarla, guardarla y permitir busquedas o filtros.
+Recibir documentos penales y transformarlos en informacion estructurada para que el sistema pueda mostrarla, guardarla, relacionarla y permitir consultas avanzadas sobre una causa.
 
 La IA debe asistir al abogado, no reemplazar su criterio profesional.
 
+El objetivo final del modulo es evolucionar hacia un sistema capaz de comprender expedientes completos, detectar relaciones entre documentos, generar alertas y facilitar el analisis estrategico de causas penales.
+
+## Arquitectura General
+
+La arquitectura de IA de LegalMind esta compuesta por distintas capas que se incorporaran progresivamente durante el desarrollo del proyecto.
+
+### 1. Extraccion Juridica Estructurada
+
+Primera capa del sistema.
+
+Su funcion es transformar documentos juridicos en informacion organizada.
+
+Actualmente permite:
+
+- Detectar tipo de documento.
+- Extraer expediente o causa.
+- Detectar organos intervinientes.
+- Detectar imputados.
+- Detectar victimas o damnificados.
+- Extraer fechas relevantes.
+- Detectar hechos relevantes.
+- Detectar actuaciones pendientes.
+- Generar resumenes iniciales.
+
+Toda la informacion se devuelve mediante un esquema JSON estable para que pueda ser usada por backend, frontend y base de datos.
+
+### 2. Base de Datos Juridica
+
+La informacion extraida no debe almacenarse solamente como texto plano.
+
+Cada documento analizado puede generar entidades juridicas que posteriormente se vinculen entre si.
+
+Ejemplos:
+
+- Causas.
+- Imputados.
+- Victimas.
+- Delitos.
+- Organismos.
+- Documentos.
+- Fechas.
+- Actuaciones.
+
+Esto permite construir una representacion estructurada del expediente.
+
+### 3. Grafo de Conocimiento de la Causa
+
+Una vez almacenadas las entidades, el sistema podra relacionarlas automaticamente.
+
+Ejemplos:
+
+- Imputado asociado a una causa.
+- Delito asociado a un imputado.
+- Documento asociado a una actuacion.
+- Organismo asociado a una resolucion.
+
+El objetivo es transformar documentos aislados en conocimiento juridico conectado.
+
+### 4. Motor RAG Juridico
+
+Los documentos seran divididos en fragmentos y convertidos en embeddings.
+
+Estos embeddings se almacenaran en una base vectorial para implementar Retrieval Augmented Generation, tambien llamado RAG.
+
+Esto permitira:
+
+- Busquedas semanticas.
+- Consultas sobre expedientes completos.
+- Recuperacion contextual de informacion.
+- Respuestas fundamentadas en documentos cargados.
+
+Ejemplos de consultas futuras:
+
+- Que pruebas existen contra un imputado.
+- Donde se menciona determinada persona.
+- Que actuaciones siguen pendientes.
+- Cuales son las fechas importantes de la causa.
+
+### 5. Analizador Estrategico
+
+El sistema buscara identificar informacion que pueda requerir revision profesional.
+
+Ejemplos:
+
+- Posibles inconsistencias entre documentos.
+- Fechas contradictorias.
+- Diferencias entre declaraciones.
+- Actuaciones pendientes.
+- Posibles omisiones documentales.
+
+La IA no emitira conclusiones juridicas. Su funcion sera asistir al abogado detectando informacion potencialmente relevante.
+
+### 6. Sistema Inteligente de Alertas
+
+A partir de la informacion detectada, el sistema podra generar alertas automaticas.
+
+Ejemplos:
+
+- Audiencias proximas.
+- Vencimientos procesales.
+- Actuaciones pendientes.
+- Fechas relevantes.
+- Riesgos de omision.
+
+### 7. Scoring de Confianza
+
+Cada resultado generado por la IA podra incluir un nivel de confianza.
+
+Objetivos:
+
+- Priorizar revisiones.
+- Detectar informacion ambigua.
+- Identificar resultados que requieren validacion humana.
+
 ## Version Actual
 
-La version actual tiene dos motores:
+La version actual implementa la primera capa del sistema: extraccion juridica estructurada.
+
+Tiene dos motores:
 
 - `analizadorOpenAI.js`: usa la API de OpenAI con Structured Outputs para devolver JSON estable.
 - `analizador.js`: analizador local por reglas, usado como respaldo si falta la API key o falla la llamada externa.
@@ -29,6 +145,55 @@ Actualmente puede:
 - Detectar hechos relevantes y actuaciones pendientes.
 - Analizar archivos TXT enviados como `multipart/form-data`.
 - Devolver una salida JSON estable para integrar con frontend y base de datos.
+
+## Pipeline Inicial
+
+El flujo inicial de IA queda definido asi:
+
+```text
+Documento o texto juridico
+  -> lectura o carga del contenido
+  -> analisis con IA
+  -> extraccion de informacion importante
+  -> organizacion en una estructura fija
+  -> visualizacion en LegalMind
+  -> revision manual del abogado
+```
+
+Este pipeline es la base para evolucionar desde el analisis de textos individuales hacia el analisis de expedientes completos.
+
+## Roadmap de Desarrollo IA
+
+### Sprint 2
+
+- Extraccion juridica estructurada.
+- Analizador OpenAI.
+- Analizador local de respaldo.
+- Contrato JSON estable.
+- Integracion inicial con frontend.
+
+### Sprint 3
+
+- Persistencia en PostgreSQL.
+- Relacion entre documentos y causas.
+- Soporte para PDF.
+- Soporte para DOCX.
+- Mejora de extractores juridicos.
+
+### Sprint 4
+
+- Embeddings.
+- Base vectorial.
+- Implementacion de RAG.
+- Busqueda semantica por expediente.
+
+### Sprint 5
+
+- Grafo de conocimiento.
+- Deteccion de inconsistencias.
+- Constructor de cronologias.
+- Sistema inteligente de alertas.
+- Scoring de confianza.
 
 ## Endpoint Disponible
 
@@ -125,16 +290,6 @@ Por defecto apunta al backend local en `http://localhost:5000`. Si el backend us
 NEXT_PUBLIC_LEGALMIND_API_URL=http://localhost:5000
 ```
 
-## Mejor Forma de Continuar
-
-1. Mantener este formato JSON como contrato fijo entre IA, backend y frontend.
-2. Probar el modulo con textos reales o simulados de expedientes.
-3. Ajustar reglas locales para detectar mejor imputados, fechas, hechos y actuaciones.
-4. Guardar los resultados en PostgreSQL cuando el backend tenga modelos definidos.
-5. Comparar la salida de reglas locales contra la salida de OpenAI para validar calidad.
-6. Agregar extractores de archivos PDF y DOCX sobre el flujo de carga ya iniciado con TXT.
-7. Guardar los resultados en PostgreSQL asociados a causa, documento e imputados.
-
 ## Configuracion de OpenAI
 
 Crear un archivo `.env` dentro de `backend/` tomando como base `.env.example`:
@@ -184,4 +339,6 @@ Si luego aparece `429 You exceeded your current quota`, la conexion con OpenAI y
 - `analizadorOpenAI.js`: integracion con OpenAI.
 - `esquema.js`: schema JSON que la respuesta de IA debe respetar.
 - `instruccionesBase.js`: prompt base del proyecto para la integracion con modelos de lenguaje.
+- `textFile.js`: lectura y validacion inicial de archivos TXT.
 - `README.md`: documentacion de la parte de IA.
+

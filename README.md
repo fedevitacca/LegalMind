@@ -67,6 +67,8 @@ El modulo de IA debe poder:
 - Asistir en comparaciones entre imputaciones o partes del expediente.
 - Facilitar una primera lectura mas rapida y ordenada del caso.
 
+La arquitectura prevista del modulo IA evoluciona por capas: extraccion juridica estructurada, base de datos juridica, grafo de conocimiento de la causa, motor RAG juridico por expediente, analizador estrategico, alertas inteligentes y scoring de confianza. La documentacion completa de esta arquitectura esta en `backend/IA/README.md`.
+
 ## Prompt Base del Proyecto
 
 Usar este prompt como contexto general para tareas de IA dentro de LegalMind:
