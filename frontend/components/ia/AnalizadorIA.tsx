@@ -2,7 +2,6 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-type AnalysisMode = "auto" | "local" | "openai";
 type InputMode = "text" | "file";
 
 type AnalysisDate = {
@@ -18,6 +17,61 @@ type Defendant = {
   hechos_vinculados: string[];
   imputaciones: string[];
   nombre: string;
+};
+
+type LegalEntity = {
+  caratula?: string | null;
+  descripcion?: string;
+  detalle?: string;
+  fecha?: string;
+  identificador?: string | null;
+  nombre?: string;
+  tipo?: string;
+};
+
+type GraphRelation = {
+  destino: string;
+  evidencia: string;
+  origen: string;
+  tipo: string;
+};
+
+type RagFragment = {
+  categorias: string[];
+  entidades: string[];
+  id: string;
+  orden: number;
+  relevancia_base: number;
+  texto: string;
+  tokens_estimados: number;
+};
+
+type StrategicPoint = {
+  descripcion: string;
+  prioridad: string;
+  tipo: string;
+};
+
+type StrategicInconsistency = {
+  descripcion: string;
+  evidencia: string[];
+  severidad: string;
+  tipo: string;
+};
+
+type StrategicTimelineItem = {
+  evento: string;
+  fecha: string;
+  fecha_normalizada: string;
+  tipo: string;
+};
+
+type SmartAlert = {
+  descripcion: string;
+  fecha: string | null;
+  prioridad: string;
+  tipo: string;
+  titulo: string;
 };
 
 type SourceFile = {
@@ -38,11 +92,46 @@ type Analysis = {
   nivel_confianza: string;
   observaciones: string[];
   resumen: string;
+  alertas: SmartAlert[];
+  analisis_estrategico: {
+    cronologia: StrategicTimelineItem[];
+    inconsistencias: StrategicInconsistency[];
+    omisiones_posibles: string[];
+    puntos_revision: StrategicPoint[];
+  };
+  entidades_juridicas: {
+    actuaciones: LegalEntity[];
+    causas: LegalEntity[];
+    delitos: LegalEntity[];
+    documentos: LegalEntity[];
+    fechas: LegalEntity[];
+    imputados: LegalEntity[];
+    organismos: LegalEntity[];
+    victimas: LegalEntity[];
+  };
+  grafo_conocimiento: {
+    nodos: LegalEntity[];
+    relaciones: GraphRelation[];
+  };
+  rag_juridico: {
+    consultas_sugeridas: string[];
+    fragmentos: RagFragment[];
+    indice_vectorial: {
+      dimensiones: number;
+      fragmentos_indexados: number;
+      persistencia: string;
+      proveedor: string;
+    };
+  };
+  scoring_confianza: {
+    factores: string[];
+    nivel: string;
+    puntaje: number;
+    requiere_revision: boolean;
+  };
   tipo_documento: string;
   _metadata: {
-    engine: "local" | "openai";
-    fallback_reason?: string;
-    fallback_used: boolean;
+    engine: "openai";
     model?: string;
     source_file?: SourceFile;
   };
@@ -67,17 +156,10 @@ Obra informe pericial y acta de allanamiento vinculados al imputado Juan Perez.
 Se fija audiencia de indagatoria para el 18 de abril de 2026.
 La defensa debera presentar documentacion hasta el 22/04/2026.`;
 
-const analysisModes: { label: string; value: AnalysisMode }[] = [
-  { label: "Auto", value: "auto" },
-  { label: "Local", value: "local" },
-  { label: "OpenAI", value: "openai" },
-];
-
 export default function AnalizadorIA() {
   const [health, setHealth] = useState<Health>();
   const [healthError, setHealthError] = useState("");
   const [inputMode, setInputMode] = useState<InputMode>("text");
-  const [mode, setMode] = useState<AnalysisMode>("auto");
   const [text, setText] = useState(sampleText);
   const [file, setFile] = useState<File>();
   const [analysis, setAnalysis] = useState<Analysis>();
@@ -131,8 +213,8 @@ export default function AnalizadorIA() {
     try {
       const response =
         inputMode === "file"
-          ? await analyzeFile(file as File, mode)
-          : await analyzeText(text, mode);
+          ? await analyzeFile(file as File)
+          : await analyzeText(text);
       const body = (await response.json()) as Analysis & {
         details?: string;
         error?: string;
@@ -180,20 +262,6 @@ export default function AnalizadorIA() {
                 label="Archivo TXT"
                 onClick={() => setInputMode("file")}
               />
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend className="text-sm font-semibold">Motor</legend>
-            <div className="mt-2 grid grid-cols-3 rounded-lg bg-[#F4F7F5] p-1">
-              {analysisModes.map((analysisMode) => (
-                <ModeButton
-                  active={mode === analysisMode.value}
-                  key={analysisMode.value}
-                  label={analysisMode.label}
-                  onClick={() => setMode(analysisMode.value)}
-                />
-              ))}
             </div>
           </fieldset>
         </div>
@@ -279,7 +347,7 @@ function HealthBadge({ error, health }: { error: string; health?: Health }) {
 
   return (
     <span className="rounded-full bg-[#84A2BD]/22 px-3 py-1.5 text-xs font-semibold">
-      {health.openai_configured ? health.openai_model : "Motor local listo"}
+      {health.openai_configured ? health.openai_model : "Configurar OpenAI"}
     </span>
   );
 }
@@ -336,11 +404,6 @@ function AnalysisResult({ analysis }: { analysis?: Analysis }) {
           <span className="rounded-full bg-[#84A2BD]/22 px-3 py-1.5">
             {analysis._metadata.engine}
           </span>
-          {analysis._metadata.fallback_used ? (
-            <span className="rounded-full bg-[#A68147]/18 px-3 py-1.5">
-              fallback
-            </span>
-          ) : null}
         </div>
       </div>
 
@@ -448,6 +511,101 @@ function AnalysisResult({ analysis }: { analysis?: Analysis }) {
           )}
         </ResultBlock>
 
+        <ResultBlock title="Alertas inteligentes">
+          {analysis.alertas.length ? (
+            <div className="grid gap-2">
+              {analysis.alertas.map((alert) => (
+                <article
+                  className="rounded-lg bg-white px-3 py-2"
+                  key={`${alert.tipo}-${alert.descripcion}`}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="font-semibold">{alert.titulo}</h4>
+                    <span className="rounded-full bg-[#F4F7F5] px-2 py-1 text-xs font-semibold">
+                      {alert.prioridad}
+                    </span>
+                    {alert.fecha ? (
+                      <span className="rounded-full bg-[#84A2BD]/22 px-2 py-1 text-xs font-semibold">
+                        {alert.fecha}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-sm font-medium leading-5 text-[#0F2044]/62">
+                    {alert.descripcion}
+                  </p>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm font-medium text-[#0F2044]/58">
+              Sin alertas generadas.
+            </p>
+          )}
+        </ResultBlock>
+
+        <ResultBlock title="Analisis estrategico">
+          <TextList
+            empty="Sin puntos de revision."
+            items={analysis.analisis_estrategico.puntos_revision.map(
+              (point) => `${point.prioridad}: ${point.descripcion}`,
+            )}
+          />
+          <TextList
+            empty="Sin inconsistencias detectadas."
+            items={analysis.analisis_estrategico.inconsistencias.map(
+              (item) => `${item.severidad}: ${item.descripcion}`,
+            )}
+          />
+          <TextList
+            empty="Sin omisiones posibles."
+            items={analysis.analisis_estrategico.omisiones_posibles}
+          />
+          <TextList
+            empty="Sin cronologia normalizada."
+            items={analysis.analisis_estrategico.cronologia.map(
+              (item) => `${item.fecha_normalizada}: ${item.evento}`,
+            )}
+          />
+        </ResultBlock>
+
+        <ResultBlock title="Base juridica y grafo">
+          <TextList
+            empty="Sin entidades estructuradas."
+            items={buildEntitySummary(analysis)}
+          />
+          <TextList
+            empty="Sin relaciones detectadas."
+            items={analysis.grafo_conocimiento.relaciones
+              .slice(0, 8)
+              .map(
+                (relation) =>
+                  `${relation.tipo}: ${relation.origen} -> ${relation.destino}`,
+              )}
+          />
+        </ResultBlock>
+
+        <ResultBlock title="RAG juridico">
+          <p className="text-sm font-medium leading-6 text-[#0F2044]/62">
+            {analysis.rag_juridico.indice_vectorial.proveedor} |{" "}
+            {analysis.rag_juridico.indice_vectorial.fragmentos_indexados}{" "}
+            fragmentos | {analysis.rag_juridico.indice_vectorial.dimensiones}{" "}
+            dimensiones
+          </p>
+          <TextList
+            empty="Sin fragmentos recuperables."
+            items={analysis.rag_juridico.fragmentos
+              .slice(0, 5)
+              .map(
+                (fragment) =>
+                  `${fragment.id}: ${fragment.texto.slice(0, 180)}`,
+              )}
+          />
+          <TextList
+            empty="Sin consultas sugeridas."
+            items={analysis.rag_juridico.consultas_sugeridas}
+          />
+        </ResultBlock>
+
         <ResultBlock title="Actuaciones y observaciones">
           <TextList
             empty="Sin actuaciones pendientes."
@@ -456,19 +614,12 @@ function AnalysisResult({ analysis }: { analysis?: Analysis }) {
           <TextList empty="Sin observaciones." items={analysis.observaciones} />
         </ResultBlock>
 
-        {analysis._metadata.source_file || analysis._metadata.fallback_reason ? (
+        {analysis._metadata.source_file ? (
           <ResultBlock title="Metadata">
-            {analysis._metadata.source_file ? (
-              <p className="text-sm font-medium text-[#0F2044]/62">
-                {analysis._metadata.source_file.name} |{" "}
-                {formatBytes(analysis._metadata.source_file.size_bytes)}
-              </p>
-            ) : null}
-            {analysis._metadata.fallback_reason ? (
-              <p className="text-sm font-medium leading-5 text-[#0F2044]/62">
-                {analysis._metadata.fallback_reason}
-              </p>
-            ) : null}
+            <p className="text-sm font-medium text-[#0F2044]/62">
+              {analysis._metadata.source_file.name} |{" "}
+              {formatBytes(analysis._metadata.source_file.size_bytes)}
+            </p>
           </ResultBlock>
         ) : null}
       </div>
@@ -509,8 +660,8 @@ function AnalysisInsights({ analysis }: { analysis: Analysis }) {
     <section className="grid gap-3 md:grid-cols-4">
       <InsightCard label="Imputados" value={analysis.imputados.length} />
       <InsightCard label="Fechas" value={analysis.fechas_relevantes.length} />
-      <InsightCard label="Alertas" value={alertDates} tone="alert" />
-      <InsightCard label="Hechos" value={facts} />
+      <InsightCard label="Alertas" value={analysis.alertas.length || alertDates} tone="alert" />
+      <InsightCard label="Grafo" value={analysis.grafo_conocimiento.relaciones.length || facts} />
     </section>
   );
 }
@@ -574,9 +725,24 @@ function TextList({
   );
 }
 
-function analyzeText(text: string, mode: AnalysisMode) {
+function buildEntitySummary(analysis: Analysis) {
+  const entities = analysis.entidades_juridicas;
+
+  return [
+    `Causas: ${entities.causas.length}`,
+    `Imputados: ${entities.imputados.length}`,
+    `Victimas/damnificados: ${entities.victimas.length}`,
+    `Delitos: ${entities.delitos.length}`,
+    `Organismos: ${entities.organismos.length}`,
+    `Documentos: ${entities.documentos.length}`,
+    `Fechas: ${entities.fechas.length}`,
+    `Actuaciones: ${entities.actuaciones.length}`,
+  ];
+}
+
+function analyzeText(text: string) {
   return fetch(`${apiUrl}/api/ia/analyze`, {
-    body: JSON.stringify({ mode, text }),
+    body: JSON.stringify({ text }),
     headers: {
       "Content-Type": "application/json",
     },
@@ -584,10 +750,9 @@ function analyzeText(text: string, mode: AnalysisMode) {
   });
 }
 
-function analyzeFile(file: File, mode: AnalysisMode) {
+function analyzeFile(file: File) {
   const formData = new FormData();
   formData.set("file", file);
-  formData.set("mode", mode);
 
   return fetch(`${apiUrl}/api/ia/analyze-file`, {
     body: formData,

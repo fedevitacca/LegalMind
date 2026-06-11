@@ -1,6 +1,5 @@
 require("dotenv").config({ quiet: true });
 
-const { analyzeLegalText } = require("./analizador");
 const { analyzeLegalTextWithOpenAI } = require("./analizadorOpenAI");
 
 const sampleText = `
@@ -10,15 +9,7 @@ Debera presentar documentacion antes del vencimiento del plazo.
 `;
 
 async function main() {
-  const mode = process.argv[2] || "local";
-
-  if (mode === "openai") {
-    const result = await analyzeLegalTextWithOpenAI(sampleText);
-    console.log(JSON.stringify(result, null, 2));
-    return;
-  }
-
-  const result = analyzeLegalText(sampleText);
+  const result = await analyzeLegalTextWithOpenAI(sampleText);
   console.log(JSON.stringify(result, null, 2));
 }
 

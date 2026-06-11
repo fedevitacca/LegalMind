@@ -1,21 +1,13 @@
 {
   "name": "backend",
   "version": "1.0.0",
-<<<<<<< Updated upstream
   "main": "src/servidor.js",
   "scripts": {
     "dev": "nodemon src/servidor.js",
     "start": "node src/servidor.js",
     "test": "node --test",
     "test:ia": "node --test IA/analyzer.test.js IA/textFile.test.js",
-    "test:ia:local": "node IA/probarAnalisis.js local",
-    "test:ia:openai": "node IA/probarAnalisis.js openai"
-=======
-  "main": "server.js",
-  "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
->>>>>>> Stashed changes
+    "test:ia:openai": "node IA/probarAnalisis.js"
   },
   "keywords": [],
   "author": "",

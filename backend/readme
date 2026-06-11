@@ -15,14 +15,14 @@ Estructura principal:
 - backend/src/servidor.js: levanta el servidor.
 - backend/src/aplicacion.js: configura Express, middlewares y rutas.
 - backend/src/rutas/rutasIA.js: expone el analisis de texto y archivos TXT.
-- backend/IA: contiene reglas locales, conexion opcional con OpenAI y tests.
+- backend/IA: contiene la conexion obligatoria con OpenAI, schemas y tests.
 - backend/src/rutas/rutasSalud.js: permite revisar que la API y Neon respondan.
 - backend/src/sql/tablas: deja scripts nuevos o pendientes para Neon.
 
 Configuracion:
 1. Crear backend/.env tomando backend/.env.example como base.
 2. Completar PORT, DATABASE_URL y OPENAI_API_KEY si se quiere usar OpenAI.
-3. Si no hay OPENAI_API_KEY, la IA usa el analisis local como fallback.
+3. Completar OPENAI_API_KEY. Sin esa variable, las rutas de IA no analizan documentos.
 
 Comandos backend:
 ```bash
