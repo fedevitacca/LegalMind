@@ -38,3 +38,35 @@ a,
 button {
   cursor: pointer;
 }
+
+@keyframes login-news-scroll {
+  0%,
+  10% {
+    transform: translateY(0);
+  }
+  25%,
+  35% {
+    transform: translateY(-12.5%);
+  }
+  50%,
+  60% {
+    transform: translateY(-25%);
+  }
+  75%,
+  85% {
+    transform: translateY(-37.5%);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+.login-news-feed {
+  animation: login-news-scroll 18s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-news-feed {
+    animation: none;
+  }
+}
