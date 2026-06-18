@@ -4,6 +4,7 @@ const { betterAuthRoute } = require("./rutas/rutasAuth");
 const healthRoutes = require("./rutas/rutasSalud");
 const iaRoutes = require("./rutas/rutasIA");
 const caseRoutes = require("./rutas/rutasCasos");
+const userRoutes = require("./rutas/rutasUsuarios");
 
 const app = express();
 const allowedOrigins = new Set(
@@ -20,7 +21,7 @@ app.use((req, res, next) => {
 
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS");
 
   if (req.method === "OPTIONS") {
     return res.sendStatus(204);
@@ -44,6 +45,7 @@ app.get("/", (req, res) => {
 app.use("/api/health", healthRoutes);
 app.use("/api/ia", iaRoutes);
 app.use("/api/casos", caseRoutes);
+app.use("/api/usuarios", userRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

@@ -4,7 +4,7 @@ const sideItems = [
   { label: "Nuevo caso", href: "/nuevo" },
   { label: "Analisis IA", href: "/analisis" },
   { label: "Agenda", href: "/agenda" },
-  { label: "Configuracion", href: "#" },
+  { label: "Configuracion", href: "/configuracion" },
 ];
 
 export default function BarraLateral({
