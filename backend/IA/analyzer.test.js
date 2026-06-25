@@ -1,91 +1,268 @@
 const assert = require("node:assert/strict");
-const { describe, it } = require("node:test");
+const { afterEach, describe, it } = require("node:test");
 
-const { analyzeLegalText } = require("./analizador");
-const { legalMindAnalysisSchema } = require("./esquema");
+const {
+  analyzeLegalTextWithOpenAI,
+  resetOpenAIClientFactoryForTests,
+  searchLegalTextWithOpenAI,
+  setOpenAIClientFactoryForTests,
+} = require("./analizadorOpenAI");
+const {
+  legalMindAnalysisSchema,
+  legalMindRagSearchSchema,
+} = require("./esquema");
 
-function assertAnalysisContract(analysis) {
-  for (const key of legalMindAnalysisSchema.required) {
-    assert.ok(Object.hasOwn(analysis, key), `Falta el campo ${key}.`);
-  }
-
-  assert.equal(typeof analysis.resumen, "string");
-  assert.equal(typeof analysis.tipo_documento, "string");
-  assert.deepEqual(Object.keys(analysis.causa).sort(), ["datos_generales", "hechos_relevantes"]);
-  assert.ok(Array.isArray(analysis.causa.datos_generales));
-  assert.ok(Array.isArray(analysis.causa.hechos_relevantes));
-  assert.ok(Array.isArray(analysis.imputados));
-  assert.ok(Array.isArray(analysis.fechas_relevantes));
-  assert.ok(Array.isArray(analysis.categorias));
-  assert.ok(Array.isArray(analysis.actuaciones_pendientes));
-  assert.ok(Array.isArray(analysis.observaciones));
-  assert.ok(legalMindAnalysisSchema.properties.nivel_confianza.enum.includes(analysis.nivel_confianza));
-}
-
-describe("analyzeLegalText", () => {
-  it("mantiene el contrato para texto vacio", () => {
-    const analysis = analyzeLegalText("");
-
-    assertAnalysisContract(analysis);
-    assert.equal(analysis.tipo_documento, "desconocido");
-    assert.equal(analysis.nivel_confianza, "bajo");
+describe("OpenAI legal analyzer", () => {
+  afterEach(() => {
+    resetOpenAIClientFactoryForTests();
   });
 
-  it("extrae causa, imputado, fechas y actuaciones de un escrito simulado", () => {
-    const analysis = analyzeLegalText(`
-      En el expte. nro 4567/26 se investiga el hecho ocurrido el 12/05/2026.
-      El imputado Juan Perez fue citado a audiencia el 20 de mayo de 2026.
-      Debera presentar documentacion antes del vencimiento del plazo.
-    `);
+  it("analiza texto usando OpenAI Structured Outputs", async () => {
+    let request;
+    setOpenAIClientFactoryForTests(() => ({
+      responses: {
+        create: async (payload) => {
+          request = payload;
+          return { output_text: JSON.stringify(createSampleAnalysis()) };
+        },
+      },
+    }));
 
-    assertAnalysisContract(analysis);
-    assert.match(analysis.causa.datos_generales[0], /4567\/26/);
-    assert.equal(analysis.imputados[0].nombre, "Juan Perez");
-    assert.deepEqual(
-      analysis.fechas_relevantes.map(({ fecha }) => fecha),
-      ["12/05/2026", "20 de mayo de 2026"]
+    const analysis = await analyzeLegalTextWithOpenAI(
+      "En el legajo nro 789/26 la imputada Ana Gomez fue citada a audiencia."
     );
-    assert.ok(analysis.fechas_relevantes.some(({ requiere_alerta }) => requiere_alerta));
-    assert.ok(analysis.categorias.includes("imputacion"));
-    assert.ok(analysis.categorias.includes("fechas_y_vencimientos"));
-    assert.ok(analysis.actuaciones_pendientes.length > 0);
+
+    assert.equal(request.text.format.type, "json_schema");
+    assert.equal(request.text.format.name, "legalmind_analysis");
+    assert.deepEqual(request.text.format.schema.required, legalMindAnalysisSchema.required);
+    assert.equal(analysis.entidades_juridicas.imputados[0].nombre, "Ana Gomez");
+    assert.equal(analysis.rag_juridico.indice_vectorial.proveedor, "openai_responses_api");
   });
 
-  it("detecta identificadores de legajo", () => {
-    const analysis = analyzeLegalText("Legajo N° MPF-123/2026. Se acompana informe pericial.");
+  it("ejecuta busqueda RAG usando OpenAI Structured Outputs", async () => {
+    let request;
+    setOpenAIClientFactoryForTests(() => ({
+      responses: {
+        create: async (payload) => {
+          request = payload;
+          return { output_text: JSON.stringify(createSampleRagSearch()) };
+        },
+      },
+    }));
 
-    assertAnalysisContract(analysis);
-    assert.deepEqual(analysis.causa.datos_generales, [
-      "Identificador de causa o expediente: MPF-123/2026",
-    ]);
+    const result = await searchLegalTextWithOpenAI({
+      query: "audiencia Ana Gomez",
+      text: "La imputada Ana Gomez fue citada a audiencia el 21/05/2026.",
+    });
+
+    assert.equal(request.text.format.type, "json_schema");
+    assert.equal(request.text.format.name, "legalmind_rag_search");
+    assert.deepEqual(request.text.format.schema.required, legalMindRagSearchSchema.required);
+    assert.equal(result.results[0].id, "fragmento-1");
+    assert.match(result.answer.respuesta, /audiencia/i);
   });
-  it("extrae datos generales penales y clasifica fechas utiles", () => {
-    const analysis = analyzeLegalText(`
-      Causa nro 9988/2026. Caratula: Perez Juan s/ robo agravado.
-      Juzgado Federal N. 2, Secretaria Penal.
-      Se investiga el hecho ocurrido el 03/04/2026 en perjuicio de la victima Laura Rios.
-      El imputado Juan Perez fue detenido y se le atribuye el delito de robo agravado.
-      Obra informe pericial y acta de allanamiento vinculados al imputado Juan Perez.
-      Se fija audiencia de indagatoria para el 18 de abril de 2026.
-      La defensa debera presentar documentacion hasta el 22/04/2026.
-    `);
 
-    assertAnalysisContract(analysis);
-    assert.ok(
-      analysis.causa.datos_generales.some((item) =>
-        item.includes("Organo interviniente: Federal N")
-      )
+  it("exige OPENAI_API_KEY cuando no hay cliente de test", async () => {
+    const previousApiKey = process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+
+    await assert.rejects(
+      () => analyzeLegalTextWithOpenAI("Texto juridico."),
+      /OPENAI_API_KEY/
     );
-    assert.ok(
-      analysis.causa.datos_generales.some((item) =>
-        item.includes("Delito o calificacion mencionada: robo agravado")
-      )
-    );
-    assert.equal(analysis.imputados[0].nombre, "Juan Perez");
-    assert.ok(analysis.imputados[0].documentos_mencionados.length > 0);
-    assert.ok(analysis.fechas_relevantes.some((date) => date.tipo === "audiencia"));
-    assert.ok(analysis.fechas_relevantes.some((date) => date.tipo === "vencimiento"));
-    assert.ok(analysis.categorias.includes("detencion_y_medidas"));
-    assert.ok(analysis.categorias.includes("personas_y_partes"));
+
+    if (previousApiKey) {
+      process.env.OPENAI_API_KEY = previousApiKey;
+    }
   });
 });
+
+function createSampleAnalysis() {
+  return {
+    resumen: "Se detecto una citacion a audiencia vinculada a Ana Gomez.",
+    tipo_documento: "actuacion_de_audiencia",
+    causa: {
+      datos_generales: ["Identificador de causa o expediente: 789/26"],
+      hechos_relevantes: [
+        "La imputada Ana Gomez fue citada a audiencia el 21/05/2026.",
+      ],
+    },
+    imputados: [
+      {
+        nombre: "Ana Gomez",
+        datos_asociados: [
+          "La imputada Ana Gomez fue citada a audiencia el 21/05/2026.",
+        ],
+        imputaciones: [],
+        hechos_vinculados: [],
+        documentos_mencionados: [],
+      },
+    ],
+    fechas_relevantes: [
+      {
+        fecha: "21/05/2026",
+        fecha_normalizada: "2026-05-21",
+        evento: "Audiencia de Ana Gomez.",
+        tipo: "audiencia",
+        requiere_alerta: true,
+      },
+    ],
+    categorias: ["imputacion", "actuacion_procesal"],
+    actuaciones_pendientes: ["Preparar audiencia de Ana Gomez."],
+    observaciones: ["Resultado generado con OpenAI y sujeto a revision profesional."],
+    nivel_confianza: "medio",
+    entidades_juridicas: {
+      causas: [
+        {
+          id: "causa:789-26",
+          identificador: "789/26",
+          caratula: null,
+          organos_intervinientes: [],
+          datos_generales: ["Identificador de causa o expediente: 789/26"],
+        },
+      ],
+      imputados: [
+        {
+          id: "imputado:ana-gomez",
+          nombre: "Ana Gomez",
+          rol: "imputado",
+          datos_asociados: [
+            "La imputada Ana Gomez fue citada a audiencia el 21/05/2026.",
+          ],
+          imputaciones: [],
+          hechos_vinculados: [],
+          documentos_mencionados: [],
+        },
+      ],
+      victimas: [],
+      delitos: [],
+      organismos: [],
+      documentos: [],
+      fechas: [
+        {
+          id: "fecha:audiencia-2026-05-21",
+          fecha: "21/05/2026",
+          fecha_normalizada: "2026-05-21",
+          evento: "Audiencia de Ana Gomez.",
+          tipo: "audiencia",
+          requiere_alerta: true,
+        },
+      ],
+      actuaciones: [
+        {
+          id: "actuacion:preparar-audiencia",
+          descripcion: "Preparar audiencia de Ana Gomez.",
+          estado: "pendiente",
+          fuente: "ia",
+        },
+      ],
+    },
+    grafo_conocimiento: {
+      nodos: [
+        {
+          id: "causa:789-26",
+          tipo: "causa",
+          etiqueta: "789/26",
+          datos: { referencia: "789/26" },
+        },
+      ],
+      relaciones: [
+        {
+          id: "relacion:ana-gomez-causa",
+          origen: "imputado:ana-gomez",
+          destino: "causa:789-26",
+          tipo: "imputado_asociado_a_causa",
+          evidencia: "La imputada Ana Gomez fue citada a audiencia.",
+        },
+      ],
+    },
+    rag_juridico: {
+      fragmentos: [
+        {
+          id: "fragmento-1",
+          orden: 1,
+          texto: "La imputada Ana Gomez fue citada a audiencia el 21/05/2026.",
+          caracteres_inicio: 0,
+          caracteres_fin: 65,
+          categorias: ["actuacion_procesal"],
+          entidades: ["Ana Gomez"],
+          embedding_id: "openai:fragmento-1",
+          tokens_estimados: 10,
+          relevancia_base: 0.9,
+        },
+      ],
+      indice_vectorial: {
+        proveedor: "openai_responses_api",
+        dimensiones: 0,
+        fragmentos_indexados: 1,
+        persistencia: "respuesta_http_y_postgresql_opcional",
+      },
+      consultas_sugeridas: ["Que actuaciones siguen pendientes?"],
+    },
+    analisis_estrategico: {
+      inconsistencias: [],
+      puntos_revision: [
+        {
+          tipo: "actuacion_pendiente",
+          descripcion: "Preparar audiencia de Ana Gomez.",
+          prioridad: "alta",
+        },
+      ],
+      cronologia: [
+        {
+          fecha: "21/05/2026",
+          fecha_normalizada: "2026-05-21",
+          tipo: "audiencia",
+          evento: "Audiencia de Ana Gomez.",
+        },
+      ],
+      omisiones_posibles: [],
+    },
+    alertas: [
+      {
+        id: "alerta:audiencia-ana-gomez",
+        tipo: "audiencia_proxima",
+        titulo: "Audiencia detectada",
+        descripcion: "Audiencia de Ana Gomez.",
+        fecha: "21/05/2026",
+        fecha_normalizada: "2026-05-21",
+        prioridad: "alta",
+        fuente: "openai",
+        estado: "pendiente",
+      },
+    ],
+    scoring_confianza: {
+      puntaje: 70,
+      nivel: "medio",
+      factores: ["Identificador e imputada detectados."],
+      requiere_revision: true,
+    },
+  };
+}
+
+function createSampleRagSearch() {
+  return {
+    query: "audiencia Ana Gomez",
+    results: [
+      {
+        id: "fragmento-1",
+        orden: 1,
+        texto: "La imputada Ana Gomez fue citada a audiencia el 21/05/2026.",
+        categorias: ["actuacion_procesal"],
+        entidades: ["Ana Gomez"],
+        score: 0.92,
+      },
+    ],
+    answer: {
+      respuesta: "El texto menciona una audiencia vinculada a Ana Gomez.",
+      fundamentos: [
+        {
+          fragmento_id: "fragmento-1",
+          texto: "La imputada Ana Gomez fue citada a audiencia el 21/05/2026.",
+          score: 0.92,
+        },
+      ],
+      requiere_revision: true,
+    },
+  };
+}

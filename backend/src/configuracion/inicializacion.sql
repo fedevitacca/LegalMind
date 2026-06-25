@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS analisis_ia (
   resultado_json JSONB NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   CONSTRAINT analisis_ia_motor_check
-    CHECK (motor IN ('openai', 'local')),
+    CHECK (motor = 'openai'),
   CONSTRAINT analisis_ia_nivel_confianza_check
     CHECK (
       nivel_confianza IS NULL
@@ -157,6 +157,104 @@ CREATE INDEX IF NOT EXISTS actuaciones_estado_idx
 CREATE INDEX IF NOT EXISTS actuaciones_vence_el_idx
   ON actuaciones (vence_el)
   WHERE vence_el IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS entidades_juridicas (
+  id SERIAL PRIMARY KEY,
+  causa_id INTEGER REFERENCES causas(id) ON DELETE CASCADE,
+  documento_id INTEGER REFERENCES documentos(id) ON DELETE CASCADE,
+  analisis_ia_id INTEGER REFERENCES analisis_ia(id) ON DELETE SET NULL,
+  entidad_id VARCHAR(180) NOT NULL,
+  tipo VARCHAR(80) NOT NULL,
+  etiqueta TEXT NOT NULL,
+  datos_json JSONB NOT NULL DEFAULT '{}'::JSONB,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS entidades_juridicas_causa_id_idx
+  ON entidades_juridicas (causa_id);
+
+CREATE INDEX IF NOT EXISTS entidades_juridicas_tipo_idx
+  ON entidades_juridicas (tipo);
+
+CREATE INDEX IF NOT EXISTS entidades_juridicas_datos_json_gin_idx
+  ON entidades_juridicas USING GIN (datos_json);
+
+CREATE TABLE IF NOT EXISTS relaciones_juridicas (
+  id SERIAL PRIMARY KEY,
+  causa_id INTEGER REFERENCES causas(id) ON DELETE CASCADE,
+  documento_id INTEGER REFERENCES documentos(id) ON DELETE CASCADE,
+  analisis_ia_id INTEGER REFERENCES analisis_ia(id) ON DELETE SET NULL,
+  relacion_id VARCHAR(220) NOT NULL,
+  origen VARCHAR(180) NOT NULL,
+  destino VARCHAR(180) NOT NULL,
+  tipo VARCHAR(120) NOT NULL,
+  evidencia TEXT,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS relaciones_juridicas_causa_id_idx
+  ON relaciones_juridicas (causa_id);
+
+CREATE INDEX IF NOT EXISTS relaciones_juridicas_tipo_idx
+  ON relaciones_juridicas (tipo);
+
+CREATE TABLE IF NOT EXISTS fragmentos_rag (
+  id SERIAL PRIMARY KEY,
+  causa_id INTEGER REFERENCES causas(id) ON DELETE CASCADE,
+  documento_id INTEGER REFERENCES documentos(id) ON DELETE CASCADE,
+  analisis_ia_id INTEGER REFERENCES analisis_ia(id) ON DELETE SET NULL,
+  fragmento_id VARCHAR(120) NOT NULL,
+  orden INTEGER NOT NULL,
+  texto TEXT NOT NULL,
+  embedding_id VARCHAR(160),
+  embedding JSONB,
+  metadata_json JSONB NOT NULL DEFAULT '{}'::JSONB,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS fragmentos_rag_causa_id_idx
+  ON fragmentos_rag (causa_id);
+
+CREATE INDEX IF NOT EXISTS fragmentos_rag_documento_id_idx
+  ON fragmentos_rag (documento_id);
+
+CREATE INDEX IF NOT EXISTS fragmentos_rag_metadata_json_gin_idx
+  ON fragmentos_rag USING GIN (metadata_json);
+
+CREATE TABLE IF NOT EXISTS alertas_ia (
+  id SERIAL PRIMARY KEY,
+  causa_id INTEGER REFERENCES causas(id) ON DELETE CASCADE,
+  documento_id INTEGER REFERENCES documentos(id) ON DELETE CASCADE,
+  analisis_ia_id INTEGER REFERENCES analisis_ia(id) ON DELETE SET NULL,
+  alerta_id VARCHAR(220) NOT NULL,
+  tipo VARCHAR(100) NOT NULL,
+  titulo TEXT NOT NULL,
+  descripcion TEXT NOT NULL,
+  fecha DATE,
+  prioridad VARCHAR(40) NOT NULL,
+  estado VARCHAR(40) NOT NULL DEFAULT 'pendiente',
+  fuente VARCHAR(80) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  CONSTRAINT alertas_ia_prioridad_check
+    CHECK (prioridad IN ('alta', 'media', 'baja')),
+  CONSTRAINT alertas_ia_estado_check
+    CHECK (estado IN ('pendiente', 'revisada', 'descartada'))
+);
+
+CREATE INDEX IF NOT EXISTS alertas_ia_causa_id_idx
+  ON alertas_ia (causa_id);
+
+CREATE INDEX IF NOT EXISTS alertas_ia_fecha_idx
+  ON alertas_ia (fecha)
+  WHERE fecha IS NOT NULL;
+
+ALTER TABLE analisis_ia
+  DROP CONSTRAINT IF EXISTS analisis_ia_motor_check;
+
+ALTER TABLE analisis_ia
+  ADD CONSTRAINT analisis_ia_motor_check
+  CHECK (motor = 'openai');
 
 INSERT INTO app_metadata (key, value)
 VALUES ('backend_initialized', 'true')
