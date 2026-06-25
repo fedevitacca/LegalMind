@@ -207,7 +207,9 @@ Body:
 ```json
 {
   "text": "Texto juridico a analizar...",
-  "mode": "auto"
+  "mode": "auto",
+  "persist": false,
+  "case_id": 1
 }
 ```
 
@@ -216,6 +218,11 @@ Modos:
 - `auto`: intenta usar OpenAI y si falla usa el analizador local.
 - `openai`: usa solo OpenAI y devuelve error si no puede.
 - `local`: usa solo el analizador local por reglas.
+
+Campos opcionales:
+
+- `persist`: si es `true`, guarda documento, analisis, fechas y actuaciones en PostgreSQL.
+- `case_id` o `causa_id`: vincula el analisis con una causa existente.
 
 Respuesta:
 
@@ -261,6 +268,8 @@ Campos del formulario:
 
 - `file`: archivo `.txt` con texto juridico. Limite actual: 5 MB.
 - `mode`: `auto`, `openai` o `local`. Si no se envia, usa `auto`.
+- `persist`: `true` o `false`.
+- `case_id` o `causa_id`: causa asociada.
 
 Ejemplo:
 
@@ -279,6 +288,52 @@ GET /api/ia/health
 ```
 
 Esta ruta informa si OpenAI esta configurado y que modelo usara el backend.
+
+Para consultar documentos guardados de una causa:
+
+```http
+GET /api/ia/cases/:caseId/documents
+```
+
+Para realizar una consulta RAG local sobre documentos persistidos:
+
+```http
+POST /api/ia/rag/query
+```
+
+Body:
+
+```json
+{
+  "case_id": 1,
+  "question": "Que audiencia esta pendiente?",
+  "top_k": 5
+}
+```
+
+Este RAG local recupera fragmentos por similitud textual y genera una respuesta extractiva sin llamar a APIs externas.
+
+## Dataset Externo
+
+El Sprint 2 reemplaza el dataset sintetico inicial por una integracion con MultiEURLEX:
+
+```text
+backend/IA/dataset
+```
+
+Incluye:
+
+- `prepararMultiEurlex.js`: importador/adaptador del dataset.
+- `fuente_multieurlex.json`: metadatos de la fuente.
+- `README.md`: instrucciones de uso.
+
+Preparar una muestra en CSV:
+
+```bash
+npm run dataset:ia
+```
+
+MultiEURLEX contiene textos legales reales en varios idiomas, incluido espanol, y etiquetas tematicas EuroVoc. Sirve como base para entrenar modelos propios de clasificacion legal en los siguientes sprints, especialmente Random Forest y otros clasificadores clasicos.
 
 ## Prueba desde Frontend
 
@@ -341,4 +396,3 @@ Si luego aparece `429 You exceeded your current quota`, la conexion con OpenAI y
 - `instruccionesBase.js`: prompt base del proyecto para la integracion con modelos de lenguaje.
 - `textFile.js`: lectura y validacion inicial de archivos TXT.
 - `README.md`: documentacion de la parte de IA.
-

@@ -8,6 +8,14 @@ const {
   extractTextFromTxtFile,
   isTxtFile,
 } = require("../../IA/textFile");
+const {
+  buildExtractiveAnswer,
+  retrieveRelevantChunks,
+} = require("../../IA/ragLocal");
+const {
+  listDocumentsForCase,
+  saveAnalysisResult,
+} = require("../modelos/repositorioIA");
 
 const router = express.Router();
 const uploadTextFile = multer({
@@ -43,7 +51,10 @@ router.post("/analyze", async (req, res) => {
     });
   }
 
-  return sendAnalysisResponse(res, text, mode);
+  return sendAnalysisResponse(res, text, mode, {
+    causaId: parseOptionalPositiveInteger(req.body.causa_id || req.body.case_id),
+    persist: parseBoolean(req.body.persist),
+  });
 });
 
 router.post("/analyze-file", (req, res) => {
@@ -62,7 +73,11 @@ router.post("/analyze-file", (req, res) => {
         size_bytes: req.file.size,
       };
 
-      return sendAnalysisResponse(res, text, req.body.mode || "auto", sourceFile);
+      return sendAnalysisResponse(res, text, req.body.mode || "auto", {
+        causaId: parseOptionalPositiveInteger(req.body.causa_id || req.body.case_id),
+        persist: parseBoolean(req.body.persist),
+        sourceFile,
+      });
     } catch (error) {
       return res.status(400).json({
         error: error.message,
@@ -71,7 +86,54 @@ router.post("/analyze-file", (req, res) => {
   });
 });
 
-async function sendAnalysisResponse(res, text, mode, sourceFile) {
+router.get("/cases/:caseId/documents", async (req, res, next) => {
+  try {
+    const caseId = parseRequiredPositiveInteger(req.params.caseId);
+    const documents = await listDocumentsForCase(caseId);
+
+    return res.json({
+      documents: documents.map((document) => ({
+        id: document.id,
+        name: document.nombre_archivo,
+        type: document.tipo_archivo,
+        mime_type: document.mime_type,
+        size_bytes: document.tamano_bytes,
+        status: document.estado_procesamiento,
+        created_at: document.created_at,
+      })),
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post("/rag/query", async (req, res, next) => {
+  try {
+    const caseId = parseRequiredPositiveInteger(req.body.causa_id || req.body.case_id);
+    const question = String(req.body.question || "").trim();
+
+    if (!question) {
+      return res.status(400).json({
+        error: "El campo 'question' es obligatorio.",
+      });
+    }
+
+    const documents = await listDocumentsForCase(caseId);
+    const chunks = retrieveRelevantChunks(documents, question, Number(req.body.top_k) || 5);
+    const answer = buildExtractiveAnswer(question, chunks);
+
+    return res.json({
+      ...answer,
+      case_id: caseId,
+      retrieved_chunks: chunks,
+      engine: "local_rag",
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+async function sendAnalysisResponse(res, text, mode, options = {}) {
   if (!["auto", "openai", "local"].includes(mode)) {
     return res.status(400).json({
       error: "El campo 'mode' debe ser 'auto', 'openai' o 'local'.",
@@ -79,28 +141,32 @@ async function sendAnalysisResponse(res, text, mode, sourceFile) {
   }
 
   if (mode === "local") {
-    return res.json({
-      ...analyzeLegalText(text),
-      _metadata: {
-        engine: "local",
-        fallback_used: false,
-        ...buildSourceFileMetadata(sourceFile),
-      },
-    });
+    const analysis = analyzeLegalText(text);
+    const metadata = {
+      engine: "local",
+      fallback_used: false,
+      ...buildSourceFileMetadata(options.sourceFile),
+    };
+
+    return sendPersistablePayload(res, {
+      ...analysis,
+      _metadata: metadata,
+    }, text, options);
   }
 
   try {
     const analysis = await analyzeLegalTextWithOpenAI(text);
+    const metadata = {
+      engine: "openai",
+      model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
+      fallback_used: false,
+      ...buildSourceFileMetadata(options.sourceFile),
+    };
 
-    return res.json({
+    return sendPersistablePayload(res, {
       ...analysis,
-      _metadata: {
-        engine: "openai",
-        model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
-        fallback_used: false,
-        ...buildSourceFileMetadata(sourceFile),
-      },
-    });
+      _metadata: metadata,
+    }, text, options);
   } catch (error) {
     if (mode === "openai") {
       return res.status(500).json({
@@ -109,16 +175,53 @@ async function sendAnalysisResponse(res, text, mode, sourceFile) {
       });
     }
 
+    const analysis = analyzeLegalText(text);
+    const metadata = {
+      engine: "local",
+      fallback_used: true,
+      fallback_reason: error.message,
+      ...buildSourceFileMetadata(options.sourceFile),
+    };
+
+    return sendPersistablePayload(res, {
+      ...analysis,
+      _metadata: metadata,
+    }, text, options);
+  }
+}
+
+async function sendPersistablePayload(res, payload, text, options) {
+  if (!options.persist) {
+    return res.json(payload);
+  }
+
+  try {
+    const persistence = await saveAnalysisResult({
+      analysis: stripMetadata(payload),
+      causaId: options.causaId,
+      metadata: payload._metadata,
+      sourceFile: options.sourceFile,
+      text,
+    });
+
     return res.json({
-      ...analyzeLegalText(text),
+      ...payload,
       _metadata: {
-        engine: "local",
-        fallback_used: true,
-        fallback_reason: error.message,
-        ...buildSourceFileMetadata(sourceFile),
+        ...payload._metadata,
+        persistence,
       },
     });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      error: "No se pudo guardar el analisis.",
+      details: error.message,
+    });
   }
+}
+
+function stripMetadata(payload) {
+  const { _metadata, ...analysis } = payload;
+  return analysis;
 }
 
 function buildSourceFileMetadata(sourceFile) {
@@ -131,6 +234,30 @@ function getUploadErrorMessage(error) {
   }
 
   return error.message;
+}
+
+function parseBoolean(value) {
+  return value === true || value === "true" || value === "1";
+}
+
+function parseOptionalPositiveInteger(value) {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  return parseRequiredPositiveInteger(value);
+}
+
+function parseRequiredPositiveInteger(value) {
+  const number = Number(value);
+
+  if (!Number.isInteger(number) || number <= 0) {
+    const error = new Error("El id de causa debe ser numerico.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return number;
 }
 
 module.exports = router;

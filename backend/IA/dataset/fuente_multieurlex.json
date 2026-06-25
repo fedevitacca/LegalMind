@@ -1,0 +1,19 @@
+{
+  "name": "MultiEURLEX",
+  "description": "Dataset legal multilingue para clasificacion multi-etiqueta de documentos juridicos.",
+  "paper": "https://arxiv.org/abs/2109.00904",
+  "default_huggingface_dataset": "coastalcph/multi_eurlex",
+  "default_language_config": "es",
+  "task": "Clasificacion tematica de textos legales en espanol usando etiquetas EuroVoc.",
+  "why_selected": [
+    "Es un corpus juridico real, no sintetico.",
+    "Incluye espanol.",
+    "Tiene etiquetas tematicas ya curadas.",
+    "Sirve para entrenar y evaluar modelos clasicos de machine learning."
+  ],
+  "legalmind_adaptation": [
+    "Se usa para clasificacion tematica inicial.",
+    "No reemplaza un dataset penal argentino propio.",
+    "Puede complementarse con etiquetas internas de LegalMind en sprints posteriores."
+  ]
+}

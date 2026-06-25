@@ -128,59 +128,82 @@ Siempre que generes una salida, devolvela en una estructura facil de guardar y m
 
 ## Planificacion por Sprints
 
-### Sprint 1 - Investigacion, base tecnica y primeras pruebas
+La planificacion fue reestructurada despues del Sprint 1 para que la parte de IA no dependa solamente de prompts o APIs externas. La primera etapa cierra integraciones con API/RAG y luego el foco pasa a datasets juridicos reales, machine learning, evaluacion y adaptacion al dominio penal argentino.
 
-Objetivo: entender el problema, definir el sistema y comenzar la base del desarrollo.
+### Sprint 1 - Prototipo inicial de IA
 
-- UX/UI: estructura de pagina, organizacion de pantallas y diseno inicial.
-- Full Stack: armado inicial del frontend, conexion base con backend, organizacion del repositorio.
-- Backend: servidor Node.js + Express, estructura de routes/controllers/models y conexion con PostgreSQL.
-- IA: investigacion del sistema penal, pruebas de resumen, extraccion y clasificacion, definicion del pipeline inicial.
+Objetivo: construir una primera base funcional.
 
-### Sprint 2 - Prototipo inicial
+- Frontend navegable.
+- Backend Express.
+- Pantalla de Analisis IA.
+- Analisis de texto juridico.
+- Carga de archivos TXT.
+- Analizador local por reglas.
+- Integracion opcional con OpenAI.
+- Contrato JSON estable.
+- Primer pipeline de analisis documental.
 
-Objetivo: construir una primera version funcional navegable.
+### Sprint 2 - Cierre de APIs, RAG, persistencia y dataset
 
-- UX/UI: wireframe funcional, navegacion entre secciones y base visual coherente.
-- Full Stack: vistas principales, navegacion e integracion con backend.
-- Backend: CRUD basico de causas, imputados y documentos, almacenamiento inicial de archivos.
-- IA: pruebas funcionales de resumen automatico, clasificacion inicial y formato de salida.
+Objetivo: cerrar la etapa de IA asistida y preparar la IA propia.
 
-### Sprint 3 - Procesamiento automatico de informacion
+- Persistencia de documentos.
+- Persistencia de resultados IA en PostgreSQL.
+- Asociacion entre causas, documentos, fechas, actuaciones y analisis.
+- Rutas de casos montadas en backend.
+- RAG local por expediente sin depender de APIs externas.
+- Consulta de documentos guardados por causa.
+- Integracion con MultiEURLEX como dataset juridico real.
+- Adaptador para preparar muestras en CSV.
+- Base inicial para entrenar modelos de machine learning.
 
-Objetivo: incorporar analisis automatico de documentos.
+### Sprint 3 - Primeros modelos de machine learning
 
-- UX/UI: vistas para resultados automaticos, legibilidad de resumenes y etiquetas.
-- Full Stack: integracion de IA con frontend y backend, estados de carga y procesamiento.
-- Backend: persistencia de resultados IA en PostgreSQL, validaciones y consultas SQL.
-- IA: implementacion de resumen, extraccion de informacion y clasificacion tematica.
+Objetivo: entrenar modelos propios con el dataset juridico real y comenzar la adaptacion al dominio penal.
 
-### Sprint 4 - Estructuracion del caso
+- Limpieza de datos.
+- Vectorizacion de texto.
+- Entrenamiento de Random Forest.
+- Comparacion con Naive Bayes, Regresion Logistica y arboles de decision.
+- Clasificacion de tipo de documento.
+- Clasificacion de categoria juridica.
+- Deteccion de alertas procesales.
+- Estimacion de importancia.
+- Metricas: accuracy, precision, recall, F1 y matriz de confusion.
 
-Objetivo: organizar el expediente en una estructura clara y navegable.
+### Sprint 4 - Integracion de modelos propios
 
-- UX/UI: ficha general, ficha individual por imputado y vista cronologica.
-- Full Stack: desarrollo de fichas, vista por imputado y navegacion interna.
-- Backend: relaciones entre causas, imputados, documentos y actuaciones.
-- IA: separacion automatica de informacion general e individual, deteccion de hechos y apoyo cronologico.
+Objetivo: conectar los modelos entrenados con LegalMind.
 
-### Sprint 5 - Comparacion y gestion procesal
+- Endpoint backend para predicciones ML.
+- Guardado de predicciones.
+- Visualizacion en frontend.
+- Comparacion entre reglas locales, ML propio y RAG/API.
+- Scoring de confianza visible para el usuario.
 
-Objetivo: agregar herramientas de valor concreto para el trabajo juridico.
+### Sprint 5 - IA propia avanzada
 
-- UX/UI: modulo de comparacion, alertas, agenda y fechas clave.
-- Full Stack: comparacion entre imputados o documentos, filtros y agenda.
-- Backend: vencimientos, recordatorios, notificaciones, usuarios y permisos.
-- IA: asistencia en comparacion, unificacion de informacion e identificacion de fechas relevantes.
+Objetivo: agregar funciones inteligentes sin depender de APIs externas.
 
-### Sprint 6 - Ajustes finales y presentacion
+- Ranking de documentos relevantes.
+- Priorizacion de documentos para revision.
+- Deteccion de urgencia.
+- Agrupacion de documentos por tema.
+- Comparacion entre documentos o imputados.
+- Scoring de importancia y confianza mas completo.
 
-Objetivo: cerrar el sistema, corregir errores y preparar la demo.
+### Sprint 6 - Evaluacion, mejora y demo final
 
-- UX/UI: ajustes finales, consistencia visual y prototipo final.
-- Full Stack: integracion final, correccion de errores y demo funcional.
-- Backend: optimizacion, testing tecnico y documentacion.
-- IA: pruebas finales con casos de ejemplo y ajuste del comportamiento general.
+Objetivo: cerrar el proyecto con evaluacion seria.
+
+- Evaluacion con datos nuevos.
+- Mejora del dataset.
+- Comparacion entre modelos.
+- Comparacion entre reglas, ML propio y RAG.
+- Graficos y metricas finales.
+- Demo final integrada.
+- Conclusiones tecnicas y limitaciones.
 
 ## Estructura Inicial del Repositorio
 

@@ -2,6 +2,7 @@ const express = require("express");
 
 const healthRoutes = require("./rutas/rutasSalud");
 const iaRoutes = require("./rutas/rutasIA");
+const caseRoutes = require("./rutas/rutasCasos");
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/health", healthRoutes);
 app.use("/api/ia", iaRoutes);
+app.use("/api/casos", caseRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
