@@ -39,6 +39,8 @@ Configurar `backend/.env` tomando `backend/.env.example` como base:
 - `BETTER_AUTH_SECRET`: secreto de Better Auth, minimo 32 caracteres.
 - `BETTER_AUTH_URL`: URL publica del backend de auth. En local: `http://localhost:5000`.
 - `FRONTEND_URL`: origen permitido del frontend. En local: `http://localhost:3000`.
+- `GOOGLE_CLIENT_ID`: Client ID del OAuth Client de Google.
+- `GOOGLE_CLIENT_SECRET`: Client Secret del OAuth Client de Google.
 - `OPENAI_API_KEY`: API key de OpenAI para el modulo IA.
 - `OPENAI_MODEL`: modelo usado por el modulo IA.
 
@@ -56,12 +58,19 @@ Sin `OPENAI_API_KEY`, las rutas de IA no pueden analizar documentos con OpenAI.
 
 ## Autenticacion
 
-Better Auth esta configurado en `src/autenticacion/auth.mjs` con email y contrasena.
+Better Auth esta configurado en `src/autenticacion/auth.mjs` con email y contrasena, y habilita Google OAuth si `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` estan configurados.
+
+Para Google OAuth local, configurar en Google Cloud Console este Authorized redirect URI:
+
+```text
+http://localhost:5000/api/auth/callback/google
+```
 
 Rutas principales:
 
 - `POST /api/auth/sign-up/email`: registro con `name`, `email` y `password`.
 - `POST /api/auth/sign-in/email`: inicio de sesion con `email` y `password`.
+- `GET /api/auth/callback/google`: callback OAuth de Google usado por Better Auth.
 - `POST /api/auth/sign-out`: cierre de sesion.
 - `GET /api/auth/get-session`: consulta de sesion actual.
 - `POST /api/auth/change-password`: cambio de contrasena del usuario logueado.

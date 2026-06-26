@@ -2,10 +2,25 @@ const {
   getUserPreferences,
   updateUserPreferences,
 } = require("../modelos/repositorioPreferenciasUsuario");
-const { updateCurrentUser } = require("../modelos/repositorioUsuario");
+const {
+  getCredentialAccount,
+  updateCurrentUser,
+} = require("../modelos/repositorioUsuario");
 
 const allowedDefaultViews = new Set(["dashboard", "casos", "agenda", "analisis"]);
 const allowedDensities = new Set(["compact", "comfortable"]);
+
+let passwordVerifierPromise;
+
+function getPasswordVerifier() {
+  if (!passwordVerifierPromise) {
+    passwordVerifierPromise = import("better-auth/crypto").then(
+      (module) => module.verifyPassword,
+    );
+  }
+
+  return passwordVerifierPromise;
+}
 
 function normalizePreferences(input) {
   const preferences = {};
@@ -77,6 +92,11 @@ async function updateMyAccount(req, res, next) {
   try {
     const name = String(req.body?.name || "").trim();
     const email = String(req.body?.email || "").trim().toLowerCase();
+    const currentEmail = String(req.user.email || "").trim().toLowerCase();
+    const currentPassword = String(req.body?.currentPassword || "");
+    const emailConfirmation = String(req.body?.emailConfirmation || "")
+      .trim()
+      .toLowerCase();
 
     if (name.length < 2) {
       const error = new Error("El nombre debe tener al menos 2 caracteres.");
@@ -88,6 +108,42 @@ async function updateMyAccount(req, res, next) {
       const error = new Error("El email no tiene un formato valido.");
       error.statusCode = 400;
       throw error;
+    }
+
+    if (email !== currentEmail) {
+      if (emailConfirmation !== email) {
+        const error = new Error("Confirmá el nuevo email para cambiarlo.");
+        error.statusCode = 400;
+        throw error;
+      }
+
+      if (!currentPassword) {
+        const error = new Error("Ingresá tu contraseña actual para cambiar el email.");
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const credentialAccount = await getCredentialAccount(req.user.id);
+
+      if (!credentialAccount?.password) {
+        const error = new Error(
+          "Esta cuenta no tiene contraseña local configurada. Cambiá el email desde el proveedor de acceso.",
+        );
+        error.statusCode = 403;
+        throw error;
+      }
+
+      const verifyPassword = await getPasswordVerifier();
+      const isPasswordValid = await verifyPassword({
+        hash: credentialAccount.password,
+        password: currentPassword,
+      });
+
+      if (!isPasswordValid) {
+        const error = new Error("La contraseña actual no es correcta.");
+        error.statusCode = 403;
+        throw error;
+      }
     }
 
     const user = await updateCurrentUser(req.user.id, { email, name });

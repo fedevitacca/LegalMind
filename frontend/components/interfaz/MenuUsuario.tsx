@@ -69,6 +69,11 @@ export default function MenuUsuario({
     email: user.email || "",
     name: user.name || "",
   });
+  const [emailVerification, setEmailVerification] = useState({
+    currentPassword: "",
+    emailConfirmation: "",
+  });
+  const [isEmailVerificationOpen, setIsEmailVerificationOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -137,6 +142,10 @@ export default function MenuUsuario({
     setStatus("idle");
   };
 
+  const hasEmailChanged =
+    accountForm.email.trim().toLowerCase() !==
+    String(user.email || "").trim().toLowerCase();
+
   const handleSignOut = async () => {
     if (!isSignOutArmed) {
       setIsSignOutArmed(true);
@@ -151,12 +160,32 @@ export default function MenuUsuario({
   };
 
   const handleSaveAccount = async () => {
+    if (hasEmailChanged && !isEmailVerificationOpen) {
+      setIsEmailVerificationOpen(true);
+      setStatus("idle");
+      setMessage("Confirmá el cambio de email antes de guardar.");
+      return;
+    }
+
     setStatus("saving");
     setMessage("");
 
     try {
-      await saveUserAccount(accountForm);
+      await saveUserAccount({
+        ...accountForm,
+        currentPassword: hasEmailChanged
+          ? emailVerification.currentPassword
+          : undefined,
+        emailConfirmation: hasEmailChanged
+          ? emailVerification.emailConfirmation
+          : undefined,
+      });
       await refetchSession();
+      setEmailVerification({
+        currentPassword: "",
+        emailConfirmation: "",
+      });
+      setIsEmailVerificationOpen(false);
       setStatus("idle");
       setMessage("Datos de usuario actualizados.");
     } catch (error) {
@@ -219,6 +248,11 @@ export default function MenuUsuario({
               email: user.email || "",
               name: user.name || "",
             });
+            setEmailVerification({
+              currentPassword: "",
+              emailConfirmation: "",
+            });
+            setIsEmailVerificationOpen(false);
             setStatus("loading");
             loadPreferences();
           }
@@ -332,13 +366,76 @@ export default function MenuUsuario({
                   }
                 />
               </label>
+
+              {hasEmailChanged ? (
+                <div className="rounded-lg border border-[#A68147]/35 bg-[#A68147]/10 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-[#0F2044]">
+                        Verificacion requerida
+                      </p>
+                      <p className="mt-1 text-xs font-medium leading-5 text-[#355070]">
+                        El cambio de email afecta el acceso a la cuenta.
+                      </p>
+                    </div>
+                    <button
+                      className="rounded-md border border-[#84A2BD]/40 bg-white px-2 py-1 text-xs font-semibold text-[#0F2044] transition hover:bg-[#F4F7F5]"
+                      disabled={isBusy}
+                      type="button"
+                      onClick={() =>
+                        setIsEmailVerificationOpen((current) => !current)
+                      }
+                    >
+                      {isEmailVerificationOpen ? "Ocultar" : "Verificar"}
+                    </button>
+                  </div>
+
+                  {isEmailVerificationOpen ? (
+                    <div className="mt-3 grid gap-3">
+                      <label className="grid gap-1.5 text-sm font-semibold">
+                        Repetir nuevo email
+                        <input
+                          className="h-10 rounded-md border border-[#84A2BD]/40 bg-white px-3 outline-none focus:border-[#546FC0]"
+                          disabled={isBusy}
+                          type="email"
+                          value={emailVerification.emailConfirmation}
+                          onChange={(event) =>
+                            setEmailVerification((current) => ({
+                              ...current,
+                              emailConfirmation: event.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+                      <label className="grid gap-1.5 text-sm font-semibold">
+                        Contrasena actual
+                        <input
+                          className="h-10 rounded-md border border-[#84A2BD]/40 bg-white px-3 outline-none focus:border-[#546FC0]"
+                          disabled={isBusy}
+                          type="password"
+                          value={emailVerification.currentPassword}
+                          onChange={(event) =>
+                            setEmailVerification((current) => ({
+                              ...current,
+                              currentPassword: event.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
               <button
                 className="rounded-md bg-[#A68147] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#8F6F3B] disabled:opacity-60"
                 disabled={isBusy}
                 type="button"
                 onClick={handleSaveAccount}
               >
-                Guardar perfil
+                {hasEmailChanged && !isEmailVerificationOpen
+                  ? "Verificar email"
+                  : "Guardar perfil"}
               </button>
             </div>
           ) : null}

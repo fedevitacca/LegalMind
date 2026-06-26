@@ -55,11 +55,20 @@ function getErrorMessage(error: unknown) {
     "message" in error &&
     typeof error.message === "string"
   ) {
+    if (error.message.toLowerCase().includes("provider not found")) {
+      return "Google todavia no esta configurado en el backend.";
+    }
+
     return error.message;
   }
 
   return "No se pudo completar la operacion.";
 }
+
+const authApiUrl =
+  process.env.NEXT_PUBLIC_AUTH_API_URL || "http://localhost:5000";
+const appUrl =
+  process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 export default function FormularioInicio() {
   const router = useRouter();
@@ -68,6 +77,8 @@ export default function FormularioInicio() {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const [isGoogleAvailable, setIsGoogleAvailable] = useState(false);
 
   const isRegisterMode = mode === "registro";
 
@@ -82,6 +93,25 @@ export default function FormularioInicio() {
     window.addEventListener("hashchange", syncModeFromHash);
 
     return () => window.removeEventListener("hashchange", syncModeFromHash);
+  }, []);
+
+  useEffect(() => {
+    fetch(`${authApiUrl}/api/health/auth`, { credentials: "include" })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("No se pudo consultar autenticacion.");
+        }
+
+        return response.json() as Promise<{
+          providers?: { google?: boolean };
+        }>;
+      })
+      .then((data) => {
+        setIsGoogleAvailable(Boolean(data.providers?.google));
+      })
+      .catch(() => {
+        setIsGoogleAvailable(false);
+      });
   }, []);
 
   const updateField = (field: keyof FormState, value: string) => {
@@ -139,6 +169,28 @@ export default function FormularioInicio() {
       router.refresh();
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setStatus("");
+    setIsGoogleSubmitting(true);
+
+    try {
+      const { error: googleError } = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: `${appUrl}/`,
+        errorCallbackURL: `${appUrl}/inicio#registro`,
+      });
+
+      if (googleError) {
+        setError(getErrorMessage(googleError));
+        setIsGoogleSubmitting(false);
+      }
+    } catch (googleError) {
+      setError(getErrorMessage(googleError));
+      setIsGoogleSubmitting(false);
     }
   };
 
@@ -288,7 +340,7 @@ export default function FormularioInicio() {
             <button
               className="h-11 w-full rounded-[6px] bg-[#0F2044] px-4 font-semibold text-white transition hover:bg-[#546FC0] disabled:cursor-not-allowed disabled:bg-[#84A2BD]"
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isGoogleSubmitting}
             >
               {isSubmitting
                 ? "Procesando..."
@@ -297,6 +349,28 @@ export default function FormularioInicio() {
                   : "Ingresar"}
             </button>
           </form>
+
+          {isGoogleAvailable ? (
+            <>
+              <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#84A2BD]">
+                <span className="h-px flex-1 bg-[#EAF0F4]" />
+                <span>o</span>
+                <span className="h-px flex-1 bg-[#EAF0F4]" />
+              </div>
+
+              <button
+                className="flex h-11 w-full items-center justify-center gap-3 rounded-[6px] border border-[#84A2BD]/60 bg-white px-4 font-semibold text-[#0F2044] transition hover:border-[#546FC0] hover:bg-[#F4F7F5] disabled:cursor-not-allowed disabled:bg-[#EAF0F4] disabled:text-[#84A2BD]"
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={isSubmitting || isGoogleSubmitting}
+              >
+                <span className="grid h-5 w-5 place-items-center rounded-full border border-[#84A2BD]/60 text-xs font-bold">
+                  G
+                </span>
+                {isGoogleSubmitting ? "Conectando..." : "Continuar con Google"}
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
     </section>

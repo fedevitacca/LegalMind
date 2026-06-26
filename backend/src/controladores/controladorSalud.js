@@ -8,6 +8,16 @@ const getApiHealth = (req, res) => {
   });
 };
 
+const getAuthHealth = (req, res) => {
+  res.json({
+    status: "ok",
+    providers: {
+      email: true,
+      google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    },
+  });
+};
+
 const getDatabaseHealth = async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW() AS now, current_database() AS database");
@@ -27,5 +37,6 @@ const getDatabaseHealth = async (req, res) => {
 
 module.exports = {
   getApiHealth,
+  getAuthHealth,
   getDatabaseHealth,
 };

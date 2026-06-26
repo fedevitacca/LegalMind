@@ -24,6 +24,24 @@ async function updateCurrentUser(userId, data) {
   return result.rows[0];
 }
 
+async function getCredentialAccount(userId) {
+  const result = await pool.query(
+    `
+      select
+        id,
+        password
+      from account
+      where "userId" = $1
+        and "providerId" = 'credential'
+      limit 1
+    `,
+    [userId],
+  );
+
+  return result.rows[0] || null;
+}
+
 module.exports = {
+  getCredentialAccount,
   updateCurrentUser,
 };

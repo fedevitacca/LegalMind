@@ -23,11 +23,33 @@ const authDatabase = connectionString
 
 const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
 const backendUrl = process.env.BETTER_AUTH_URL || "http://localhost:5000";
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+const socialProviders =
+  googleClientId && googleClientSecret
+    ? {
+        google: {
+          clientId: googleClientId,
+          clientSecret: googleClientSecret,
+          prompt: "select_account",
+        },
+      }
+    : undefined;
 
 export const auth = betterAuth({
   database: authDatabase,
   baseURL: backendUrl,
   trustedOrigins: [frontendUrl, "http://localhost:3000"],
+  socialProviders,
+  account: {
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ["google"],
+      requireLocalEmailVerified: false,
+      updateUserInfoOnLink: true,
+    },
+  },
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,

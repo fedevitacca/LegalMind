@@ -62,8 +62,10 @@ export async function saveUserPreferences(
 }
 
 export async function saveUserAccount(account: {
+  currentPassword?: string;
   name: string;
   email: string;
+  emailConfirmation?: string;
 }) {
   const response = await fetch(`${apiUrl}/api/usuarios/me/cuenta`, {
     body: JSON.stringify(account),
