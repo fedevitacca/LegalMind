@@ -7,8 +7,21 @@ const caseRoutes = require("./rutas/rutasCasos");
 const userRoutes = require("./rutas/rutasUsuarios");
 
 const app = express();
+
+const parseOrigins = (value) =>
+  value
+    ? value
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+    : [];
+
 const allowedOrigins = new Set(
-  [process.env.FRONTEND_URL, "http://localhost:3000"].filter(Boolean),
+  [
+    ...parseOrigins(process.env.FRONTEND_URLS),
+    process.env.FRONTEND_URL,
+    "http://localhost:3000",
+  ].filter(Boolean),
 );
 
 app.use((req, res, next) => {
