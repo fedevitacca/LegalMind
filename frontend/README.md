@@ -56,16 +56,15 @@ El frontend arranca con el dashboard como pantalla principal de LegalMind.
 
 Desde la raiz del proyecto:
 
-- `npm run dev:frontend`: levanta el frontend con Webpack.
-- `npm run dev:frontend:lowmem`: levanta el frontend con Webpack y limite de memoria para evitar consumo excesivo en Windows.
-- `npm run dev:frontend:lowmem`: levanta el frontend con Webpack y limite de memoria para evitar consumo excesivo en Windows.
+- `npm run dev:frontend`: levanta el frontend.
+- `npm run dev:frontend:lowmem`: levanta el frontend con limite de memoria para evitar consumo excesivo en Windows.
 - `npm run dev:backend`: levanta el backend.
 
 Desde `frontend/` tambien se puede usar:
 
 - `npm run dev`: levanta Next en modo desarrollo por defecto.
-- `npm run dev:stable`: levanta Next con Webpack.
-- `npm run dev:lowmem`: levanta Next con Webpack y limite de memoria.
+- `npm run dev:stable`: levanta Next en modo desarrollo.
+- `npm run dev:lowmem`: levanta Next con limite de memoria.
 
 ## Criterio de diseno
 
