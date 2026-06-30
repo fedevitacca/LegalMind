@@ -6,7 +6,7 @@
     "dev": "next dev",
     "dev:stable": "next dev --webpack",
     "dev:lowmem": "node --max-old-space-size=1024 ./node_modules/next/dist/bin/next dev --webpack",
-    "build": "next build --webpack",
+    "build": "next build --webpack && node scripts/ensure-vercel-routes-manifest.js",
     "start": "next start",
     "lint": "eslint"
   },
