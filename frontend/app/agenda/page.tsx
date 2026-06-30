@@ -1,42 +1,16 @@
 import EspacioAgenda from "../../components/casos/EspacioAgenda";
 import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
 import BarraBusqueda from "../../components/panel/BarraBusqueda";
-
-const agendaGeneral = [
-  {
-    descripcion: "Caso Gomez - Presentar escrito",
-    dia: "28/5",
-    hora: "18:30",
-    prioridad: "Alta" as const,
-  },
-  {
-    descripcion: "Caso Gomez - Audiencia",
-    dia: "30/5",
-    hora: "16:00",
-    prioridad: "Alta" as const,
-  },
-  {
-    descripcion: "Caso Perez - Audiencia oral",
-    dia: "1/6",
-    hora: "17:00",
-    prioridad: "Media" as const,
-  },
-  {
-    descripcion: "Caso Rodriguez - Revision inicial",
-    dia: "3/6",
-    hora: "10:30",
-    prioridad: "Baja" as const,
-  },
-];
+import { fetchCases } from "../../lib/legalmindApi";
 
 const analisisAgenda = [
   {
     title: "Detectado",
-    detail: "Hay dos eventos de prioridad alta esta semana.",
+    detail: "Los eventos se toman de las fechas importantes cargadas en cada caso.",
   },
   {
     title: "Recomendaciones",
-    detail: "Revisar el escrito antes de la audiencia del Caso Gomez.",
+    detail: "Completa las fechas al crear el expediente para que aparezcan en agenda.",
   },
   {
     title: "Observaciones",
@@ -44,7 +18,26 @@ const analisisAgenda = [
   },
 ];
 
-export default function AgendaPage() {
+export default async function AgendaPage() {
+  const cases = await fetchCases();
+  const agendaGeneral = cases
+    .filter((legalCase) => legalCase.proxima_alerta)
+    .map((legalCase) => {
+      const date = new Date(legalCase.proxima_alerta as string);
+
+      return {
+        descripcion: `${legalCase.name} - Fecha importante`,
+        dia: `${date.getDate()}/${date.getMonth() + 1}`,
+        hora: "09:00",
+        prioridad:
+          legalCase.alert_level === "urgente"
+            ? ("Alta" as const)
+            : legalCase.alert_level === "proximo"
+              ? ("Media" as const)
+              : ("Baja" as const),
+      };
+    });
+
   return (
     <MarcoAplicacion activeSection="Agenda">
       <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_285px] bg-[#F4F7F5] text-[#0F2044]">

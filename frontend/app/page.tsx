@@ -3,36 +3,9 @@ import CasosRecientes from "../components/panel/CasosRecientes";
 import MarcoAplicacion from "../components/estructura/MarcoAplicacion";
 import MesaTrabajo from "../components/panel/MesaTrabajo";
 import PanelLateralInicio from "../components/panel/PanelLateralInicio";
+import { CaseListItem, fetchCases } from "../lib/legalmindApi";
 
-const recentCases = [
-  {
-    name: "Caso Gomez",
-    detail: "Vence hoy",
-    href: "/casos",
-    status: "Urgente",
-  }
-];
-
-const alerts = [
-  {
-    title: "Urgente",
-    caseName: "Caso Gomez",
-    detail: "Vence hoy",
-  },
-  {
-    title: "Proximo",
-    caseName: "Caso Perez",
-    detail: "Vence en 6 dias",
-  },
-];
-
-const workItems = [
-  {
-    label: "Proximo paso",
-    title: "Revisar escrito del Caso Gomez",
-    detail: "Dejar listo el documento antes de cargarlo como presentacion.",
-    href: "/casos/caso-gomez/documentos",
-  },
+const defaultWorkItems = [
   {
     label: "Agenda",
     title: "Ordenar eventos de la semana",
@@ -47,7 +20,12 @@ const workItems = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const cases = await fetchCases();
+  const recentCases = buildRecentCases(cases);
+  const alerts = buildAlerts(cases);
+  const workItems = buildWorkItems(cases);
+
   return (
     <MarcoAplicacion activeSection="Dashboard">
       <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_285px] bg-[#F4F7F5] text-[#0F2044]">
@@ -66,4 +44,55 @@ export default function Home() {
       </div>
     </MarcoAplicacion>
   );
+}
+
+function buildRecentCases(cases: CaseListItem[]) {
+  return cases.slice(0, 4).map((legalCase) => ({
+    detail: legalCase.caption,
+    href: `/casos/${legalCase.slug}`,
+    name: legalCase.name,
+    status: getCaseStatus(legalCase),
+  }));
+}
+
+function buildAlerts(cases: CaseListItem[]) {
+  return cases
+    .filter((legalCase) => legalCase.alert_level)
+    .slice(0, 2)
+    .map((legalCase) => ({
+      caseName: legalCase.name,
+      detail: legalCase.caption,
+      href: `/casos/${legalCase.slug}`,
+      title: legalCase.alert_level === "urgente" ? "Urgente" : "Proximo",
+    }));
+}
+
+function buildWorkItems(cases: CaseListItem[]) {
+  const latestCase = cases[0];
+
+  if (!latestCase) {
+    return defaultWorkItems;
+  }
+
+  return [
+    {
+      label: "Proximo paso",
+      title: `Revisar ${latestCase.name}`,
+      detail: "Abrir el expediente guardado y completar documentos, agenda o imputados.",
+      href: `/casos/${latestCase.slug}`,
+    },
+    ...defaultWorkItems,
+  ];
+}
+
+function getCaseStatus(legalCase: CaseListItem) {
+  if (legalCase.alert_level === "urgente") {
+    return "Urgente";
+  }
+
+  if (legalCase.alert_level === "proximo") {
+    return "Proximo";
+  }
+
+  return legalCase.estado || "Activo";
 }

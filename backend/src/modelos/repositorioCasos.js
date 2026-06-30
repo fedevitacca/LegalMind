@@ -80,10 +80,62 @@ async function getCaseById(id) {
     [id]
   );
 
+  const documentsResult = await pool.query(
+    `
+      SELECT
+        id,
+        nombre_archivo,
+        tipo_archivo,
+        texto_extraido,
+        estado_procesamiento,
+        created_at
+      FROM documentos
+      WHERE causa_id = $1
+      ORDER BY created_at DESC, id DESC
+    `,
+    [id]
+  );
+
+  const jurisprudenceResult = await pool.query(
+    `
+      SELECT
+        id,
+        titulo,
+        anio,
+        tribunal,
+        referencia,
+        resumen,
+        created_at
+      FROM jurisprudencia
+      WHERE causa_id = $1
+      ORDER BY created_at DESC, id DESC
+    `,
+    [id]
+  );
+
+  const datesResult = await pool.query(
+    `
+      SELECT
+        id,
+        fecha_texto,
+        fecha,
+        evento,
+        tipo,
+        requiere_alerta
+      FROM fechas_relevantes
+      WHERE causa_id = $1
+      ORDER BY fecha ASC NULLS LAST, id ASC
+    `,
+    [id]
+  );
+
   return mapCaseDetailRow(
     caseResult.rows[0],
     defendantsResult.rows,
-    analysisResult.rows[0]
+    analysisResult.rows[0],
+    documentsResult.rows,
+    jurisprudenceResult.rows,
+    datesResult.rows
   );
 }
 
@@ -145,6 +197,67 @@ async function createCase(payload) {
       );
     }
 
+    for (const document of normalizeTextItems(payload.documentos)) {
+      await client.query(
+        `
+          INSERT INTO documentos (
+            causa_id,
+            nombre_archivo,
+            tipo_archivo,
+            mime_type,
+          tamano_bytes,
+          texto_extraido,
+          estado_procesamiento
+        )
+          VALUES ($1, $2, $3, $4, $5, $6, 'pendiente')
+        `,
+        [
+          caseId,
+          document,
+          "nota_inicial",
+          "text/plain",
+          Buffer.byteLength(document, "utf8"),
+          document,
+        ]
+      );
+    }
+
+    for (const precedent of normalizeTextItems(payload.jurisprudencia)) {
+      await client.query(
+        `
+          INSERT INTO jurisprudencia (
+            causa_id,
+            titulo,
+            resumen
+          )
+          VALUES ($1, $2, $3)
+        `,
+        [caseId, precedent, "Referencia inicial cargada al crear el caso."]
+      );
+    }
+
+    if (payload.fecha_importante) {
+      await client.query(
+        `
+          INSERT INTO fechas_relevantes (
+            causa_id,
+            fecha_texto,
+            fecha,
+            evento,
+            tipo,
+            requiere_alerta
+          )
+          VALUES ($1, $2, $3, $4, 'fecha_inicial', true)
+        `,
+        [
+          caseId,
+          payload.fecha_importante,
+          parseInputDate(payload.fecha_importante),
+          "Fecha importante cargada al crear el caso.",
+        ]
+      );
+    }
+
     await client.query("COMMIT");
     return getCaseById(caseId);
   } catch (error) {
@@ -156,7 +269,10 @@ async function createCase(payload) {
 }
 
 function mapCaseListRow(row) {
+  const alertLevel = getAlertLevel(row.proxima_alerta);
+
   return {
+    alert_level: alertLevel,
     caption: buildCaption(row),
     created_at: row.created_at,
     descripcion: row.descripcion,
@@ -165,12 +281,20 @@ function mapCaseListRow(row) {
     identificador: row.identificador,
     imputados_count: row.imputados_count,
     name: row.caratula,
+    proxima_alerta: row.proxima_alerta,
     slug: String(row.id),
     updated_at: row.updated_at,
   };
 }
 
-function mapCaseDetailRow(caseRow, defendantRows, analysisRow) {
+function mapCaseDetailRow(
+  caseRow,
+  defendantRows,
+  analysisRow,
+  documentRows = [],
+  jurisprudenceRows = [],
+  dateRows = []
+) {
   const defendants = defendantRows.map((row) => ({
     caseLink:
       row.datos_contexto?.vinculo ||
@@ -196,7 +320,7 @@ function mapCaseDetailRow(caseRow, defendantRows, analysisRow) {
   return {
     analisis: mapAnalysis(analysisRow),
     created_at: caseRow.created_at,
-    deadline: "Sin vencimiento cargado",
+    deadline: buildDeadline(dateRows),
     descripcion: caseRow.descripcion,
     estado: caseRow.estado,
     id: caseRow.id,
@@ -206,7 +330,61 @@ function mapCaseDetailRow(caseRow, defendantRows, analysisRow) {
     status: translateStatus(caseRow.estado),
     updated_at: caseRow.updated_at,
     defendants,
+    documentos: documentRows.map(mapDocumentRow),
+    fechas: dateRows.map(mapDateRow),
+    jurisprudencia: jurisprudenceRows.map(mapJurisprudenceRow),
   };
+}
+
+function mapDocumentRow(row) {
+  return {
+    categoria: row.tipo_archivo || "Documento",
+    estado: row.estado_procesamiento,
+    fecha: `Cargado el ${new Date(row.created_at).toLocaleDateString("es-AR")}`,
+    id: row.id,
+    nombre: row.nombre_archivo,
+    resumen:
+      row.texto_extraido?.slice(0, 180) ||
+      "Documento asociado al expediente.",
+  };
+}
+
+function mapJurisprudenceRow(row) {
+  return {
+    anio: row.anio ? String(row.anio) : "s/f",
+    detalle:
+      row.resumen ||
+      row.referencia ||
+      row.tribunal ||
+      "Referencia jurisprudencial asociada al caso.",
+    id: row.id,
+    titulo: row.titulo,
+  };
+}
+
+function mapDateRow(row) {
+  const date = row.fecha ? new Date(row.fecha) : null;
+
+  return {
+    descripcion: row.evento || row.tipo || "Fecha importante",
+    dia: date
+      ? `${date.getDate()}/${date.getMonth() + 1}`
+      : row.fecha_texto || "Sin fecha",
+    hora: "09:00",
+    id: row.id,
+    prioridad: getAlertLevel(row.fecha) === "urgente" ? "Alta" : "Media",
+    requiere_alerta: row.requiere_alerta,
+  };
+}
+
+function buildDeadline(dateRows) {
+  const nextDate = dateRows.find((row) => row.fecha);
+
+  if (!nextDate) {
+    return "Sin vencimiento cargado";
+  }
+
+  return `Alerta ${new Date(nextDate.fecha).toLocaleDateString("es-AR")}`;
 }
 
 function mapAnalysis(row) {
@@ -240,6 +418,30 @@ function buildCaption(row) {
   return translateStatus(row.estado);
 }
 
+function getAlertLevel(dateValue) {
+  if (!dateValue) {
+    return null;
+  }
+
+  const today = startOfDay(new Date());
+  const alertDate = startOfDay(new Date(dateValue));
+  const diffInDays = Math.round((alertDate - today) / 86400000);
+
+  if (diffInDays <= 0) {
+    return "urgente";
+  }
+
+  if (diffInDays <= 7) {
+    return "proximo";
+  }
+
+  return null;
+}
+
+function startOfDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
 function translateStatus(status) {
   const labels = {
     activa: "Activo",
@@ -256,6 +458,46 @@ function normalizeList(value, fallback) {
 
 function emptyToNull(value) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function normalizeTextItems(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item : item?.titulo || item?.nombre))
+      .filter((item) => typeof item === "string" && item.trim())
+      .map((item) => item.trim());
+  }
+
+  if (typeof value !== "string" || !value.trim()) {
+    return [];
+  }
+
+  return value
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseInputDate(value) {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  const normalized = value.trim();
+  const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (isoMatch) {
+    return normalized;
+  }
+
+  const argMatch = normalized.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+  if (!argMatch) {
+    return null;
+  }
+
+  const [, day, month, year] = argMatch;
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 
 function ensureDatabaseConfigured() {

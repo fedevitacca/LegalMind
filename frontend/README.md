@@ -4,25 +4,26 @@ El frontend arranca con el dashboard como pantalla principal de LegalMind.
 
 ## Estado actual
 
-- Dashboard con casos recientes, alertas laterales y una mesa de trabajo para seguimiento; se quitaron los vencimientos centrales para evitar repetir informacion urgente/proxima y dejar mas espacio operativo.
-- Pantalla de Casos con buscador, acceso a Nuevo caso y una ficha de expediente de ejemplo para no sobrecargar la vista.
+- Dashboard con casos recientes reales, alertas laterales y una mesa de trabajo para seguimiento; se quitaron los vencimientos centrales para evitar repetir informacion urgente/proxima y dejar mas espacio operativo.
+- Pantalla de Casos con buscador, acceso a Nuevo caso y listado conectado al backend.
 - Al abrir un caso se llega primero a una home del expediente. Lo hicimos para que la abogada tenga una vista rapida antes de entrar al detalle.
 - La home del caso muestra accesos con preview a Imputados, Documentos, Agenda y Jurisprudencia.
 - Pantalla de Analisis IA conectada al backend para probar texto y archivos TXT.
 - Subpantallas internas por caso: Imputados, Documentos, Agenda y Jurisprudencia.
 - Jurisprudencia sigue el esquema propuesto por UX/UI: buscador, fallos relacionados, detalle del fallo y panel de Analisis IA.
-- Agenda general en `/agenda` con proximas entregas/trabajos, calendario mensual editable, carga de eventos desplegable y eliminacion con doble confirmacion.
+- Agenda general en `/agenda` con proximas entregas/trabajos tomadas de las fechas importantes de los casos, calendario mensual editable, carga de eventos desplegable y eliminacion con doble confirmacion.
 - Agenda dentro del caso como vista de consulta, con acceso para editar desde la Agenda general.
 - Pantalla de inicio y registro en `/inicio`, conectada a Better Auth en el backend.
 - Pantalla de Configuracion en `/configuracion` como consulta de datos y preferencias del usuario.
 - Menu de usuario en el header para editar nombre, email, contrasena y preferencias sin salir de la pantalla actual.
 - Navegacion interna del caso para cambiar entre Resumen, Imputados, Documentos, Agenda y Jurisprudencia sin volver al Dashboard.
 - Desde una subpantalla se vuelve al resumen del caso; desde el resumen se puede volver a la home de Casos.
-- Dashboard con casos recientes navegables hacia sus pantallas de caso.
+- Dashboard con casos recientes navegables hacia sus pantallas de caso. Los casos cargados manualmente de ejemplo fueron removidos.
 - Menu lateral con las secciones principales: Dashboard, Casos, Nuevo caso, Analisis IA, Agenda y Configuracion.
 - Header y footer compartidos para todas las pantallas.
 - Componentes separados para mantener el codigo ordenado.
-- Datos de ejemplo hasta que se conecte la base de datos.
+- Alta de casos conectada al backend: guarda caratula, numero de expediente, juzgado/fiscalia en descripcion, imputados, documentos iniciales, jurisprudencia inicial y fecha importante.
+- Los documentos, jurisprudencia y fechas guardados se muestran en sus secciones correspondientes del expediente.
 
 ## Rutas principales
 
@@ -48,9 +49,9 @@ El frontend arranca con el dashboard como pantalla principal de LegalMind.
 - `components/casos` contiene componentes propios de la vista y detalle de expedientes.
 - `components/interfaz/MenuUsuario.tsx` contiene la edicion de perfil, preferencias y contrasena desde el header.
 - `components/nuevo` contiene el formulario de alta de caso.
-- `lib/legalmindApi.ts` centraliza datos de ejemplo y llamadas al backend para casos.
+- `lib/legalmindApi.ts` centraliza las llamadas al backend para casos.
 - `lib/userPreferencesApi.ts` centraliza llamadas a cuenta, preferencias y cambio de contrasena.
-- Esta etapa es una base frontend con datos locales/de ejemplo; luego se conectara al backend y a las tablas reales.
+- Esta etapa ya reemplaza los datos manuales de casos por persistencia en backend/Neon.
 
 ## Desarrollo local
 
@@ -83,6 +84,19 @@ Las fuentes globales son Space Grotesk para titulos y Vend Sans para textos gene
 ## Backend de IA
 
 La pantalla `/analisis` usa `http://localhost:5000` por defecto. Para cambiar la URL del backend, crear `frontend/.env.local` tomando `.env.example` como base y ajustar `NEXT_PUBLIC_LEGALMIND_API_URL`.
+
+## Casos y persistencia
+
+La pantalla `/nuevo` envia los datos a `POST /api/casos`. Cuando el backend responde, el frontend navega al expediente guardado usando el `id` real de Neon.
+
+El dashboard, `/casos`, la agenda general y las secciones internas de cada expediente consumen `GET /api/casos` y `GET /api/casos/:id`. Ya no se usan expedientes hardcodeados como fuente principal.
+
+Para que funcione en local, levantar backend y frontend:
+
+- `npm run dev:backend`
+- `npm run dev:frontend`
+
+Si el backend corre en otra URL, configurar `NEXT_PUBLIC_LEGALMIND_API_URL` en `frontend/.env.local`.
 
 ## Autenticacion
 

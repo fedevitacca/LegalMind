@@ -72,7 +72,23 @@ function validateCreateCase(body) {
     return "El campo 'imputados' debe ser una lista.";
   }
 
+  if (body.documentos && !isTextList(body.documentos)) {
+    return "El campo 'documentos' debe ser texto o una lista.";
+  }
+
+  if (body.jurisprudencia && !isTextList(body.jurisprudencia)) {
+    return "El campo 'jurisprudencia' debe ser texto o una lista.";
+  }
+
   return null;
+}
+
+function isTextList(value) {
+  return (
+    typeof value === "string" ||
+    (Array.isArray(value) &&
+      value.every((item) => typeof item === "string" || typeof item === "object"))
+  );
 }
 
 module.exports = {

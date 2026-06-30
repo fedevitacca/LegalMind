@@ -30,10 +30,17 @@ export default async function PaginaJurisprudencia({
 }) {
   const { idCaso } = await params;
   const caso = await fetchCaseDetail(idCaso);
+  const fallosDelCaso = caso.jurisprudencia?.length
+    ? caso.jurisprudencia
+    : fallos;
 
   return (
     <MarcoAplicacion activeSection="Casos">
-      <DetalleJurisprudenciaCaso caso={caso} fallos={fallos} idCaso={idCaso} />
+      <DetalleJurisprudenciaCaso
+        caso={caso}
+        fallos={fallosDelCaso}
+        idCaso={idCaso}
+      />
     </MarcoAplicacion>
   );
 }

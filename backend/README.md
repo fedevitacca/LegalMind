@@ -27,7 +27,7 @@ El servidor usa `PORT=5000` por defecto.
 - `src/rutas/rutasIA.js`: analisis de texto, archivos TXT y busqueda RAG.
 - `src/rutas/rutasSalud.js`: healthchecks de API y Neon.
 - `src/rutas/rutasUsuarios.js`: cuenta y preferencias del usuario logueado.
-- `src/rutas/rutasCasos.js`: endpoints base de casos.
+- `src/rutas/rutasCasos.js`: endpoints de alta, listado y detalle de casos.
 - `IA`: conexion con OpenAI, schemas, pruebas locales y tests.
 
 ## Variables de entorno
@@ -55,6 +55,25 @@ Sin `OPENAI_API_KEY`, las rutas de IA no pueden analizar documentos con OpenAI.
 - `POST /api/ia/analyze`: analiza texto.
 - `POST /api/ia/analyze-file`: analiza archivos TXT.
 - `POST /api/ia/rag/search`: busca fragmentos juridicos relevantes.
+
+## Casos
+
+Rutas principales:
+
+- `GET /api/casos`: lista los casos guardados, ordenados por ultima actualizacion.
+- `GET /api/casos/:id`: devuelve el detalle del caso, imputados, documentos, jurisprudencia y fechas relevantes.
+- `POST /api/casos`: crea un caso nuevo y guarda sus datos relacionados.
+
+El alta de caso persiste:
+
+- `causas`: caratula, identificador, descripcion y estado.
+- `imputados`: personas cargadas en el formulario.
+- `causa_imputados`: relacion entre causa e imputados.
+- `documentos`: documentos o notas iniciales del caso.
+- `jurisprudencia`: fallos o criterios iniciales.
+- `fechas_relevantes`: fecha importante usada para agenda y alertas.
+
+El listado calcula `proxima_alerta` y `alert_level` para que el frontend pueda mostrar estados `Urgente` o `Proximo` en el dashboard.
 
 ## Autenticacion
 
@@ -102,6 +121,14 @@ Para preferencias de usuario, aplicar tambien:
 ```bash
 psql "$DATABASE_URL" -f user-preferences-schema.sql
 ```
+
+Para casos, documentos, jurisprudencia, imputados y fechas relevantes, aplicar:
+
+```bash
+psql "$DATABASE_URL" -f sql/neon_casos_base.sql
+```
+
+Ese script es idempotente y puede volver a ejecutarse si faltan columnas o tablas.
 
 ## Tests
 

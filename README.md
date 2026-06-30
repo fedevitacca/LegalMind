@@ -36,6 +36,7 @@ La plataforma no reemplaza el criterio juridico profesional. Su funcion es asist
 - Organizar documentos, informes y escritos.
 - Identificar fechas clave, vencimientos y actuaciones pendientes.
 - Generar alertas o recordatorios vinculados a la agenda del caso.
+- Crear casos desde el frontend y persistirlos en PostgreSQL/Neon con imputados, documentos, jurisprudencia y fechas relevantes.
 
 ## Herramientas de Entorno
 
@@ -152,6 +153,8 @@ Objetivo: cerrar la etapa de IA asistida y preparar la IA propia.
 - Persistencia de resultados IA en PostgreSQL.
 - Asociacion entre causas, documentos, fechas, actuaciones y analisis.
 - Rutas de casos montadas en backend.
+- Alta de casos conectada desde el frontend a Neon.
+- Dashboard, listado de casos y agenda alimentados por casos guardados, sin expedientes manuales de ejemplo.
 - RAG local por expediente sin depender de APIs externas.
 - Consulta de documentos guardados por causa.
 - Integracion con MultiEURLEX como dataset juridico real.
@@ -223,6 +226,7 @@ LegalMind/
 - La IA trabaja dentro del mismo repositorio, inicialmente dentro de `backend/IA`.
 - El frontend y backend se ejecutan en terminales separadas.
 - La IA se integra desde el backend para procesar textos y devolver informacion estructurada.
+- Las tablas base para casos estan en `backend/sql/neon_casos_base.sql`.
 
 ## Inicio Rapido de IA
 

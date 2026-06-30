@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createCase } from "@/lib/legalmindApi";
 
 export default function FormularioNuevoCaso() {
   const router = useRouter();
@@ -12,10 +13,12 @@ export default function FormularioNuevoCaso() {
   const [fechaImportante, setFechaImportante] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [imputados, setImputados] = useState("");
+  const [documentos, setDocumentos] = useState("");
+  const [jurisprudencia, setJurisprudencia] = useState("");
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
@@ -25,7 +28,35 @@ export default function FormularioNuevoCaso() {
     }
 
     setIsSaving(true);
-    router.push(`/casos/${buildSlug(caratula)}`);
+
+    try {
+      const legalCase = await createCase({
+        caratula,
+        descripcion: buildDescription({ descripcion, juzgado }),
+        documentos: splitTextList(documentos),
+        fecha_importante: fechaImportante,
+        identificador,
+        imputados: splitTextList(imputados).map((nombre) => ({
+          nombre,
+          rol: "imputado",
+          datos_contexto: {
+            estado: "Ficha inicial",
+            resumen: "Imputado cargado al crear el caso.",
+          },
+        })),
+        jurisprudencia: splitTextList(jurisprudencia),
+      });
+
+      router.push(`/casos/${legalCase.slug}`);
+      router.refresh();
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "No se pudo crear el caso."
+      );
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -37,7 +68,7 @@ export default function FormularioNuevoCaso() {
         <Field
           label="Nombre del caso"
           onChange={setCaratula}
-          placeholder="Caso Gomez"
+          placeholder="Ej. Causa por hurto simple"
           required
           value={caratula}
         />
@@ -67,6 +98,21 @@ export default function FormularioNuevoCaso() {
         placeholder="Juan Perez, Ana Gomez"
         value={imputados}
       />
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <TextAreaField
+          label="Documentos iniciales"
+          onChange={setDocumentos}
+          placeholder="Escrito inicial, informe policial, acta de audiencia"
+          value={documentos}
+        />
+        <TextAreaField
+          label="Jurisprudencia inicial"
+          onChange={setJurisprudencia}
+          placeholder="Fallo o criterio relevante para vincular al caso"
+          value={jurisprudencia}
+        />
+      </div>
 
       <label className="mt-4 block">
         <span className="text-sm font-semibold">Observaciones iniciales</span>
@@ -154,14 +200,48 @@ function Field({
   );
 }
 
-function buildSlug(value: string) {
+function TextAreaField({
+  label,
+  onChange,
+  placeholder,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  value: string;
+}) {
   return (
-    value
-      .trim()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "caso-nuevo"
+    <label className="mt-4 block">
+      <span className="text-sm font-semibold">{label}</span>
+      <textarea
+        className="mt-2 min-h-24 w-full rounded-lg border border-[#84A2BD]/55 bg-[#F4F7F5] px-4 py-3 text-sm font-medium outline-none placeholder:text-[#0F2044]/38 focus:border-[#546FC0] focus:bg-white focus:ring-4 focus:ring-[#84A2BD]/20"
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        value={value}
+      />
+    </label>
   );
+}
+
+function splitTextList(value: string) {
+  return value
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function buildDescription({
+  descripcion,
+  juzgado,
+}: {
+  descripcion: string;
+  juzgado: string;
+}) {
+  const parts = [
+    juzgado.trim() ? `Juzgado o fiscalia: ${juzgado.trim()}` : "",
+    descripcion.trim(),
+  ].filter(Boolean);
+
+  return parts.join("\n\n");
 }

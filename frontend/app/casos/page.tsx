@@ -4,7 +4,7 @@ import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
 import { fetchCases } from "../../lib/legalmindApi";
 
 export default async function CasesPage() {
-  const cases = (await fetchCases()).slice(0, 1);
+  const cases = await fetchCases();
 
   return (
     <MarcoAplicacion activeSection="Casos">
