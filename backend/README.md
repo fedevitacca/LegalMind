@@ -56,13 +56,30 @@ Sin `OPENAI_API_KEY`, las rutas de IA no pueden analizar documentos con OpenAI.
 - `POST /api/ia/analyze-file`: analiza archivos TXT.
 - `POST /api/ia/rag/search`: busca fragmentos juridicos relevantes.
 
-## Casos
+## Casos, imputados y documentos
 
 Rutas principales:
 
 - `GET /api/casos`: lista los casos guardados, ordenados por ultima actualizacion.
 - `GET /api/casos/:id`: devuelve el detalle del caso, imputados, documentos, jurisprudencia y fechas relevantes.
 - `POST /api/casos`: crea un caso nuevo y guarda sus datos relacionados.
+- `PUT /api/casos/:id`: actualiza caratula, identificador, descripcion o estado.
+- `DELETE /api/casos/:id`: elimina una causa y sus datos asociados.
+
+Rutas de imputados:
+
+- `GET /api/casos/:id/imputados`: lista imputados de la causa.
+- `POST /api/casos/:id/imputados`: agrega un imputado y lo vincula a la causa.
+- `PUT /api/casos/:id/imputados/:imputadoId`: actualiza ficha, rol o datos contextuales.
+- `DELETE /api/casos/:id/imputados/:imputadoId`: desvincula el imputado de la causa.
+
+Rutas de documentos:
+
+- `GET /api/casos/:id/documentos`: lista documentos de la causa.
+- `POST /api/casos/:id/documentos`: carga un documento por JSON o archivo multipart en el campo `archivo`.
+- `PUT /api/casos/:id/documentos/:documentoId`: actualiza metadatos o texto extraido.
+- `GET /api/casos/:id/documentos/:documentoId/download`: descarga el archivo fisico si existe.
+- `DELETE /api/casos/:id/documentos/:documentoId`: elimina el registro y el archivo guardado.
 
 El alta de caso persiste:
 
@@ -74,6 +91,8 @@ El alta de caso persiste:
 - `fechas_relevantes`: fecha importante usada para agenda y alertas.
 
 El listado calcula `proxima_alerta` y `alert_level` para que el frontend pueda mostrar estados `Urgente` o `Proximo` en el dashboard.
+
+La carga inicial de archivos usa `multer` y guarda los archivos en `backend/uploads/causas/:id`. Esa carpeta queda ignorada por git porque contiene datos subidos en ejecucion. En PostgreSQL se guarda el nombre original, MIME type, tamano, ruta fisica, texto extraido cuando es un archivo de texto y estado de procesamiento.
 
 ## Autenticacion
 
