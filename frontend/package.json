@@ -6,13 +6,13 @@
     "dev": "next dev",
     "dev:stable": "next dev --webpack",
     "dev:lowmem": "node --max-old-space-size=1024 ./node_modules/next/dist/bin/next dev --webpack",
-    "build": "next build --webpack && node scripts/ensure-vercel-routes-manifest.js",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
     "better-auth": "^1.6.19",
-    "next": "16.2.6",
+    "next": "15.5.19",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
@@ -22,7 +22,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.6",
+    "eslint-config-next": "15.5.19",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
