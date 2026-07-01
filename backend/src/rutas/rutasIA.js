@@ -135,13 +135,39 @@ router.post("/rag/query", async (req, res, next) => {
 
     const documents = await listDocumentsForCase(caseId);
     const chunks = retrieveRelevantChunks(documents, question, Number(req.body.top_k) || 5);
-    const answer = buildExtractiveAnswer(question, chunks);
+    const contextText = chunks
+      .map((chunk) => [
+        `Documento: ${chunk.document_name}`,
+        `Fragmento ${chunk.chunk_index + 1}:`,
+        chunk.text,
+      ].join("\n"))
+      .join("\n\n---\n\n");
+
+    if (!contextText.trim()) {
+      const answer = buildExtractiveAnswer(question, chunks);
+
+      return res.json({
+        ...answer,
+        case_id: caseId,
+        retrieved_chunks: chunks,
+        engine: "ollama_rag",
+        model: getLocalAIConfig().model,
+      });
+    }
+
+    const ragResult = await searchLegalTextWithLocalAI({
+      limit: Number(req.body.top_k) || 5,
+      query: question,
+      text: contextText,
+    });
 
     return res.json({
-      ...answer,
+      answer: ragResult.answer?.respuesta || "No se pudo generar una respuesta con respaldo.",
       case_id: caseId,
+      confidence: ragResult.answer?.requiere_revision ? "medio" : "alto",
       retrieved_chunks: chunks,
-      engine: "local_rag",
+      engine: "ollama_rag",
+      model: getLocalAIConfig().model,
     });
   } catch (error) {
     return next(error);

@@ -606,7 +606,7 @@ function CaseWorkspace({
 
       <form onSubmit={onSubmit}>
         <div className="border-b border-[#84A2BD]/28 pb-4">
-          <h2 className="text-xl font-semibold">Consulta RAG local</h2>
+          <h2 className="text-xl font-semibold">Consulta RAG con Ollama</h2>
           <p className="mt-1 text-sm font-medium text-[#0F2044]/60">
             Responde usando documentos guardados de la causa.
           </p>
