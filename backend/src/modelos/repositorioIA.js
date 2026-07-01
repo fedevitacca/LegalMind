@@ -42,7 +42,7 @@ async function saveLegalAnalysis({
       [
         causaId,
         documentId,
-        metadata.engine || "openai",
+        metadata.engine || "local",
         metadata.model || null,
         false,
         analysis.nivel_confianza || null,

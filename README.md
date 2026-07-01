@@ -141,7 +141,7 @@ Objetivo: construir una primera base funcional.
 - Analisis de texto juridico.
 - Carga de archivos TXT.
 - Analizador local por reglas.
-- Integracion opcional con OpenAI.
+- Integracion con API local gratuita via Ollama.
 - Contrato JSON estable.
 - Primer pipeline de analisis documental.
 
@@ -237,18 +237,12 @@ npm install
 npm run dev
 ```
 
-Configurar OpenAI copiando `backend/.env.example` a `backend/.env` y completando `OPENAI_API_KEY`.
+Configurar la IA local copiando `backend/.env.example` a `backend/.env` y ajustando `LOCAL_AI_BASE_URL` y `LOCAL_AI_MODEL` si hace falta.
 
 Probar IA local:
 
 ```bash
 npm run test:ia:local
-```
-
-Probar IA con OpenAI:
-
-```bash
-npm run test:ia:openai
 ```
 
 Endpoint principal:
@@ -260,6 +254,6 @@ POST http://localhost:5000/api/ia/analyze
 ```json
 {
   "text": "Texto juridico a analizar...",
-  "mode": "auto"
+  "mode": "local"
 }
 ```

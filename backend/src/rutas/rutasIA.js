@@ -1,9 +1,10 @@
 const express = require("express");
 
 const {
-  analyzeLegalTextWithOpenAI,
-  searchLegalTextWithOpenAI,
-} = require("../../IA/analizadorOpenAI");
+  analyzeLegalTextWithLocalAI,
+  getLocalAIConfig,
+  searchLegalTextWithLocalAI,
+} = require("../../IA/analizadorLocal");
 const {
   MAX_TEXT_FILE_SIZE_BYTES,
   extractTextFromTxtFile,
@@ -21,17 +22,20 @@ const {
 const router = express.Router();
 
 router.get("/health", (req, res) => {
+  const localAIConfig = getLocalAIConfig();
+
   res.json({
     status: "ok",
     module: "LegalMind IA",
-    openai_configured: Boolean(process.env.OPENAI_API_KEY),
-    openai_model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
-    openai_required: true,
+    local_ai_base_url: localAIConfig.baseUrl,
+    local_ai_configured: true,
+    local_ai_model: localAIConfig.model,
+    local_ai_required: true,
     capabilities: [
       "extraccion_juridica_estructurada",
       "entidades_para_base_juridica",
       "grafo_conocimiento",
-      "rag_juridico_openai",
+      "rag_juridico_local",
       "rag_local_documentos_persistidos",
       "analizador_estrategico",
       "alertas_inteligentes",
@@ -49,7 +53,7 @@ router.post("/analyze", async (req, res) => {
     });
   }
 
-  const modeError = validateOpenAIOnlyMode(req.body.mode);
+  const modeError = validateLocalOnlyMode(req.body.mode);
 
   if (modeError) {
     return res.status(400).json({ error: modeError });
@@ -77,7 +81,7 @@ router.post("/analyze-file", (req, res) => {
         mime_type: req.file.mimetype,
         size_bytes: req.file.size,
       };
-      const modeError = validateOpenAIOnlyMode(req.body.mode);
+      const modeError = validateLocalOnlyMode(req.body.mode);
 
       if (modeError) {
         return res.status(400).json({ error: modeError });
@@ -160,18 +164,18 @@ router.post("/rag/search", async (req, res) => {
   }
 
   try {
-    const ragResult = await searchLegalTextWithOpenAI({ text, query, limit });
+    const ragResult = await searchLegalTextWithLocalAI({ text, query, limit });
 
     return res.json({
       ...ragResult,
       _metadata: {
-        engine: "openai",
-        model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
+        engine: "local",
+        model: getLocalAIConfig().model,
       },
     });
   } catch (error) {
-    return res.status(getOpenAIErrorStatus(error)).json({
-      error: "No se pudo ejecutar la busqueda RAG con OpenAI.",
+    return res.status(getLocalAIErrorStatus(error)).json({
+      error: "No se pudo ejecutar la busqueda RAG con la API local.",
       details: error.message,
     });
   }
@@ -179,17 +183,17 @@ router.post("/rag/search", async (req, res) => {
 
 async function sendAnalysisResponse(res, text, options = {}) {
   try {
-    const analysis = await analyzeLegalTextWithOpenAI(text);
+    const analysis = await analyzeLegalTextWithLocalAI(text);
     const metadata = {
-      engine: "openai",
-      model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
+      engine: "local",
+      model: getLocalAIConfig().model,
       ...buildSourceFileMetadata(options.sourceFile),
     };
 
     return res.json(await buildAnalysisPayload(analysis, metadata, text, options));
   } catch (error) {
-    return res.status(getOpenAIErrorStatus(error)).json({
-      error: "No se pudo analizar el texto con OpenAI.",
+    return res.status(getLocalAIErrorStatus(error)).json({
+      error: "No se pudo analizar el texto con la API local.",
       details: error.message,
     });
   }
@@ -236,16 +240,18 @@ function getUploadErrorMessage(error) {
   return error.message;
 }
 
-function validateOpenAIOnlyMode(mode) {
-  if (!mode || mode === "openai") {
+function validateLocalOnlyMode(mode) {
+  if (!mode || mode === "local") {
     return null;
   }
 
-  return "Solo esta habilitado OpenAI. El unico modo disponible es 'openai'.";
+  return "Solo esta habilitada la API local. El unico modo disponible es 'local'.";
 }
 
-function getOpenAIErrorStatus(error) {
-  return /OPENAI_API_KEY|SDK de OpenAI/i.test(error.message) ? 503 : 500;
+function getLocalAIErrorStatus(error) {
+  return /API local|Ollama|ECONNREFUSED|ENOTFOUND|tiempo de espera/i.test(error.message)
+    ? 503
+    : 500;
 }
 
 function parseTextFileUpload(req, callback) {

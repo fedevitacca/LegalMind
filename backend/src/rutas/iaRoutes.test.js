@@ -3,25 +3,21 @@ const { after, before, describe, it } = require("node:test");
 
 const app = require("../aplicacion");
 const {
-  resetOpenAIClientFactoryForTests,
-  setOpenAIClientFactoryForTests,
-} = require("../../IA/analizadorOpenAI");
+  resetLocalAIClientFactoryForTests,
+  setLocalAIClientFactoryForTests,
+} = require("../../IA/analizadorLocal");
 
 describe("IA file routes", () => {
   let baseUrl;
   let server;
 
   before(async () => {
-    setOpenAIClientFactoryForTests(() => ({
-      responses: {
-        create: async (payload) => ({
-          output_text: JSON.stringify(
-            payload.text.format.name === "legalmind_rag_search"
-              ? createSampleRagSearch()
-              : createSampleAnalysis()
-          ),
-        }),
-      },
+    setLocalAIClientFactoryForTests(() => ({
+      chat: async (payload) => JSON.stringify(
+        payload.messages.some((message) => message.content.includes("motor RAG juridico"))
+          ? createSampleRagSearch()
+          : createSampleAnalysis()
+      ),
     }));
 
     await new Promise((resolve) => {
@@ -34,7 +30,7 @@ describe("IA file routes", () => {
   });
 
   after(async () => {
-    resetOpenAIClientFactoryForTests();
+    resetLocalAIClientFactoryForTests();
 
     await new Promise((resolve, reject) => {
       server.close((error) => {
@@ -48,7 +44,7 @@ describe("IA file routes", () => {
     });
   });
 
-  it("analiza un archivo TXT con OpenAI", async () => {
+  it("analiza un archivo TXT con la API local", async () => {
     const formData = new FormData();
     formData.set(
       "file",
@@ -68,7 +64,7 @@ describe("IA file routes", () => {
     const analysis = await response.json();
 
     assert.equal(response.status, 200);
-    assert.equal(analysis._metadata.engine, "openai");
+    assert.equal(analysis._metadata.engine, "local");
     assert.equal(analysis._metadata.source_file.name, "legajo.txt");
     assert.match(analysis.causa.datos_generales[0], /789\/26/);
     assert.equal(analysis.imputados[0].nombre, "Ana Gomez");
@@ -88,10 +84,10 @@ describe("IA file routes", () => {
     assert.match(body.error, /solo se admiten archivos \.txt/);
   });
 
-  it("rechaza el modo local", async () => {
+  it("rechaza el modo openai", async () => {
     const response = await fetch(`${baseUrl}/api/ia/analyze`, {
       body: JSON.stringify({
-        mode: "local",
+        mode: "openai",
         text: "Texto juridico.",
       }),
       headers: {
@@ -102,10 +98,10 @@ describe("IA file routes", () => {
     const body = await response.json();
 
     assert.equal(response.status, 400);
-    assert.match(body.error, /Solo esta habilitado OpenAI/);
+    assert.match(body.error, /Solo esta habilitada la API local/);
   });
 
-  it("busca fragmentos juridicos con OpenAI", async () => {
+  it("busca fragmentos juridicos con la API local", async () => {
     const response = await fetch(`${baseUrl}/api/ia/rag/search`, {
       body: JSON.stringify({
         query: "audiencia de Ana Gomez",
@@ -120,7 +116,7 @@ describe("IA file routes", () => {
     const body = await response.json();
 
     assert.equal(response.status, 200);
-    assert.equal(body._metadata.engine, "openai");
+    assert.equal(body._metadata.engine, "local");
     assert.ok(body.results.length > 0);
     assert.match(body.results[0].texto, /Ana Gomez|audiencia/);
     assert.ok(body.answer.fundamentos.length > 0);
@@ -166,7 +162,7 @@ function createSampleAnalysis() {
     rag_juridico: {
       fragmentos: [],
       indice_vectorial: {
-        proveedor: "openai_responses_api",
+        proveedor: "ollama_local",
         dimensiones: 0,
         fragmentos_indexados: 0,
         persistencia: "respuesta_http_y_postgresql_opcional",

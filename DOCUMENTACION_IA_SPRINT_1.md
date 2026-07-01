@@ -24,7 +24,7 @@ La IA puede generar:
 Tambien se dejo preparada la posibilidad de usar dos formas de analisis:
 
 - Un analisis local basico, pensado para funcionar aunque no haya conexion con una IA externa.
-- Un analisis con OpenAI, pensado para obtener mejores resultados usando un modelo de lenguaje.
+- Un analisis con API local gratuita, pensado para obtener mejores resultados usando un modelo de lenguaje sin depender de claves externas.
 
 ## Primer pipeline de IA
 

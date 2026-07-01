@@ -1,12 +1,12 @@
 # Modulo de IA - LegalMind
 
-Este modulo procesa documentos juridicos usando OpenAI para extraccion estructurada avanzada y agrega recuperacion local sobre documentos persistidos.
+Este modulo procesa documentos juridicos usando una API local gratuita via Ollama y agrega recuperacion local sobre documentos persistidos.
 
 La IA debe asistir al abogado, no reemplazar su criterio profesional. Los resultados sirven para organizar informacion, detectar puntos de revision y facilitar el trabajo sobre causas penales.
 
 ## Arquitectura Actual
 
-LegalMind expone una ruta de analisis basada en OpenAI Structured Outputs. La respuesta mantiene un contrato JSON estable para backend, frontend y base de datos.
+LegalMind expone una ruta de analisis basada en una API local que devuelve JSON. La respuesta mantiene un contrato estable para backend, frontend y base de datos.
 
 ### Capacidades
 
@@ -26,7 +26,7 @@ LegalMind expone una ruta de analisis basada en OpenAI Structured Outputs. La re
 
 ## Archivos
 
-- `analizadorOpenAI.js`: integracion con OpenAI Responses API.
+- `analizadorLocal.js`: integracion con Ollama o una API local compatible.
 - `esquema.js`: schemas JSON usados por Structured Outputs.
 - `instruccionesBase.js`: prompt base juridico.
 - `textFile.js`: lectura y validacion inicial de archivos TXT.
@@ -50,7 +50,7 @@ Body:
 }
 ```
 
-El unico modo aceptado es OpenAI. Si se envia `mode`, debe ser `openai`.
+El unico modo aceptado es local. Si se envia `mode`, debe ser `local`.
 
 Campos opcionales:
 
@@ -72,7 +72,7 @@ Campos:
 - `case_id` o `causa_id`: opcional.
 - `documento_id`: opcional.
 
-## RAG con OpenAI sobre texto enviado
+## RAG con API local sobre texto enviado
 
 ```http
 POST /api/ia/rag/search
@@ -143,11 +143,12 @@ Crear `backend/.env` tomando como base `.env.example`:
 ```env
 PORT=5000
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=verify-full
-OPENAI_API_KEY=tu_api_key_de_openai
-OPENAI_MODEL=gpt-5.4-mini
+LOCAL_AI_BASE_URL=http://localhost:11434
+LOCAL_AI_MODEL=llama3.1:8b
+LOCAL_AI_TIMEOUT_MS=120000
 ```
 
-`OPENAI_API_KEY` es obligatoria para analizar documentos.
+La API local debe estar iniciada para analizar documentos.
 
 ## Pruebas
 
@@ -156,8 +157,8 @@ npm run test:ia
 npm test
 ```
 
-Prueba manual contra OpenAI real:
+Prueba manual contra la API local:
 
 ```bash
-npm run test:ia:openai
+npm run test:ia:local
 ```

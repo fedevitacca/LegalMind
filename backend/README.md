@@ -1,6 +1,6 @@
 # Backend LegalMind
 
-El backend expone la API Express de LegalMind, autenticacion con Better Auth, integracion IA con OpenAI y conexion PostgreSQL/Neon.
+El backend expone la API Express de LegalMind, autenticacion con Better Auth, integracion IA local via Ollama y conexion PostgreSQL/Neon.
 
 ## Stack
 
@@ -8,7 +8,7 @@ El backend expone la API Express de LegalMind, autenticacion con Better Auth, in
 - Express
 - PostgreSQL/Neon
 - Better Auth
-- OpenAI
+- Ollama o una API local compatible
 
 ## Desarrollo local
 
@@ -28,7 +28,7 @@ El servidor usa `PORT=5000` por defecto.
 - `src/rutas/rutasSalud.js`: healthchecks de API y Neon.
 - `src/rutas/rutasUsuarios.js`: cuenta y preferencias del usuario logueado.
 - `src/rutas/rutasCasos.js`: endpoints de alta, listado y detalle de casos.
-- `IA`: conexion con OpenAI, schemas, pruebas locales y tests.
+- `IA`: conexion con API local, schemas, pruebas locales y tests.
 
 ## Variables de entorno
 
@@ -41,10 +41,11 @@ Configurar `backend/.env` tomando `backend/.env.example` como base:
 - `FRONTEND_URL`: origen permitido del frontend. En local: `http://localhost:3000`.
 - `GOOGLE_CLIENT_ID`: Client ID del OAuth Client de Google.
 - `GOOGLE_CLIENT_SECRET`: Client Secret del OAuth Client de Google.
-- `OPENAI_API_KEY`: API key de OpenAI para el modulo IA.
-- `OPENAI_MODEL`: modelo usado por el modulo IA.
+- `LOCAL_AI_BASE_URL`: URL de la API local. Por defecto: `http://localhost:11434`.
+- `LOCAL_AI_MODEL`: modelo local usado por el modulo IA. Por defecto: `llama3.1:8b`.
+- `LOCAL_AI_TIMEOUT_MS`: timeout de la llamada local en milisegundos.
 
-Sin `OPENAI_API_KEY`, las rutas de IA no pueden analizar documentos con OpenAI.
+Para analizar documentos, la API local debe estar iniciada y el modelo configurado debe estar descargado.
 
 ## Rutas de salud e IA
 
@@ -156,4 +157,3 @@ Desde `backend/`:
 - `npm test`: corre los tests del backend.
 - `npm run test:ia`: corre tests especificos del modulo IA.
 - `npm run test:ia:local`: prueba el analizador local.
-- `npm run test:ia:openai`: prueba el analizador contra OpenAI.

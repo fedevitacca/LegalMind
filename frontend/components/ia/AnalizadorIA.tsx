@@ -120,7 +120,7 @@ type Analysis = {
   };
   tipo_documento: string;
   _metadata: {
-    engine: "openai";
+    engine: "local";
     model?: string;
     persistence?: Persistence;
     source_file?: SourceFile;
@@ -128,9 +128,10 @@ type Analysis = {
 };
 
 type Health = {
+  local_ai_base_url: string;
+  local_ai_configured: boolean;
+  local_ai_model: string;
   module: string;
-  openai_configured: boolean;
-  openai_model: string;
   status: string;
 };
 
@@ -691,7 +692,7 @@ function HealthBadge({ error, health }: { error: string; health?: Health }) {
 
   return (
     <span className="rounded-full bg-[#84A2BD]/22 px-3 py-1.5 text-xs font-semibold">
-      {health.openai_configured ? health.openai_model : "Configurar OpenAI"}
+      {health.local_ai_configured ? health.local_ai_model : "Configurar API local"}
     </span>
   );
 }

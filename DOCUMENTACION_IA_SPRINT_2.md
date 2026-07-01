@@ -78,7 +78,7 @@ POST /api/ia/analyze-file
 Campos:
 
 - `file`: archivo TXT;
-- `mode`: `auto`, `local` u `openai`;
+- `mode`: `local`;
 - `persist`: `true` o `false`;
 - `case_id` o `causa_id`: causa asociada.
 
