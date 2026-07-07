@@ -1,4 +1,4 @@
-# Sprint 1 - Frontend
+# Sprint 1 y 2 - Frontend
 
 El frontend arranca con el dashboard como pantalla principal de LegalMind.
 
