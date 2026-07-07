@@ -7,17 +7,22 @@ const {
   resetLocalAIClientFactoryForTests,
   setLocalAIClientFactoryForTests,
 } = require("../../IA/analizadorLocal");
+const {
+  resetRandomForestForTests,
+} = require("../../IA/randomForestJuridico");
 
 describe("IA file routes", () => {
   let baseUrl;
   let server;
 
   before(async () => {
+    resetRandomForestForTests();
+
     setLocalAIClientFactoryForTests(() => ({
       chat: async (payload) => JSON.stringify(
         payload.messages.some((message) => message.content.includes("motor RAG juridico"))
           ? createSampleRagSearch()
-          : createSampleAnalysis()
+          : createSampleLawyerBrief()
       ),
     }));
 
@@ -32,6 +37,7 @@ describe("IA file routes", () => {
 
   after(async () => {
     resetLocalAIClientFactoryForTests();
+    resetRandomForestForTests();
 
     await new Promise((resolve, reject) => {
       server.close((error) => {
@@ -67,8 +73,10 @@ describe("IA file routes", () => {
     assert.equal(response.status, 200);
     assert.equal(analysis._metadata.engine, "local");
     assert.equal(analysis._metadata.source_file.name, "legajo.txt");
-    assert.match(analysis.causa.datos_generales[0], /789\/26/);
-    assert.equal(analysis.imputados[0].nombre, "Ana Gomez");
+    assert.match(analysis.informe_abogado.resumen_causa, /Ana Gomez/);
+    assert.equal(analysis.datos_locales.numero_causa, "789/26");
+    assert.deepEqual(analysis.datos_locales.imputados, ["Ana Gomez"]);
+    assert.ok(["alta", "urgente"].includes(analysis.triage.prioridad));
   });
 
   it("rechaza archivos sin extractor disponible", async () => {
@@ -186,6 +194,25 @@ describe("IA file routes", () => {
     assert.equal(body.datos_causa.numero_causa, "9911/2026");
     assert.deepEqual(body.datos_causa.imputados, ["Carlos Diaz"]);
   });
+
+  it("prioriza documentos con Random Forest juridico", async () => {
+    const response = await fetch(`${baseUrl}/api/ia/random-forest/triage`, {
+      body: JSON.stringify({
+        text: "Vence el plazo para apelar la prision preventiva del imputado detenido.",
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body._metadata.engine, "legalmind_random_forest_triage");
+    assert.equal(body.triage.prioridad, "urgente");
+    assert.ok(body.triage.senales_detectadas.some((signal) => signal.clave === "libertad"));
+    assert.ok(body.triage.senales_detectadas.some((signal) => signal.clave === "vencimiento"));
+  });
 });
 
 function createPdfBuffer(text) {
@@ -200,65 +227,27 @@ function createPdfBuffer(text) {
   });
 }
 
-function createSampleAnalysis() {
+function createSampleLawyerBrief() {
   return {
-    resumen: "Ana Gomez fue citada a audiencia.",
-    tipo_documento: "actuacion_de_audiencia",
-    causa: {
-      datos_generales: ["Identificador de causa o expediente: 789/26"],
-      hechos_relevantes: ["Ana Gomez fue citada a audiencia el 21/05/2026."],
-    },
-    imputados: [
+    resumen_causa: "Ana Gomez fue citada a audiencia en el legajo indicado.",
+    explicacion_para_abogado:
+      "El documento requiere revisar la citacion y preparar la comparecencia de la imputada.",
+    lectura_juridica: [
       {
-        nombre: "Ana Gomez",
-        datos_asociados: ["Ana Gomez fue citada a audiencia el 21/05/2026."],
-        imputaciones: [],
-        hechos_vinculados: [],
-        documentos_mencionados: [],
+        tema: "Audiencia",
+        explicacion: "La citacion puede requerir preparacion defensiva y control de agenda.",
       },
     ],
-    fechas_relevantes: [],
-    categorias: [],
-    actuaciones_pendientes: [],
-    observaciones: [],
-    nivel_confianza: "medio",
-    entidades_juridicas: {
-      causas: [],
-      imputados: [],
-      victimas: [],
-      delitos: [],
-      organismos: [],
-      documentos: [],
-      fechas: [],
-      actuaciones: [],
-    },
-    grafo_conocimiento: {
-      nodos: [],
-      relaciones: [],
-    },
-    rag_juridico: {
-      fragmentos: [],
-      indice_vectorial: {
-        proveedor: "ollama_local",
-        dimensiones: 0,
-        fragmentos_indexados: 0,
-        persistencia: "respuesta_http_y_postgresql_opcional",
+    puntos_de_atencion: [
+      {
+        prioridad: "alta",
+        descripcion: "Verificar fecha de audiencia.",
+        motivo: "La falta de comparecencia puede afectar la defensa.",
       },
-      consultas_sugeridas: [],
-    },
-    analisis_estrategico: {
-      inconsistencias: [],
-      puntos_revision: [],
-      cronologia: [],
-      omisiones_posibles: [],
-    },
-    alertas: [],
-    scoring_confianza: {
-      puntaje: 70,
-      nivel: "medio",
-      factores: [],
-      requiere_revision: true,
-    },
+    ],
+    preguntas_utiles: ["Que documentacion debe preparar la defensa?"],
+    limitaciones: ["El texto de prueba no informa delito ni tribunal."],
+    nivel_confianza: "medio",
   };
 }
 

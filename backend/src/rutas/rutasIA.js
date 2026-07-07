@@ -1,10 +1,13 @@
 const express = require("express");
 
 const {
-  analyzeLegalTextWithLocalAI,
+  buildLawyerBriefWithLocalAI,
   getLocalAIConfig,
   searchLegalTextWithLocalAI,
 } = require("../../IA/analizadorLocal");
+const {
+  triageLegalDocumentWithRandomForest,
+} = require("../../IA/randomForestJuridico");
 const {
   MAX_TEXT_FILE_SIZE_BYTES,
   extractTextFromSupportedFile,
@@ -19,7 +22,6 @@ const {
 } = require("../../IA/ragLocal");
 const {
   listDocumentsForCase,
-  saveLegalAnalysis,
 } = require("../modelos/repositorioIA");
 
 const router = express.Router();
@@ -247,16 +249,53 @@ router.post("/rag/extract", (req, res) => {
   return res.json(buildSimpleCaseDataPayload(text));
 });
 
+router.post("/random-forest/triage", (req, res) => {
+  if (isMultipartRequest(req)) {
+    parseTextFileUpload(req, async (uploadError) => {
+      if (uploadError) {
+        return res.status(400).json({
+          error: getUploadErrorMessage(uploadError),
+        });
+      }
+
+      try {
+        const text = await extractTextFromSupportedFile(req.file);
+
+        return res.json(buildRandomForestTriagePayload(text, {
+          name: req.file.originalname,
+          mime_type: req.file.mimetype,
+          size_bytes: req.file.size,
+        }));
+      } catch (error) {
+        return res.status(400).json({
+          error: error.message,
+        });
+      }
+    }, { allowPdf: true });
+    return;
+  }
+
+  const text = String(req.body?.text || "").trim();
+
+  if (!text) {
+    return res.status(400).json({
+      error: "El campo 'text' es obligatorio o se debe enviar un archivo .txt/.pdf.",
+    });
+  }
+
+  return res.json(buildRandomForestTriagePayload(text));
+});
+
 async function sendAnalysisResponse(res, text, options = {}) {
   try {
-    const analysis = await analyzeLegalTextWithLocalAI(text);
+    const lawyerBrief = await buildLawyerBriefWithLocalAI(text);
     const metadata = {
       engine: "local",
       model: getLocalAIConfig().model,
       ...buildSourceFileMetadata(options.sourceFile),
     };
 
-    return res.json(await buildAnalysisPayload(analysis, metadata, text, options));
+    return res.json(buildLawyerAnalysisPayload(lawyerBrief, metadata, text, options));
   } catch (error) {
     return res.status(getLocalAIErrorStatus(error)).json({
       error: "No se pudo analizar el texto con la API local.",
@@ -265,33 +304,126 @@ async function sendAnalysisResponse(res, text, options = {}) {
   }
 }
 
-async function buildAnalysisPayload(analysis, metadata, text, options) {
+function buildLawyerAnalysisPayload(lawyerBrief, metadata, text, options = {}) {
+  const localData = extractSimpleCaseData(text);
+  const triage = triageLegalDocumentWithRandomForest(text);
   const payload = {
-    ...analysis,
+    informe_abogado: lawyerBrief,
+    datos_locales: localData,
+    triage,
+    ...buildFrontendCompatibilityFields(lawyerBrief, localData, triage),
     _metadata: metadata,
   };
 
-  if (!options.persist) {
-    return payload;
-  }
-
-  try {
-    payload._metadata.persistence = await saveLegalAnalysis({
-      analysis,
-      causaId: options.causaId,
-      documentoId: options.documentoId,
-      metadata,
-      sourceFile: options.sourceFile,
-      text,
-    });
-  } catch (error) {
+  if (options.persist) {
     payload._metadata.persistence = {
       persisted: false,
-      error: error.message,
+      reason:
+        "El analisis con Ollama ahora genera informes explicativos. La persistencia estructurada debe usar datos locales extraidos por RAG/Random Forest.",
     };
   }
 
   return payload;
+}
+
+function buildFrontendCompatibilityFields(lawyerBrief, localData, triage) {
+  return {
+    resumen: lawyerBrief.resumen_causa,
+    tipo_documento: "informe_abogado",
+    causa: {
+      datos_generales: [
+        localData.numero_causa ? `Numero de causa: ${localData.numero_causa}` : null,
+        localData.caratula ? `Caratula: ${localData.caratula}` : null,
+        localData.tribunal ? `Tribunal: ${localData.tribunal}` : null,
+      ].filter(Boolean),
+      hechos_relevantes: lawyerBrief.lectura_juridica.map((item) => `${item.tema}: ${item.explicacion}`),
+    },
+    imputados: localData.imputados.map((name) => ({
+      datos_asociados: [],
+      documentos_mencionados: localData.documentos_mencionados,
+      hechos_vinculados: [],
+      imputaciones: [],
+      nombre: name,
+    })),
+    fechas_relevantes: localData.fechas_relevantes.map((date) => ({
+      evento: "Fecha detectada localmente",
+      fecha: date,
+      fecha_normalizada: null,
+      requiere_alerta: ["alta", "urgente"].includes(triage.prioridad),
+      tipo: "fecha_detectada",
+    })),
+    categorias: triage.senales_detectadas.map((signal) => signal.descripcion),
+    actuaciones_pendientes: localData.vencimientos_o_plazos,
+    observaciones: [
+      "Ollama genera el informe explicativo; los datos concretos se extraen localmente.",
+      ...lawyerBrief.limitaciones,
+    ],
+    nivel_confianza: lawyerBrief.nivel_confianza,
+    entidades_juridicas: {
+      actuaciones: localData.audiencias_o_actos.map((description, index) => ({
+        descripcion: description,
+        id: `actuacion-${index + 1}`,
+      })),
+      causas: localData.numero_causa
+        ? [{ id: "causa-local", identificador: localData.numero_causa, nombre: localData.caratula || "" }]
+        : [],
+      delitos: localData.delitos.map((name, index) => ({ id: `delito-${index + 1}`, nombre: name })),
+      documentos: localData.documentos_mencionados.map((name, index) => ({ id: `documento-${index + 1}`, nombre: name })),
+      fechas: localData.fechas_relevantes.map((date, index) => ({ fecha: date, id: `fecha-${index + 1}` })),
+      imputados: localData.imputados.map((name, index) => ({ id: `imputado-${index + 1}`, nombre: name })),
+      organismos: localData.tribunal ? [{ id: "tribunal-local", nombre: localData.tribunal }] : [],
+      victimas: localData.victimas.map((name, index) => ({ id: `victima-${index + 1}`, nombre: name })),
+    },
+    grafo_conocimiento: {
+      nodos: [],
+      relaciones: [],
+    },
+    rag_juridico: {
+      consultas_sugeridas: lawyerBrief.preguntas_utiles,
+      fragmentos: [],
+      indice_vectorial: {
+        dimensiones: 0,
+        fragmentos_indexados: 0,
+        persistencia: "datos_locales_no_vectoriales",
+        proveedor: "rag_local_reglas",
+      },
+    },
+    analisis_estrategico: {
+      cronologia: [],
+      inconsistencias: [],
+      omisiones_posibles: lawyerBrief.limitaciones,
+      puntos_revision: lawyerBrief.puntos_de_atencion.map((point) => ({
+        descripcion: `${point.descripcion} ${point.motivo}`.trim(),
+        prioridad: point.prioridad,
+        tipo: "revision_abogado",
+      })),
+    },
+    alertas: triage.prioridad === "urgente" || triage.prioridad === "alta"
+      ? [{
+          descripcion: triage.recomendacion,
+          fecha: null,
+          prioridad: triage.prioridad,
+          tipo: "triage_random_forest",
+          titulo: `Revision ${triage.prioridad}`,
+        }]
+      : [],
+    scoring_confianza: {
+      factores: triage.senales_detectadas.map((signal) => signal.descripcion),
+      nivel: lawyerBrief.nivel_confianza,
+      puntaje: Math.round(triage.confianza * 100),
+      requiere_revision: triage.prioridad !== "baja",
+    },
+  };
+}
+
+function buildRandomForestTriagePayload(text, sourceFile) {
+  return {
+    triage: triageLegalDocumentWithRandomForest(text),
+    _metadata: {
+      engine: "legalmind_random_forest_triage",
+      source_file: sourceFile || null,
+    },
+  };
 }
 
 function buildSimpleCaseDataPayload(text, sourceFile) {

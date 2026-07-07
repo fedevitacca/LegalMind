@@ -6,7 +6,7 @@
     "dev": "nodemon src/servidor.js",
     "start": "node src/servidor.js",
     "test": "node --test",
-    "test:ia": "node --test IA/analyzer.test.js IA/textFile.test.js",
+    "test:ia": "node --test IA/*.test.js src/rutas/iaRoutes.test.js",
     "test:ia:local": "node IA/probarAnalisis.js",
     "dataset:ia": "node IA/dataset/prepararMultiEurlex.js"
   },

@@ -1,6 +1,7 @@
 const { LEGALMIND_PROMPT_BASE } = require("./instruccionesBase");
 const {
   legalMindAnalysisSchema,
+  legalMindLawyerBriefSchema,
   legalMindRagSearchSchema,
 } = require("./esquema");
 
@@ -46,6 +47,35 @@ async function analyzeLegalTextWithLocalAI(text) {
   return normalizeSchemaValue(
     parseJsonObject(responseText),
     legalMindAnalysisSchema
+  );
+}
+
+async function buildLawyerBriefWithLocalAI(text) {
+  const responseText = await createLocalAIClient().chat({
+    messages: [
+      {
+        role: "system",
+        content: [
+          LEGALMIND_PROMPT_BASE,
+          "Tu tarea principal es explicar y resumir el documento para un abogado penalista.",
+          "No hagas extraccion mecanica de datos en forma de ficha. Eso lo hacen otros modulos locales de LegalMind.",
+          "Enfocate en: resumen de causa, explicacion practica, lectura juridica, puntos de atencion y preguntas utiles para revisar.",
+          "No inventes datos. Si algo no surge del texto, aclaralo en limitaciones.",
+          "No emitas asesoramiento juridico definitivo ni conclusiones sobre culpabilidad.",
+          "Devolve exclusivamente un JSON valido, sin markdown ni texto adicional.",
+          `Schema JSON esperado:\n${JSON.stringify(legalMindLawyerBriefSchema)}`,
+        ].join("\n\n"),
+      },
+      {
+        role: "user",
+        content: `Prepara un informe breve para abogado sobre este texto juridico:\n\n${text}`,
+      },
+    ],
+  });
+
+  return normalizeSchemaValue(
+    parseJsonObject(responseText),
+    legalMindLawyerBriefSchema
   );
 }
 
@@ -224,6 +254,7 @@ function resetLocalAIClientFactoryForTests() {
 
 module.exports = {
   analyzeLegalTextWithLocalAI,
+  buildLawyerBriefWithLocalAI,
   getLocalAIConfig,
   resetLocalAIClientFactoryForTests,
   searchLegalTextWithLocalAI,

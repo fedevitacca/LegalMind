@@ -406,6 +406,61 @@ const legalMindRagSearchSchema = {
   },
 };
 
+const legalMindLawyerBriefSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "resumen_causa",
+    "explicacion_para_abogado",
+    "lectura_juridica",
+    "puntos_de_atencion",
+    "preguntas_utiles",
+    "limitaciones",
+    "nivel_confianza",
+  ],
+  properties: {
+    resumen_causa: {
+      type: "string",
+      description: "Resumen narrativo y claro del documento o texto de la causa.",
+    },
+    explicacion_para_abogado: {
+      type: "string",
+      description: "Explicacion practica sobre que significa el documento para el trabajo del abogado.",
+    },
+    lectura_juridica: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["tema", "explicacion"],
+        properties: {
+          tema: { type: "string" },
+          explicacion: { type: "string" },
+        },
+      },
+    },
+    puntos_de_atencion: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["prioridad", "descripcion", "motivo"],
+        properties: {
+          prioridad: { type: "string" },
+          descripcion: { type: "string" },
+          motivo: { type: "string" },
+        },
+      },
+    },
+    preguntas_utiles: stringArray,
+    limitaciones: stringArray,
+    nivel_confianza: {
+      type: "string",
+      enum: ["alto", "medio", "bajo", "muy_bajo"],
+    },
+  },
+};
+
 function namedEntitySchema(required) {
   return {
     type: "object",
@@ -486,5 +541,6 @@ const legalMindAnalysisSchema = {
 
 module.exports = {
   legalMindAnalysisSchema,
+  legalMindLawyerBriefSchema,
   legalMindRagSearchSchema,
 };

@@ -1,16 +1,19 @@
 # Modulo de IA - LegalMind
 
-Este modulo procesa documentos juridicos usando una API local gratuita via Ollama y agrega recuperacion local sobre documentos persistidos.
+Este modulo procesa documentos juridicos combinando una API local gratuita via Ollama con herramientas locales de extraccion, RAG y Random Forest.
 
 La IA debe asistir al abogado, no reemplazar su criterio profesional. Los resultados sirven para organizar informacion, detectar puntos de revision y facilitar el trabajo sobre causas penales.
 
 ## Arquitectura Actual
 
-LegalMind expone una ruta de analisis basada en una API local que devuelve JSON. La respuesta mantiene un contrato estable para backend, frontend y base de datos.
+LegalMind separa responsabilidades:
+
+- Ollama se usa para tareas narrativas y explicativas: resumen de causa, lectura juridica, explicacion para el abogado y puntos de atencion.
+- Las herramientas locales se usan para datos concretos: numero de causa, imputados, tribunal, fechas, punteo y prioridad de revision.
 
 ### Capacidades
 
-- Extraccion juridica estructurada.
+- Informe juridico explicativo para abogado.
 - Identificacion de tipo de documento.
 - Extraccion de expediente o causa.
 - Deteccion de imputados, victimas, delitos, organismos y documentos.
@@ -26,14 +29,15 @@ LegalMind expone una ruta de analisis basada en una API local que devuelve JSON.
 
 ## Archivos
 
-- `analizadorLocal.js`: integracion con Ollama o una API local compatible.
+- `analizadorLocal.js`: integracion con Ollama o una API local compatible para informes explicativos.
 - `esquema.js`: schemas JSON usados por Structured Outputs.
 - `instruccionesBase.js`: prompt base juridico.
 - `textFile.js`: lectura y validacion inicial de archivos TXT.
 - `ragLocal.js`: recuperacion local por similitud textual sobre documentos guardados.
+- `randomForestJuridico.js`: triage local de documentos con Random Forest.
 - `dataset/`: adaptador de MultiEURLEX para entrenamiento ML posterior.
 
-## Endpoint de Analisis
+## Endpoint de Analisis con Ollama
 
 ```http
 POST /api/ia/analyze
@@ -54,9 +58,17 @@ El unico modo aceptado es local. Si se envia `mode`, debe ser `local`.
 
 Campos opcionales:
 
-- `persist`: si es `true`, guarda documento, analisis, fechas, entidades, relaciones, fragmentos y alertas en PostgreSQL.
+- `persist`: por compatibilidad. El informe explicativo no persiste extracciones estructuradas generadas por Ollama.
 - `case_id` o `causa_id`: vincula el analisis con una causa existente.
 - `documento_id`: vincula el analisis con un documento ya existente.
+
+La respuesta combina:
+
+- `informe_abogado`: resumen y explicacion generados con Ollama.
+- `datos_locales`: datos concretos extraidos localmente por reglas/RAG simple.
+- `triage`: prioridad de revision calculada con Random Forest local.
+
+Esto evita usar el modelo generativo para punteos mecanicos o datos que conviene extraer con herramientas locales.
 
 ## Analisis de Archivo TXT
 
@@ -113,6 +125,37 @@ Para listar documentos guardados de una causa:
 ```http
 GET /api/ia/cases/:caseId/documents
 ```
+
+## Triage juridico con Random Forest
+
+```http
+POST /api/ia/random-forest/triage
+Content-Type: application/json
+```
+
+Body:
+
+```json
+{
+  "text": "Texto juridico a priorizar..."
+}
+```
+
+Tambien acepta archivos `.txt` o `.pdf` con `multipart/form-data`:
+
+```text
+file: documento.txt
+file: documento.pdf
+```
+
+Esta herramienta usa un Random Forest local entrenado con ejemplos juridicos internos para priorizar revision profesional. Devuelve:
+
+- prioridad: `urgente`, `alta`, `media` o `baja`;
+- confianza segun votos de los arboles;
+- senales detectadas, por ejemplo audiencia, vencimiento, libertad, recurso, prueba o movimiento administrativo;
+- recomendacion operativa para el abogado.
+
+No reemplaza el criterio profesional: sirve para ordenar la bandeja de documentos y destacar piezas que pueden requerir revision inmediata.
 
 ## Dataset Externo
 
