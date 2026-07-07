@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const { after, before, describe, it } = require("node:test");
+const PDFDocument = require("pdfkit");
 
 const app = require("../aplicacion");
 const {
@@ -121,7 +122,83 @@ describe("IA file routes", () => {
     assert.match(body.results[0].texto, /Ana Gomez|audiencia/);
     assert.ok(body.answer.fundamentos.length > 0);
   });
+
+  it("extrae datos simples desde texto enviado al RAG local", async () => {
+    const response = await fetch(`${baseUrl}/api/ia/rag/extract`, {
+      body: JSON.stringify({
+        text:
+          "Causa nro 4455/2026. Juzgado Federal N. 2. El imputado Martin Lopez fue citado a audiencia el 12/06/2026.",
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body._metadata.engine, "local_rag_simple_extractor");
+    assert.equal(body.datos_causa.numero_causa, "4455/2026");
+    assert.match(body.datos_causa.tribunal, /Juzgado Federal/);
+    assert.deepEqual(body.datos_causa.imputados, ["Martin Lopez"]);
+  });
+
+  it("extrae datos simples desde archivo TXT", async () => {
+    const formData = new FormData();
+    formData.set(
+      "file",
+      new File(
+        [
+          "Expediente 7788/2026. Tribunal Oral Criminal N. 1. La imputada Ana Torres fue citada a audiencia el 03/07/2026.",
+        ],
+        "causa.txt",
+        { type: "text/plain" }
+      )
+    );
+
+    const response = await fetch(`${baseUrl}/api/ia/rag/extract`, {
+      method: "POST",
+      body: formData,
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body._metadata.source_file.name, "causa.txt");
+    assert.equal(body.datos_causa.numero_causa, "7788/2026");
+    assert.deepEqual(body.datos_causa.imputados, ["Ana Torres"]);
+  });
+
+  it("extrae datos simples desde archivo PDF", async () => {
+    const pdfBuffer = await createPdfBuffer(
+      "Legajo 9911/2026. Fiscalia Penal N. 3. El imputado Carlos Diaz fue citado a audiencia el 15/08/2026."
+    );
+    const formData = new FormData();
+    formData.set("file", new File([pdfBuffer], "legajo.pdf", { type: "application/pdf" }));
+
+    const response = await fetch(`${baseUrl}/api/ia/rag/extract`, {
+      method: "POST",
+      body: formData,
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body._metadata.source_file.name, "legajo.pdf");
+    assert.equal(body.datos_causa.numero_causa, "9911/2026");
+    assert.deepEqual(body.datos_causa.imputados, ["Carlos Diaz"]);
+  });
 });
+
+function createPdfBuffer(text) {
+  return new Promise((resolve) => {
+    const doc = new PDFDocument();
+    const chunks = [];
+
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.text(text);
+    doc.end();
+  });
+}
 
 function createSampleAnalysis() {
   return {

@@ -3,6 +3,7 @@ const { describe, it } = require("node:test");
 
 const {
   buildExtractiveAnswer,
+  extractSimpleCaseData,
   retrieveRelevantChunks,
 } = require("./ragLocal");
 
@@ -38,5 +39,25 @@ describe("ragLocal", () => {
 
     assert.equal(answer.confidence, "medio");
     assert.match(answer.answer, /documentacion/);
+  });
+
+  it("extrae datos simples de una causa desde texto juridico", () => {
+    const data = extractSimpleCaseData(`
+      Causa nro 9988/2026. Caratula: Perez Juan s/ robo agravado.
+      Tribunal Oral Criminal N. 4.
+      El imputado Juan Perez fue citado a audiencia el 18 de abril de 2026.
+      La victima Laura Rios declaro en sede judicial.
+      Se le atribuye el delito de robo agravado.
+      La defensa debera presentar documentacion hasta el 22/04/2026.
+    `);
+
+    assert.equal(data.numero_causa, "9988/2026");
+    assert.match(data.tribunal, /Tribunal Oral Criminal/);
+    assert.equal(data.cantidad_imputados, 1);
+    assert.deepEqual(data.imputados, ["Juan Perez"]);
+    assert.deepEqual(data.victimas, ["Laura Rios"]);
+    assert.ok(data.fechas_relevantes.includes("18 de abril de 2026"));
+    assert.ok(data.fechas_relevantes.includes("22/04/2026"));
+    assert.ok(data.audiencias_o_actos.some((sentence) => sentence.includes("audiencia")));
   });
 });

@@ -7,11 +7,14 @@ const {
 } = require("../../IA/analizadorLocal");
 const {
   MAX_TEXT_FILE_SIZE_BYTES,
+  extractTextFromSupportedFile,
   extractTextFromTxtFile,
+  isPdfFile,
   isTxtFile,
 } = require("../../IA/textFile");
 const {
   buildExtractiveAnswer,
+  extractSimpleCaseData,
   retrieveRelevantChunks,
 } = require("../../IA/ragLocal");
 const {
@@ -207,6 +210,43 @@ router.post("/rag/search", async (req, res) => {
   }
 });
 
+router.post("/rag/extract", (req, res) => {
+  if (isMultipartRequest(req)) {
+    parseTextFileUpload(req, async (uploadError) => {
+      if (uploadError) {
+        return res.status(400).json({
+          error: getUploadErrorMessage(uploadError),
+        });
+      }
+
+      try {
+        const text = await extractTextFromSupportedFile(req.file);
+
+        return res.json(buildSimpleCaseDataPayload(text, {
+          name: req.file.originalname,
+          mime_type: req.file.mimetype,
+          size_bytes: req.file.size,
+        }));
+      } catch (error) {
+        return res.status(400).json({
+          error: error.message,
+        });
+      }
+    }, { allowPdf: true });
+    return;
+  }
+
+  const text = String(req.body?.text || "").trim();
+
+  if (!text) {
+    return res.status(400).json({
+      error: "El campo 'text' es obligatorio o se debe enviar un archivo .txt/.pdf.",
+    });
+  }
+
+  return res.json(buildSimpleCaseDataPayload(text));
+});
+
 async function sendAnalysisResponse(res, text, options = {}) {
   try {
     const analysis = await analyzeLegalTextWithLocalAI(text);
@@ -254,6 +294,16 @@ async function buildAnalysisPayload(analysis, metadata, text, options) {
   return payload;
 }
 
+function buildSimpleCaseDataPayload(text, sourceFile) {
+  return {
+    datos_causa: extractSimpleCaseData(text),
+    _metadata: {
+      engine: "local_rag_simple_extractor",
+      source_file: sourceFile || null,
+    },
+  };
+}
+
 function buildSourceFileMetadata(sourceFile) {
   return sourceFile ? { source_file: sourceFile } : {};
 }
@@ -280,7 +330,11 @@ function getLocalAIErrorStatus(error) {
     : 500;
 }
 
-function parseTextFileUpload(req, callback) {
+function isMultipartRequest(req) {
+  return String(req.headers["content-type"] || "").toLowerCase().includes("multipart/form-data");
+}
+
+function parseTextFileUpload(req, callback, options = {}) {
   const contentType = req.headers["content-type"] || "";
   const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
 
@@ -334,8 +388,10 @@ function parseTextFileUpload(req, callback) {
         throw error;
       }
 
-      if (!isTxtFile(parsed.file)) {
-        throw new Error("Por ahora solo se admiten archivos .txt.");
+      if (!isTxtFile(parsed.file) && !(options.allowPdf && isPdfFile(parsed.file))) {
+        throw new Error(options.allowPdf
+          ? "Por ahora solo se admiten archivos .txt o .pdf."
+          : "Por ahora solo se admiten archivos .txt.");
       }
 
       req.file = parsed.file;

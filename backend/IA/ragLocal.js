@@ -58,6 +58,53 @@ function buildExtractiveAnswer(question, chunks) {
   };
 }
 
+function extractSimpleCaseData(text) {
+  const normalizedText = normalizeWhitespace(text);
+  const defendants = extractPeopleByRole(normalizedText, [
+    "imputado",
+    "imputada",
+    "procesado",
+    "procesada",
+    "acusado",
+    "acusada",
+  ]);
+  const victims = extractPeopleByRole(normalizedText, [
+    "victima",
+    "damnificado",
+    "damnificada",
+  ]);
+  const dates = extractDates(normalizedText);
+  const hearings = findSentencesByKeywords(normalizedText, ["audiencia", "indagatoria", "debate"]);
+  const deadlines = findSentencesByKeywords(normalizedText, ["vencimiento", "plazo", "debera presentar", "hasta el"]);
+
+  return {
+    numero_causa: firstMatch(normalizedText, [
+      /\b(?:causa|expediente|legajo)\s*(?:n(?:ro|o|um|\.|º)?\.?|numero)?\s*[:#-]?\s*([A-Z]?\s*\d{1,8}(?:[/-]\d{2,4})?)/i,
+      /\b(?:n(?:ro|o|um|\.|º)?\.?|numero)\s*[:#-]?\s*([A-Z]?\s*\d{1,8}(?:[/-]\d{2,4})?)/i,
+    ]),
+    caratula: firstMatch(normalizedText, [
+      /\bcaratula\s*[:#-]\s*([^.\n;]+)/i,
+      /\bautos\s*[:#-]\s*([^.\n;]+)/i,
+    ]),
+    tribunal: firstMatch(normalizedText, [
+      /\b((?:juzgado|tribunal|camara|fiscalia|unidad fiscal|secretaria)\s+[^.\n;]+)/i,
+    ]),
+    cantidad_imputados: defendants.length,
+    imputados: defendants,
+    victimas: victims,
+    delitos: extractCrimes(normalizedText),
+    fechas_relevantes: dates,
+    audiencias_o_actos: hearings,
+    vencimientos_o_plazos: deadlines,
+    documentos_mencionados: extractMentionedDocuments(normalizedText),
+    confianza: buildSimpleExtractionConfidence({
+      dates,
+      defendants,
+      normalizedText,
+    }),
+  };
+}
+
 function buildChunks(document) {
   const sentences = splitSentences(document.texto_extraido || "");
   const chunks = [];
@@ -76,6 +123,120 @@ function buildChunks(document) {
   }
 
   return chunks;
+}
+
+function normalizeWhitespace(text) {
+  return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+function firstMatch(text, patterns) {
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+
+    if (match?.[1]) {
+      return cleanValue(match[1]);
+    }
+  }
+
+  return null;
+}
+
+function extractPeopleByRole(text, roles) {
+  const rolePattern = roles.join("|");
+  const patterns = [
+    new RegExp(`\\b(?:${rolePattern})\\s+([A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ]+(?:\\s+[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ]+){0,3})`, "gi"),
+    new RegExp(`\\b([A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ]+(?:\\s+[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ]+){1,3})\\s*,?\\s*(?:${rolePattern})\\b`, "gi"),
+  ];
+
+  return uniqueValues(patterns.flatMap((pattern) => collectMatches(text, pattern)))
+    .map(cleanPersonName)
+    .filter(Boolean);
+}
+
+function extractDates(text) {
+  const numericDates = collectMatches(text, /\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b/g);
+  const namedDates = collectMatches(
+    text,
+    /\b(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+de\s+\d{4})\b/gi
+  );
+
+  return uniqueValues([...numericDates, ...namedDates]);
+}
+
+function extractCrimes(text) {
+  return uniqueValues(collectMatches(
+    text,
+    /\b(?:delito de|por|por el delito de|se le atribuye el delito de)\s+([a-záéíóúñ ]{4,60}?)(?:\.|,|;|\s+y\s+|\s+en\s+)/gi
+  )).map(cleanValue);
+}
+
+function extractMentionedDocuments(text) {
+  return uniqueValues(collectMatches(
+    text,
+    /\b((?:informe|acta|pericia|oficio|declaracion|resolucion|sentencia|requerimiento|dictamen)[^.;]{0,80})/gi
+  )).map(cleanValue);
+}
+
+function findSentencesByKeywords(text, keywords) {
+  return splitSentences(text).filter((sentence) =>
+    keywords.some((keyword) => sentence.toLowerCase().includes(keyword))
+  );
+}
+
+function collectMatches(text, pattern) {
+  return [...text.matchAll(pattern)].map((match) => match[1]).filter(Boolean);
+}
+
+function uniqueValues(values) {
+  return [...new Set(values.map(cleanValue).filter(Boolean))];
+}
+
+function cleanValue(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .replace(/^[,;:\s-]+|[,;:\s-]+$/g, "")
+    .trim();
+}
+
+function cleanPersonName(value) {
+  const namePrefix = cleanValue(value).split(/\b(?:declaro|declaró|fue|debera|deberá|debe|comparecio|compareció|cito|citó)\b/i)[0];
+  const stopWords = new Set([
+    "citada",
+    "citado",
+    "debe",
+    "debera",
+    "fue",
+    "imputada",
+    "imputado",
+    "la",
+    "le",
+    "el",
+    "se",
+  ]);
+  const words = namePrefix
+    .split(" ")
+    .filter((word) => !stopWords.has(word.toLowerCase()));
+
+  return cleanValue(words.join(" "));
+}
+
+function buildSimpleExtractionConfidence({ dates, defendants, normalizedText }) {
+  const signals = [
+    /\b(?:causa|expediente|legajo)\b/i.test(normalizedText),
+    /\b(?:juzgado|tribunal|camara|fiscalia)\b/i.test(normalizedText),
+    defendants.length > 0,
+    dates.length > 0,
+  ].filter(Boolean).length;
+
+  if (signals >= 3) {
+    return "medio";
+  }
+
+  if (signals >= 1) {
+    return "bajo";
+  }
+
+  return "muy_bajo";
 }
 
 function splitSentences(text) {
@@ -119,5 +280,6 @@ function cosineSimilarity(left, right) {
 
 module.exports = {
   buildExtractiveAnswer,
+  extractSimpleCaseData,
   retrieveRelevantChunks,
 };
