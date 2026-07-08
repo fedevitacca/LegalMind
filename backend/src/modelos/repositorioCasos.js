@@ -1,6 +1,7 @@
 const { pool } = require("../configuracion/baseDatos");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const { DOCUMENT_PROCESSING_STATES } = require("./estadosDocumentos");
 
 const databaseConfigured = () => Boolean(process.env.DATABASE_URL);
 
@@ -592,7 +593,7 @@ async function createDocument(caseId, payload) {
         texto_extraido,
         estado_procesamiento
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'cargado')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING
         id,
         causa_id,
@@ -614,6 +615,9 @@ async function createDocument(caseId, payload) {
       file?.size || Buffer.byteLength(text || "", "utf8"),
       file?.path || null,
       text || null,
+      text
+        ? DOCUMENT_PROCESSING_STATES.TEXT_EXTRACTED
+        : DOCUMENT_PROCESSING_STATES.PENDING,
     ]
   );
 

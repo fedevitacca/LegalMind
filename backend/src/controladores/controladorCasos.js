@@ -14,6 +14,10 @@ const {
   updateDocument,
   updateDefendantInCase,
 } = require("../modelos/repositorioCasos");
+const {
+  ALLOWED_DOCUMENT_PROCESSING_STATES,
+  isValidDocumentProcessingState,
+} = require("../modelos/estadosDocumentos");
 const fs = require("node:fs/promises");
 
 async function listarCasos(req, res, next) {
@@ -348,6 +352,13 @@ function validateDocument(body, file, { partial = false } = {}) {
 
   if ("estado_procesamiento" in (body || {}) && !body.estado_procesamiento) {
     return "El campo 'estado_procesamiento' no puede estar vacio.";
+  }
+
+  if (
+    "estado_procesamiento" in (body || {}) &&
+    !isValidDocumentProcessingState(body.estado_procesamiento)
+  ) {
+    return `El campo 'estado_procesamiento' debe ser uno de: ${ALLOWED_DOCUMENT_PROCESSING_STATES.join(", ")}.`;
   }
 
   if ("tipo_archivo" in (body || {}) && typeof body.tipo_archivo !== "string") {
