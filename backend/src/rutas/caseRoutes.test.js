@@ -100,4 +100,19 @@ describe("case routes", () => {
     assert.equal(response.status, 400);
     assert.match(body.error, /archivo/);
   });
+
+  it("valida el estado de procesamiento al actualizar un documento", async () => {
+    const response = await fetch(`${baseUrl}/api/casos/1/documentos/1`, {
+      body: JSON.stringify({ estado_procesamiento: "cargado" }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "PUT",
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.match(body.error, /estado_procesamiento/);
+    assert.match(body.error, /pendiente/);
+  });
 });

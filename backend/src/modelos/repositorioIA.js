@@ -1,4 +1,5 @@
 const { pool } = require("../configuracion/baseDatos");
+const { DOCUMENT_PROCESSING_STATES } = require("./estadosDocumentos");
 
 const databaseConfigured = () => Boolean(process.env.DATABASE_URL);
 
@@ -115,7 +116,7 @@ async function createDocumentForAnalysis(client, { causaId, sourceFile, text }) 
         texto_extraido,
         estado_procesamiento
       )
-      VALUES ($1, $2, $3, $4, $5, $6, 'analizado')
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING id
     `,
     [
@@ -125,6 +126,7 @@ async function createDocumentForAnalysis(client, { causaId, sourceFile, text }) 
       sourceFile?.mime_type || "text/plain",
       sourceFile?.size_bytes || Buffer.byteLength(text, "utf8"),
       text,
+      DOCUMENT_PROCESSING_STATES.ANALYZED,
     ]
   );
 
