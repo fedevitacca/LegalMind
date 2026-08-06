@@ -110,6 +110,37 @@ describe("IA file routes", () => {
     assert.match(body.error, /Solo esta habilitada la API local/);
   });
 
+  it("publica el catalogo de herramientas juridicas", async () => {
+    const response = await fetch(`${baseUrl}/api/ia/tools`);
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.ok(body.tools.length >= 7);
+    assert.ok(body.tools.some((tool) => tool.id === "comparar_jurisprudencia" && tool.inputs === 2));
+  });
+
+  it("ejecuta una herramienta sobre RAG hibrido y Ollama local", async () => {
+    const response = await fetch(`${baseUrl}/api/ia/tools/resumen_expediente/run`, {
+      body: JSON.stringify({ primary_text: "Expediente 42/2026. Audiencia el 12/08/2026.", query: "fecha importante" }),
+      headers: { "Content-Type": "application/json" }, method: "POST",
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body._metadata.engine, "ollama_local_hybrid_rag");
+    assert.equal(body._metadata.retrieval, "bm25_trigram_mmr_embeddings");
+    assert.ok(Array.isArray(body.citations));
+    assert.equal(typeof body.result, "object");
+  });
+
+  it("extrae archivos para el laboratorio documental", async () => {
+    const formData = new FormData();
+    formData.set("file", new File(["Expediente 55/2026. Se fija audiencia."], "nota.md", { type: "text/markdown" }));
+    const response = await fetch(`${baseUrl}/api/ia/extract-file`, { method: "POST", body: formData });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.document.name, "nota.md");
+    assert.match(body.document.text, /audiencia/);
+  });
+
   it("busca fragmentos juridicos con la API local", async () => {
     const response = await fetch(`${baseUrl}/api/ia/rag/search`, {
       body: JSON.stringify({

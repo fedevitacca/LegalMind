@@ -8,6 +8,7 @@ const {
 const DEFAULT_LOCAL_AI_BASE_URL = "http://localhost:11434";
 const DEFAULT_LOCAL_AI_MODEL = "llama3.1:8b";
 const DEFAULT_TIMEOUT_MS = 120000;
+const { getTool, toolResultSchema } = require("./motorHerramientas");
 
 let localAIClientFactoryForTests;
 
@@ -113,6 +114,27 @@ async function searchLegalTextWithLocalAI({ text, query, limit = 5 }) {
   );
 }
 
+async function runLegalToolWithLocalAI({ toolId, primaryText, secondaryText = "", query = "", context = [], parameters = {} }) {
+  const tool = getTool(toolId);
+  if (!tool) throw new Error("La herramienta de IA solicitada no existe.");
+  const responseText = await createLocalAIClient().chat({
+    messages: [{
+      role: "system",
+      content: [LEGALMIND_PROMPT_BASE, tool.instruction,
+        "Trabaja exclusivamente con las fuentes entregadas. No inventes citas, hechos ni normas.",
+        "Diferencia evidencia textual de inferencias. Si falta respaldo, indicalo en limitaciones.",
+        "Devuelve exclusivamente JSON valido, sin markdown.",
+        `Schema esperado: ${JSON.stringify(toolResultSchema)}`].join("\n\n"),
+    }, {
+      role: "user",
+      content: [`Herramienta: ${tool.label}`, `Parametros profesionales: ${JSON.stringify(parameters)}`, query ? `Consulta: ${query}` : "",
+        "FUENTE A:", primaryText, secondaryText ? "FUENTE B:" : "", secondaryText,
+        context.length ? "FRAGMENTOS RAG RECUPERADOS:" : "", ...context].filter(Boolean).join("\n\n"),
+    }],
+  });
+  return normalizeSchemaValue(parseJsonObject(responseText), toolResultSchema);
+}
+
 async function sendOllamaChatRequest({ messages }) {
   const baseUrl = (process.env.LOCAL_AI_BASE_URL || DEFAULT_LOCAL_AI_BASE_URL).replace(/\/$/, "");
   const model = process.env.LOCAL_AI_MODEL || DEFAULT_LOCAL_AI_MODEL;
@@ -166,6 +188,18 @@ async function sendOllamaChatRequest({ messages }) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function embedTextsWithLocalAI(texts) {
+  if (localAIClientFactoryForTests) throw new Error("Embeddings omitidos durante pruebas aisladas.");
+  const baseUrl = (process.env.LOCAL_AI_BASE_URL || DEFAULT_LOCAL_AI_BASE_URL).replace(/\/$/, "");
+  const model = process.env.LOCAL_AI_EMBEDDING_MODEL || process.env.LOCAL_AI_MODEL || DEFAULT_LOCAL_AI_MODEL;
+  const response = await fetch(`${baseUrl}/api/embed`, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model, input: texts }) });
+  if (!response.ok) throw new Error(`Embeddings locales no disponibles (${response.status}).`);
+  const body = await response.json();
+  if (!Array.isArray(body.embeddings) || body.embeddings.length !== texts.length) throw new Error("Respuesta de embeddings invalida.");
+  return body.embeddings;
 }
 
 function parseJsonObject(rawText) {
@@ -254,9 +288,11 @@ function resetLocalAIClientFactoryForTests() {
 
 module.exports = {
   analyzeLegalTextWithLocalAI,
+  embedTextsWithLocalAI,
   buildLawyerBriefWithLocalAI,
   getLocalAIConfig,
   resetLocalAIClientFactoryForTests,
   searchLegalTextWithLocalAI,
+  runLegalToolWithLocalAI,
   setLocalAIClientFactoryForTests,
 };

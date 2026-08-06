@@ -4,7 +4,11 @@ const {
   buildLawyerBriefWithLocalAI,
   getLocalAIConfig,
   searchLegalTextWithLocalAI,
+  runLegalToolWithLocalAI,
+  embedTextsWithLocalAI,
 } = require("../../IA/analizadorLocal");
+const { getTool, listTools } = require("../../IA/motorHerramientas");
+const { createAIQuery, deleteAIQuery, getAIQuery, listAIQueries } = require("../modelos/repositorioConsultasIA");
 const {
   triageLegalDocumentWithRandomForest,
 } = require("../../IA/randomForestJuridico");
@@ -13,6 +17,7 @@ const {
   extractTextFromSupportedFile,
   extractTextFromTxtFile,
   isPdfFile,
+  isSupportedDocument,
   isTxtFile,
 } = require("../../IA/textFile");
 const {
@@ -47,6 +52,79 @@ router.get("/health", (req, res) => {
       "scoring_confianza",
     ],
   });
+});
+
+router.get("/tools", (req, res) => res.json({ tools: listTools() }));
+
+router.post("/extract-file", (req, res) => {
+  parseTextFileUpload(req, async (uploadError) => {
+    if (uploadError) return res.status(400).json({ error: getUploadErrorMessage(uploadError) });
+    try {
+      const text = await extractTextFromSupportedFile(req.file);
+      return res.json({ document: { name: req.file.originalname, mime_type: req.file.mimetype,
+        size_bytes: req.file.size, characters: text.length, text } });
+    } catch (error) { return res.status(400).json({ error: error.message }); }
+  }, { allowAllDocuments: true });
+});
+
+router.get("/cases/:caseId/queries", async (req, res, next) => {
+  try { return res.json({ queries: await listAIQueries(parseRequiredNumericId(req.params.caseId)) }); }
+  catch (error) { return next(error); }
+});
+router.get("/cases/:caseId/queries/:queryId", async (req, res, next) => {
+  try { const item = await getAIQuery(parseRequiredNumericId(req.params.caseId), parseRequiredNumericId(req.params.queryId));
+    return item ? res.json({ query: item }) : res.status(404).json({ error: "Consulta no encontrada." }); }
+  catch (error) { return next(error); }
+});
+router.delete("/cases/:caseId/queries/:queryId", async (req, res, next) => {
+  try { const deleted = await deleteAIQuery(parseRequiredNumericId(req.params.caseId), parseRequiredNumericId(req.params.queryId));
+    return deleted ? res.status(204).send() : res.status(404).json({ error: "Consulta no encontrada." }); }
+  catch (error) { return next(error); }
+});
+
+router.post("/tools/:toolId/run", async (req, res) => {
+  const tool = getTool(req.params.toolId);
+  if (!tool) return res.status(404).json({ error: "Herramienta de IA inexistente." });
+  const primaryText = String(req.body?.primary_text || req.body?.text || "").trim();
+  const secondaryText = String(req.body?.secondary_text || "").trim();
+  const query = String(req.body?.query || "").trim();
+  if (!primaryText) return res.status(400).json({ error: "La fuente principal es obligatoria." });
+  if (tool.inputs === 2 && !secondaryText) return res.status(400).json({ error: "Esta herramienta requiere dos fuentes." });
+
+  try {
+    const documents = [
+      { id: "fuente-a", nombre_archivo: "Fuente A", texto_extraido: primaryText },
+      ...(secondaryText ? [{ id: "fuente-b", nombre_archivo: "Fuente B", texto_extraido: secondaryText }] : []),
+    ];
+    const retrievalQuery = query || `${tool.label} ${primaryText.slice(0, 400)}`;
+    let chunks = retrieveRelevantChunks(documents, retrievalQuery, 12);
+    let semanticRetrieval = "lexical_fallback";
+    try {
+      const embeddings = await embedTextsWithLocalAI([retrievalQuery, ...chunks.map((chunk) => chunk.text)]);
+      const queryEmbedding = embeddings[0];
+      chunks = chunks.map((chunk, index) => ({ ...chunk, embedding_score: vectorCosine(queryEmbedding, embeddings[index + 1]) }))
+        .map((chunk) => ({ ...chunk, score: 0.45 * chunk.score + 0.55 * Math.max(0, chunk.embedding_score) }))
+        .sort((a, b) => b.score - a.score).slice(0, 8);
+      semanticRetrieval = "ollama_embeddings";
+    } catch { chunks = chunks.slice(0, 8); }
+    const result = await runLegalToolWithLocalAI({
+      toolId: req.params.toolId, primaryText, secondaryText, query,
+      parameters: req.body?.parameters || {},
+      context: chunks.map((chunk) => `[${chunk.document_id}:${chunk.chunk_index}] ${chunk.text}`),
+    });
+    const metadata = {
+      engine: "ollama_local_hybrid_rag", model: getLocalAIConfig().model,
+      tool_id: req.params.toolId, retrieval: "bm25_trigram_mmr_embeddings", semantic_retrieval: semanticRetrieval, generated_at: new Date().toISOString(),
+    };
+    let savedQuery = null;
+    const caseId = parseOptionalNumericId(req.body?.case_id);
+    if (caseId) savedQuery = await createAIQuery({ caseId, toolId: req.params.toolId,
+      title: result.titulo || tool.label, query, input: { primary_text: primaryText, secondary_text: secondaryText, parameters: req.body?.parameters || {} },
+      result, citations: chunks, metadata });
+    return res.json({ result, citations: chunks, saved_query: savedQuery, _metadata: metadata });
+  } catch (error) {
+    return res.status(getLocalAIErrorStatus(error)).json({ error: "No se pudo ejecutar la herramienta.", details: error.message });
+  }
 });
 
 router.post("/analyze", async (req, res) => {
@@ -120,6 +198,7 @@ router.get("/cases/:caseId/documents", async (req, res, next) => {
         size_bytes: document.tamano_bytes,
         status: document.estado_procesamiento,
         created_at: document.created_at,
+        extracted_text: req.query.include_text === "true" ? document.texto_extraido : undefined,
       })),
     });
   } catch (error) {
@@ -442,7 +521,7 @@ function buildSourceFileMetadata(sourceFile) {
 
 function getUploadErrorMessage(error) {
   if (error.code === "LIMIT_FILE_SIZE") {
-    return "El archivo supera el limite de 5 MB.";
+    return "El archivo supera el limite de 15 MB.";
   }
 
   return error.message;
@@ -485,7 +564,7 @@ function parseTextFileUpload(req, callback, options = {}) {
 
     if (totalBytes > MAX_TEXT_FILE_SIZE_BYTES + 1024 * 256) {
       finished = true;
-      const error = new Error("El archivo supera el limite de 5 MB.");
+      const error = new Error("El archivo supera el limite de 15 MB.");
       error.code = "LIMIT_FILE_SIZE";
       callback(error);
       req.destroy();
@@ -515,15 +594,15 @@ function parseTextFileUpload(req, callback, options = {}) {
       }
 
       if (parsed.file.size > MAX_TEXT_FILE_SIZE_BYTES) {
-        const error = new Error("El archivo supera el limite de 5 MB.");
+        const error = new Error("El archivo supera el limite de 15 MB.");
         error.code = "LIMIT_FILE_SIZE";
         throw error;
       }
 
-      if (!isTxtFile(parsed.file) && !(options.allowPdf && isPdfFile(parsed.file))) {
+      if (options.allowAllDocuments ? !isSupportedDocument(parsed.file) : !isTxtFile(parsed.file) && !(options.allowPdf && isPdfFile(parsed.file))) {
         throw new Error(options.allowPdf
           ? "Por ahora solo se admiten archivos .txt o .pdf."
-          : "Por ahora solo se admiten archivos .txt.");
+          : options.allowAllDocuments ? "Se admiten archivos .pdf, .docx, .txt, .md o .csv." : "Por ahora solo se admiten archivos .txt.");
       }
 
       req.file = parsed.file;
@@ -607,6 +686,13 @@ function getHeaderParameter(header, parameter) {
 
 function parseBoolean(value) {
   return value === true || value === "true" || value === "1";
+}
+
+function vectorCosine(left = [], right = []) {
+  if (!left.length || left.length !== right.length) return 0;
+  let dot = 0; let leftNorm = 0; let rightNorm = 0;
+  for (let index = 0; index < left.length; index += 1) { dot += left[index] * right[index]; leftNorm += left[index] ** 2; rightNorm += right[index] ** 2; }
+  return dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm) || 1);
 }
 
 function parseOptionalNumericId(value) {

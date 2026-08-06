@@ -35,6 +35,7 @@ dev-server*.log
 *.log
 .npm-cache/
 backend/uploads/
+backend/IA/dataset/dataset_multieurlex_*.csv
 
 # env files (can opt-in for committing if needed)
 .env*

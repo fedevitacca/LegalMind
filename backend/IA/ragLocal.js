@@ -26,16 +26,49 @@ const STOP_WORDS = new Set([
 
 function retrieveRelevantChunks(documents, question, topK = 5) {
   const chunks = documents.flatMap((document) => buildChunks(document));
-  const queryVector = vectorize(question);
+  if (!chunks.length) return [];
+  const queryTokens = tokenize(question);
+  const documentTokens = chunks.map((chunk) => tokenize(chunk.text));
+  const averageLength = documentTokens.reduce((sum, tokens) => sum + tokens.length, 0) / chunks.length;
+  const scored = chunks.map((chunk, index) => {
+    const lexical = bm25(queryTokens, documentTokens[index], documentTokens, averageLength);
+    const semantic = trigramSimilarity(question, chunk.text);
+    return { ...chunk, lexical_score: lexical, semantic_score: semantic, score: lexical * 0.65 + semantic * 0.35 };
+  }).filter((chunk) => chunk.score > 0).sort((a, b) => b.score - a.score);
 
-  return chunks
-    .map((chunk) => ({
-      ...chunk,
-      score: cosineSimilarity(queryVector, vectorize(chunk.text)),
-    }))
-    .filter((chunk) => chunk.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK);
+  // Maximal Marginal Relevance evita devolver fragmentos casi duplicados.
+  const selected = [];
+  while (selected.length < Math.max(1, topK) && scored.length) {
+    let bestIndex = 0;
+    let bestScore = -Infinity;
+    scored.forEach((candidate, index) => {
+      const redundancy = selected.length ? Math.max(...selected.map((item) => trigramSimilarity(candidate.text, item.text))) : 0;
+      const mmr = 0.78 * candidate.score - 0.22 * redundancy;
+      if (mmr > bestScore) { bestScore = mmr; bestIndex = index; }
+    });
+    selected.push({ ...scored.splice(bestIndex, 1)[0], mmr_score: Math.max(0, bestScore) });
+  }
+  const max = Math.max(...selected.map((item) => item.score), 1);
+  return selected.map((item) => ({ ...item, score: Math.min(1, item.score / max) }));
+}
+
+function bm25(query, document, corpus, averageLength, k1 = 1.5, b = 0.75) {
+  if (!query.length || !document.length) return 0;
+  return [...new Set(query)].reduce((score, term) => {
+    const frequency = document.filter((token) => token === term).length;
+    if (!frequency) return score;
+    const containing = corpus.filter((tokens) => tokens.includes(term)).length;
+    const idf = Math.log(1 + (corpus.length - containing + 0.5) / (containing + 0.5));
+    return score + idf * (frequency * (k1 + 1)) / (frequency + k1 * (1 - b + b * document.length / Math.max(averageLength, 1)));
+  }, 0);
+}
+
+function trigramSimilarity(left, right) {
+  const build = (value) => new Set(`  ${normalizeWhitespace(value).toLowerCase()}  `.match(/.{1,3}/g) || []);
+  const a = build(left); const b = build(right);
+  if (!a.size || !b.size) return 0;
+  const intersection = [...a].filter((item) => b.has(item)).length;
+  return (2 * intersection) / (a.size + b.size);
 }
 
 function buildExtractiveAnswer(question, chunks) {

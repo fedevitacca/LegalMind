@@ -12,6 +12,7 @@ const caseAreas: CaseAreaItem[] = [
   { href: "documentos", label: "Documentos", ready: true },
   { href: "agenda", label: "Agenda", ready: true },
   { href: "jurisprudencia", label: "Jurisprudencia", ready: true },
+  { href: "consultas", label: "Consultas IA", ready: true },
 ];
 
 export default function NavegacionAreasCaso({

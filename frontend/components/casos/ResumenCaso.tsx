@@ -43,6 +43,12 @@ const previewAreas = [
     action: "Ver jurisprudencia",
     fallback: "Criterios, fallos y material de consulta para el caso.",
   },
+  {
+    href: "consultas",
+    label: "Consultas IA",
+    action: "Abrir historial",
+    fallback: "Análisis, comparativas y consultas guardadas para este expediente.",
+  },
 ];
 
 export default function ResumenCaso({

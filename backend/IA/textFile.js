@@ -1,15 +1,18 @@
 const path = require("node:path");
 const { PDFParse } = require("pdf-parse");
+const mammoth = require("mammoth");
 
-const MAX_TEXT_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_TEXT_FILE_SIZE_BYTES = 15 * 1024 * 1024;
 
 function isTxtFile(file) {
-  return path.extname(file.originalname || "").toLowerCase() === ".txt";
+  return [".txt", ".md", ".csv"].includes(path.extname(file.originalname || "").toLowerCase());
 }
 
 function isPdfFile(file) {
   return path.extname(file.originalname || "").toLowerCase() === ".pdf";
 }
+
+function isDocxFile(file) { return path.extname(file.originalname || "").toLowerCase() === ".docx"; }
 
 function extractTextFromTxtFile(file) {
   if (!file || !Buffer.isBuffer(file.buffer)) {
@@ -59,8 +62,17 @@ async function extractTextFromSupportedFile(file) {
     return extractTextFromPdfFile(file);
   }
 
-  throw new Error("Por ahora solo se admiten archivos .txt o .pdf.");
+  if (isDocxFile(file)) {
+    const parsed = await mammoth.extractRawText({ buffer: file.buffer });
+    const text = String(parsed.value || "").replace(/\n{3,}/g, "\n\n").trim();
+    if (!text) throw new Error("El archivo DOCX no contiene texto extraible.");
+    return text;
+  }
+
+  throw new Error("Se admiten archivos .pdf, .docx, .txt, .md o .csv.");
 }
+
+function isSupportedDocument(file) { return isTxtFile(file) || isPdfFile(file) || isDocxFile(file); }
 
 module.exports = {
   MAX_TEXT_FILE_SIZE_BYTES,
@@ -68,5 +80,7 @@ module.exports = {
   extractTextFromSupportedFile,
   extractTextFromTxtFile,
   isPdfFile,
+  isDocxFile,
+  isSupportedDocument,
   isTxtFile,
 };
