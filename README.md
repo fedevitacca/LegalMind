@@ -1,5 +1,7 @@
 # LegalMind
 
+> Para el camino desde prototipo hacia uso profesional, consultar [`README_PROFESIONALIZACION.md`](README_PROFESIONALIZACION.md). El prompt ejecutable por fases está en [`PROMPT_IMPLEMENTACION_PROFESIONAL.md`](PROMPT_IMPLEMENTACION_PROFESIONAL.md).
+
 LegalMind es un workspace jurídico para organizar causas y analizar material sensible con inteligencia artificial ejecutada localmente. La aplicación no reemplaza el criterio profesional: acelera lectura, comparación, control y recuperación de evidencia dejando visibles sus fuentes y limitaciones.
 
 ## Nueva composición de IA
