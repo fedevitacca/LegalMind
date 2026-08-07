@@ -1,11 +1,12 @@
 const { pool } = require("../configuracion/baseDatos");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const crypto = require("node:crypto");
 const { DOCUMENT_PROCESSING_STATES } = require("./estadosDocumentos");
 
 const databaseConfigured = () => Boolean(process.env.DATABASE_URL);
 
-async function listCases() {
+async function listCases(organizationId) {
   ensureDatabaseConfigured();
 
   const result = await pool.query(`
@@ -25,14 +26,15 @@ async function listCases() {
     FROM causas c
     LEFT JOIN causa_imputados ci ON ci.causa_id = c.id
     LEFT JOIN fechas_relevantes fr ON fr.causa_id = c.id
+    WHERE c.organizacion_id = $1
     GROUP BY c.id
     ORDER BY c.updated_at DESC, c.id DESC
-  `);
+  `, [organizationId]);
 
   return result.rows.map(mapCaseListRow);
 }
 
-async function getCaseById(id) {
+async function getCaseById(id, organizationId) {
   ensureDatabaseConfigured();
 
   const caseResult = await pool.query(
@@ -46,9 +48,9 @@ async function getCaseById(id) {
         created_at,
         updated_at
       FROM causas
-      WHERE id = $1
+      WHERE id = $1 AND organizacion_id = $2
     `,
-    [id]
+    [id, organizationId]
   );
 
   if (!caseResult.rowCount) {
@@ -93,6 +95,10 @@ async function getCaseById(id) {
         texto_extraido,
         ruta_archivo,
         estado_procesamiento,
+        sha256,
+        version,
+        requiere_ocr,
+        confianza_extraccion,
         created_at
       FROM documentos
       WHERE causa_id = $1
@@ -144,7 +150,7 @@ async function getCaseById(id) {
   );
 }
 
-async function createCase(payload) {
+async function createCase(payload, security) {
   ensureDatabaseConfigured();
 
   const client = await pool.connect();
@@ -154,8 +160,8 @@ async function createCase(payload) {
 
     const caseResult = await client.query(
       `
-        INSERT INTO causas (identificador, caratula, descripcion, estado)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO causas (identificador, caratula, descripcion, estado, organizacion_id, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING id
       `,
       [
@@ -163,6 +169,8 @@ async function createCase(payload) {
         payload.caratula.trim(),
         emptyToNull(payload.descripcion),
         payload.estado || "activa",
+        security.organizationId,
+        security.userId,
       ]
     );
 
@@ -264,7 +272,7 @@ async function createCase(payload) {
     }
 
     await client.query("COMMIT");
-    return getCaseById(caseId);
+    return getCaseById(caseId, security.organizationId);
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -273,7 +281,7 @@ async function createCase(payload) {
   }
 }
 
-async function updateCase(id, payload) {
+async function updateCase(id, payload, organizationId) {
   ensureDatabaseConfigured();
 
   const allowedFields = ["caratula", "descripcion", "estado", "identificador"];
@@ -288,7 +296,7 @@ async function updateCase(id, payload) {
   }
 
   if (!updates.length) {
-    return getCaseById(id);
+    return getCaseById(id, organizationId);
   }
 
   values.push(id);
@@ -297,17 +305,17 @@ async function updateCase(id, payload) {
     `
       UPDATE causas
       SET ${updates.join(", ")}, updated_at = NOW()
-      WHERE id = $${values.length}
+      WHERE id = $${values.length} AND organizacion_id = $${values.length + 1}
       RETURNING id
     `,
-    values
+    [...values, organizationId]
   );
 
   if (!result.rowCount) {
     return null;
   }
 
-  return getCaseById(id);
+  return getCaseById(id, organizationId);
 }
 
 async function deleteCase(id) {
@@ -550,6 +558,10 @@ async function listDocumentsByCase(caseId) {
         ruta_archivo,
         texto_extraido,
         estado_procesamiento,
+        sha256,
+        version,
+        requiere_ocr,
+        confianza_extraccion,
         created_at,
         updated_at
       FROM documentos
@@ -580,6 +592,8 @@ async function createDocument(caseId, payload) {
     payload.tipo_archivo ||
     getFileExtension(file?.originalname) ||
     "documento";
+  const hashInput = file?.path ? await fs.readFile(file.path) : Buffer.from(text || "", "utf8");
+  const sha256 = crypto.createHash("sha256").update(hashInput).digest("hex");
 
   const result = await pool.query(
     `
@@ -591,9 +605,10 @@ async function createDocument(caseId, payload) {
         tamano_bytes,
         ruta_archivo,
         texto_extraido,
-        estado_procesamiento
+        estado_procesamiento,
+        sha256
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING
         id,
         causa_id,
@@ -605,7 +620,11 @@ async function createDocument(caseId, payload) {
         texto_extraido,
         estado_procesamiento,
         created_at,
-        updated_at
+        updated_at,
+        sha256,
+        version,
+        requiere_ocr,
+        confianza_extraccion
     `,
     [
       caseId,
@@ -618,6 +637,7 @@ async function createDocument(caseId, payload) {
       text
         ? DOCUMENT_PROCESSING_STATES.TEXT_EXTRACTED
         : DOCUMENT_PROCESSING_STATES.PENDING,
+      sha256,
     ]
   );
 
@@ -810,6 +830,10 @@ function mapDocumentRow(row) {
       row.texto_extraido?.slice(0, 180) ||
       "Documento asociado al expediente.",
     tamano_bytes: row.tamano_bytes,
+    sha256: row.sha256 || null,
+    version: row.version || 1,
+    requiere_ocr: Boolean(row.requiere_ocr),
+    confianza_extraccion: row.confianza_extraccion == null ? null : Number(row.confianza_extraccion),
   };
 }
 

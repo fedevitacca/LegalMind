@@ -35,19 +35,19 @@ export default function CentroAnalisisIA() {
 
   useEffect(() => {
     fetch(`${apiUrl}/api/ia/tools`).then((r) => r.json()).then((body) => body.tools?.length && setTools(body.tools)).catch(() => undefined);
-    fetch(`${apiUrl}/api/casos`).then((r) => r.json()).then((body) => setCases(body.cases || [])).catch(() => undefined);
+    fetch(`${apiUrl}/api/casos`, { credentials: "include" }).then((r) => r.json()).then((body) => setCases(body.cases || [])).catch(() => undefined);
     const requestedCase = new URLSearchParams(window.location.search).get("case_id");
     if (requestedCase) setCaseId(requestedCase);
   }, []);
   useEffect(() => {
     if (!caseId) { setCaseDocuments([]); return; }
-    fetch(`${apiUrl}/api/ia/cases/${caseId}/documents?include_text=true`).then((r) => r.json()).then((body) => setCaseDocuments(body.documents || [])).catch(() => setCaseDocuments([]));
+    fetch(`${apiUrl}/api/ia/cases/${caseId}/documents?include_text=true`, { credentials: "include" }).then((r) => r.json()).then((body) => setCaseDocuments(body.documents || [])).catch(() => setCaseDocuments([]));
   }, [caseId]);
 
   async function execute() {
     setBusy(true); setError(""); setResult(undefined); setCitations([]); setSavedId(undefined);
     try {
-      const response = await fetch(`${apiUrl}/api/ia/tools/${toolId}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ primary_text: primary, secondary_text: secondary, query, parameters, case_id: caseId ? Number(caseId) : null }) });
+      const response = await fetch(`${apiUrl}/api/ia/tools/${toolId}/run`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ primary_text: primary, secondary_text: secondary, query, parameters, case_id: caseId ? Number(caseId) : null }) });
       const body = await response.json();
       if (!response.ok) throw new Error([body.error, body.details].filter(Boolean).join(" "));
       setResult(body.result); setCitations(body.citations || []); setSavedId(body.saved_query?.id);
@@ -78,7 +78,7 @@ function Source({ label, value, onChange, documents }: { label: string; value: s
   const [uploading, setUploading] = useState(false); const [fileName, setFileName] = useState(""); const [uploadError, setUploadError] = useState("");
   async function extract(file?: File) {
     if (!file) return; setUploading(true); setUploadError("");
-    try { const data = new FormData(); data.set("file", file); const response = await fetch(`${apiUrl}/api/ia/extract-file`, { method: "POST", body: data }); const body = await response.json(); if (!response.ok) throw new Error(body.error || "No se pudo leer el archivo."); onChange(body.document.text); setFileName(body.document.name); }
+    try { const data = new FormData(); data.set("file", file); const response = await fetch(`${apiUrl}/api/ia/extract-file`, { method: "POST", credentials: "include", body: data }); const body = await response.json(); if (!response.ok) throw new Error(body.error || "No se pudo leer el archivo."); onChange(body.document.text); setFileName(body.document.name); }
     catch (cause) { setUploadError(cause instanceof Error ? cause.message : "No se pudo leer el archivo."); } finally { setUploading(false); }
   }
   return <div className="block"><span className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold uppercase tracking-[.14em] text-[#10213e]/45"><span>{label}</span>{documents.length ? <select aria-label={`Documento para ${label}`} defaultValue="" onChange={(e) => { const document = documents.find((item) => String(item.id) === e.target.value); if (document?.extracted_text) { onChange(document.extracted_text); setFileName(document.name); } }} className="max-w-52 rounded-lg border border-[#b8c8c5] bg-white px-2 py-1 text-[11px] normal-case tracking-normal"><option value="">Documento del caso…</option>{documents.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select> : null}</span>

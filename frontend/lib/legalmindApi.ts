@@ -41,6 +41,12 @@ export type CaseDocument = {
   id?: number;
   nombre: string;
   resumen: string;
+  estado?: string;
+  sha256?: string | null;
+  version?: number;
+  requiere_ocr?: boolean;
+  confianza_extraccion?: number | null;
+  download_url?: string | null;
 };
 
 export type CaseJurisprudence = {
@@ -111,10 +117,12 @@ export const caseAreas: CaseArea[] = [
   },
 ];
 
-export async function fetchCases(): Promise<CaseListItem[]> {
+export async function fetchCases(cookieHeader?: string): Promise<CaseListItem[]> {
   try {
     const response = await fetch(`${getApiUrl()}/api/casos`, {
       cache: "no-store",
+      credentials: "include",
+      headers: cookieHeader ? { cookie: cookieHeader } : undefined,
     });
 
     if (!response.ok) {
@@ -131,11 +139,13 @@ export async function fetchCases(): Promise<CaseListItem[]> {
   }
 }
 
-export async function fetchCaseDetail(idCaso: string): Promise<CaseDetail> {
+export async function fetchCaseDetail(idCaso: string, cookieHeader?: string): Promise<CaseDetail> {
   if (/^\d+$/.test(idCaso)) {
     try {
       const response = await fetch(`${getApiUrl()}/api/casos/${idCaso}`, {
         cache: "no-store",
+        credentials: "include",
+        headers: cookieHeader ? { cookie: cookieHeader } : undefined,
       });
 
       if (!response.ok) {
@@ -162,6 +172,7 @@ export async function createCase(payload: CreateCasePayload): Promise<CaseDetail
       "Content-Type": "application/json",
     },
     method: "POST",
+    credentials: "include",
   });
 
   const body = (await response.json()) as { case?: CaseDetail; error?: string };

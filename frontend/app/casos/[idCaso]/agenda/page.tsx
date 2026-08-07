@@ -1,6 +1,6 @@
 import DetalleAgendaCaso from "../../../../components/casos/DetalleAgendaCaso";
 import MarcoAplicacion from "../../../../components/estructura/MarcoAplicacion";
-import { fetchCaseDetail } from "../../../../lib/legalmindApi";
+import { fetchCaseDetail } from "../../../../lib/legalmindServerApi";
 
 export default async function PaginaAgenda({
   params,

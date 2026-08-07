@@ -3,7 +3,7 @@ import CasosRecientes from "../components/panel/CasosRecientes";
 import MarcoAplicacion from "../components/estructura/MarcoAplicacion";
 import MesaTrabajo from "../components/panel/MesaTrabajo";
 import PanelLateralInicio from "../components/panel/PanelLateralInicio";
-import { CaseListItem, fetchCases } from "../lib/legalmindApi";
+import { CaseListItem, fetchCases } from "../lib/legalmindServerApi";
 
 const defaultWorkItems = [
   {

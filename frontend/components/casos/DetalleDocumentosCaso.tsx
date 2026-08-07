@@ -7,10 +7,12 @@ import NavegacionAreasCaso from "./NavegacionAreasCaso";
 import PanelAnalisisCaso, { AnalisisCaso } from "./PanelAnalisisCaso";
 
 type Documento = {
+  id?: number;
   categoria: string;
   fecha: string;
   nombre: string;
   resumen: string;
+  estado?: string; sha256?: string | null; version?: number; requiere_ocr?: boolean; confianza_extraccion?: number | null; download_url?: string | null;
 };
 
 export default function DetalleDocumentosCaso({

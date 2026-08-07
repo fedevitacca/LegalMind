@@ -10,6 +10,26 @@ LegalMind cuenta con gestión básica de casos, documentos, herramientas de aná
 
 Esto resulta adecuado para demostraciones y pruebas controladas. No debe considerarse listo para producción jurídica mientras no se implementen los controles de seguridad, trazabilidad, calidad documental y validación descritos aquí.
 
+### Avance implementado — Fases 0/1 iniciales
+
+- Migraciones SQL ordenadas, transaccionales y verificadas por checksum.
+- Organizaciones, membresías y roles `administrador`, `abogado`, `asistente` y `lectura`.
+- Propiedad de causas por organización y usuario creador.
+- Sesión y autorización backend para casos, documentos y consultas IA.
+- Protección contra acceso cruzado por ID con respuesta no reveladora `404`.
+- Auditoría de causas, imputados, documentos, descargas y consultas IA.
+- Endpoint administrativo para organización, miembros y auditoría.
+- Helmet, rate limiting, request ID y límite explícito de payload JSON.
+- Cookies reenviadas correctamente desde frontend cliente y server-side.
+- Integridad documental inicial con SHA-256, versión y campos de OCR/confianza.
+- Cola documental persistente en PostgreSQL con reclamo seguro, progreso, reintentos exponenciales y estados terminales.
+- Extracción asíncrona de PDF, DOCX y texto; detección explícita de PDF que requiere OCR.
+- OCR local con Tesseract.js para imágenes y PDFs renderizados por página, confianza y texto persistido por página.
+- Base `pgvector` preparada con índices versionados, aislamiento por organización/causa, búsqueda full-text en español y HNSW para embeddings de 768 dimensiones.
+- Pruebas negativas para sesión, rol de lectura y acceso entre organizaciones.
+
+Pendiente para completar plenamente las fases: gestión de invitaciones y cambio de organización en UI, matriz exhaustiva de permisos, almacenamiento privado externo, baseline completo para base nueva y pruebas E2E.
+
 ## Principios obligatorios
 
 - Privacidad por diseño y mínimo privilegio.

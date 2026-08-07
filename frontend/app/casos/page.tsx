@@ -1,7 +1,7 @@
 import BarraBusqueda from "../../components/panel/BarraBusqueda";
 import ListaCasos from "../../components/casos/ListaCasos";
 import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
-import { fetchCases } from "../../lib/legalmindApi";
+import { fetchCases } from "../../lib/legalmindServerApi";
 
 export default async function CasesPage() {
   const cases = await fetchCases();

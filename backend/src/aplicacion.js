@@ -1,12 +1,21 @@
 const express = require("express");
+const helmet = require("helmet");
+const { rateLimit } = require("express-rate-limit");
+const crypto = require("node:crypto");
 
 const { betterAuthRoute } = require("./rutas/rutasAuth");
 const healthRoutes = require("./rutas/rutasSalud");
 const iaRoutes = require("./rutas/rutasIA");
 const caseRoutes = require("./rutas/rutasCasos");
 const userRoutes = require("./rutas/rutasUsuarios");
+const organizationRoutes = require("./rutas/rutasOrganizaciones");
 
 const app = express();
+app.disable("x-powered-by");
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use((req, res, next) => { req.requestId = req.headers["x-request-id"] || crypto.randomUUID(); res.setHeader("X-Request-Id", req.requestId); next(); });
+app.use("/api", rateLimit({ windowMs: 60_000, limit: Number(process.env.API_RATE_LIMIT_PER_MINUTE || 180), standardHeaders: "draft-8", legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "test", message: { error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." } }));
 
 const parseOrigins = (value) =>
   value
@@ -33,7 +42,7 @@ app.use((req, res, next) => {
   }
 
   res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-LegalMind-Organization, X-Request-Id");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
 
   if (req.method === "OPTIONS") {
@@ -46,7 +55,7 @@ app.use((req, res, next) => {
 app.all("/api/auth", betterAuthRoute);
 app.all("/api/auth/{*any}", betterAuthRoute);
 
-app.use(express.json());
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || "1mb", strict: true }));
 
 app.get("/", (req, res) => {
   res.json({
@@ -59,6 +68,7 @@ app.use("/api/health", healthRoutes);
 app.use("/api/ia", iaRoutes);
 app.use("/api/casos", caseRoutes);
 app.use("/api/usuarios", userRoutes);
+app.use("/api/organizaciones", organizationRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

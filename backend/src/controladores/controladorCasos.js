@@ -14,6 +14,8 @@ const {
   updateDocument,
   updateDefendantInCase,
 } = require("../modelos/repositorioCasos");
+const { recordAudit } = require("../autenticacion/autorizacion");
+const { enqueueDocumentJob } = require("../modelos/repositorioTrabajosDocumentales");
 const {
   ALLOWED_DOCUMENT_PROCESSING_STATES,
   isValidDocumentProcessingState,
@@ -22,7 +24,7 @@ const fs = require("node:fs/promises");
 
 async function listarCasos(req, res, next) {
   try {
-    const cases = await listCases();
+    const cases = await listCases(req.security.organizationId);
     res.json({ cases });
   } catch (error) {
     next(error);
@@ -32,7 +34,7 @@ async function listarCasos(req, res, next) {
 async function obtenerCaso(req, res, next) {
   try {
     const id = parseNumericId(req.params.id);
-    const legalCase = await getCaseById(id);
+    const legalCase = await getCaseById(id, req.security.organizationId);
 
     if (!legalCase) {
       return res.status(404).json({ error: "Caso no encontrado." });
@@ -52,7 +54,8 @@ async function crearCaso(req, res, next) {
       return res.status(400).json({ error: validationError });
     }
 
-    const legalCase = await createCase(req.body);
+    const legalCase = await createCase(req.body, req.security);
+    await recordAudit(req, { action: "causa.creada", resourceType: "causa", resourceId: legalCase.id });
     return res.status(201).json({ case: legalCase });
   } catch (error) {
     return next(error);
@@ -68,11 +71,12 @@ async function actualizarCaso(req, res, next) {
       return res.status(400).json({ error: validationError });
     }
 
-    const legalCase = await updateCase(id, req.body);
+    const legalCase = await updateCase(id, req.body, req.security.organizationId);
 
     if (!legalCase) {
       return res.status(404).json({ error: "Caso no encontrado." });
     }
+    await recordAudit(req, { action: "causa.actualizada", resourceType: "causa", resourceId: id, metadata: { campos: Object.keys(req.body || {}) } });
 
     return res.json({ case: legalCase });
   } catch (error) {
@@ -90,6 +94,7 @@ async function eliminarCaso(req, res, next) {
     }
 
     await Promise.all(result.filePaths.map(removeStoredFile));
+    await recordAudit(req, { action: "causa.eliminada", resourceType: "causa", resourceId: id });
     return res.status(204).send();
   } catch (error) {
     return next(error);
@@ -116,6 +121,7 @@ async function agregarImputado(req, res, next) {
     }
 
     const imputado = await addDefendantToCase(caseId, req.body);
+    await recordAudit(req, { action: "imputado.creado", resourceType: "imputado", resourceId: imputado.id, metadata: { causa_id: caseId } });
     return res.status(201).json({ imputado });
   } catch (error) {
     return next(error);
@@ -137,6 +143,7 @@ async function actualizarImputado(req, res, next) {
     if (!imputado) {
       return res.status(404).json({ error: "Imputado no encontrado para esta causa." });
     }
+    await recordAudit(req, { action: "imputado.actualizado", resourceType: "imputado", resourceId: defendantId, metadata: { causa_id: caseId, campos: Object.keys(req.body || {}) } });
 
     return res.json({ imputado });
   } catch (error) {
@@ -153,6 +160,7 @@ async function eliminarImputado(req, res, next) {
     if (!deleted) {
       return res.status(404).json({ error: "Imputado no encontrado para esta causa." });
     }
+    await recordAudit(req, { action: "imputado.eliminado", resourceType: "imputado", resourceId: defendantId, metadata: { causa_id: caseId } });
 
     return res.status(204).send();
   } catch (error) {
@@ -184,6 +192,8 @@ async function agregarDocumento(req, res, next) {
       ...req.body,
       archivo: req.file,
     });
+    if (documento.estado === "pendiente") await enqueueDocumentJob(documento.id, caseId, { type: req.file?.mimetype?.startsWith("image/") ? "ocr" : "extraer_texto" });
+    await recordAudit(req, { action: "documento.creado", resourceType: "documento", resourceId: documento.id, metadata: { causa_id: caseId, mime_type: documento.mime_type, tamano_bytes: documento.tamano_bytes } });
 
     return res.status(201).json({ documento });
   } catch (error) {
@@ -207,6 +217,7 @@ async function actualizarDocumento(req, res, next) {
     if (!documento) {
       return res.status(404).json({ error: "Documento no encontrado para esta causa." });
     }
+    await recordAudit(req, { action: "documento.actualizado", resourceType: "documento", resourceId: documentId, metadata: { causa_id: caseId, campos: Object.keys(req.body || {}) } });
 
     return res.json({ documento });
   } catch (error) {
@@ -227,6 +238,7 @@ async function descargarDocumento(req, res, next) {
     if (!documento.ruta_archivo) {
       return res.status(404).json({ error: "El documento no tiene archivo fisico asociado." });
     }
+    await recordAudit(req, { action: "documento.descargado", resourceType: "documento", resourceId: documentId, metadata: { causa_id: caseId } });
 
     return res.download(documento.ruta_archivo, documento.nombre_archivo);
   } catch (error) {
@@ -245,6 +257,7 @@ async function eliminarDocumento(req, res, next) {
     }
 
     await removeStoredFile(deletedDocument.ruta_archivo);
+    await recordAudit(req, { action: "documento.eliminado", resourceType: "documento", resourceId: documentId, metadata: { causa_id: caseId } });
     return res.status(204).send();
   } catch (error) {
     return next(error);

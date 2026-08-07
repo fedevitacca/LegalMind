@@ -1,4 +1,5 @@
 let authPromise;
+let sessionResolverForTests;
 
 function getAuth() {
   if (!authPromise) {
@@ -26,10 +27,9 @@ function buildHeaders(req) {
 
 async function requireSession(req, res, next) {
   try {
-    const auth = await getAuth();
-    const session = await auth.api.getSession({
-      headers: buildHeaders(req),
-    });
+    const session = sessionResolverForTests
+      ? await sessionResolverForTests(req)
+      : await (await getAuth()).api.getSession({ headers: buildHeaders(req) });
 
     if (!session?.user) {
       return res.status(401).json({
@@ -47,4 +47,6 @@ async function requireSession(req, res, next) {
 
 module.exports = {
   requireSession,
+  setSessionResolverForTests: (resolver) => { sessionResolverForTests = resolver; },
+  resetSessionResolverForTests: () => { sessionResolverForTests = undefined; },
 };

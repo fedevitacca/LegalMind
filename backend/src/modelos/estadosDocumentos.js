@@ -2,6 +2,8 @@ const DOCUMENT_PROCESSING_STATES = Object.freeze({
   ANALYZED: "analizado",
   ERROR: "error",
   PENDING: "pendiente",
+  PROCESSING: "procesando",
+  OCR_REQUIRED: "requiere_ocr",
   TEXT_EXTRACTED: "texto_extraido",
 });
 

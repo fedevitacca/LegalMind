@@ -1,7 +1,7 @@
 import EspacioAgenda from "../../components/casos/EspacioAgenda";
 import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
 import BarraBusqueda from "../../components/panel/BarraBusqueda";
-import { fetchCases } from "../../lib/legalmindApi";
+import { fetchCases } from "../../lib/legalmindServerApi";
 
 const analisisAgenda = [
   {

@@ -10,12 +10,16 @@ const {
 const {
   resetRandomForestForTests,
 } = require("../../IA/randomForestJuridico");
+const { setSessionResolverForTests, resetSessionResolverForTests } = require("../autenticacion/sesion");
+const { setAuthorizationResolverForTests, resetAuthorizationResolverForTests } = require("../autenticacion/autorizacion");
 
 describe("IA file routes", () => {
   let baseUrl;
   let server;
 
   before(async () => {
+    setSessionResolverForTests(async () => ({ user: { id: "test-user", name: "Test", email: "test@legalmind.local" } }));
+    setAuthorizationResolverForTests(async (req, kind) => kind === "context" ? { organizationId: 1, role: "administrador", userId: req.user.id } : true);
     resetRandomForestForTests();
 
     setLocalAIClientFactoryForTests(() => ({
@@ -36,6 +40,7 @@ describe("IA file routes", () => {
   });
 
   after(async () => {
+    resetSessionResolverForTests(); resetAuthorizationResolverForTests();
     resetLocalAIClientFactoryForTests();
     resetRandomForestForTests();
 

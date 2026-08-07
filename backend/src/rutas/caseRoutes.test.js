@@ -2,12 +2,16 @@ const assert = require("node:assert/strict");
 const { after, before, describe, it } = require("node:test");
 
 const app = require("../aplicacion");
+const { setSessionResolverForTests, resetSessionResolverForTests } = require("../autenticacion/sesion");
+const { setAuthorizationResolverForTests, resetAuthorizationResolverForTests } = require("../autenticacion/autorizacion");
 
 describe("case routes", () => {
   let baseUrl;
   let server;
 
   before(async () => {
+    setSessionResolverForTests(async () => ({ user: { id: "test-user", name: "Test", email: "test@legalmind.local" } }));
+    setAuthorizationResolverForTests(async (req, kind) => kind === "context" ? { organizationId: 1, role: "administrador", userId: req.user.id } : true);
     await new Promise((resolve) => {
       server = app.listen(0, () => {
         const { port } = server.address();
@@ -18,6 +22,7 @@ describe("case routes", () => {
   });
 
   after(async () => {
+    resetSessionResolverForTests(); resetAuthorizationResolverForTests();
     await new Promise((resolve, reject) => {
       server.close((error) => {
         if (error) {
@@ -28,6 +33,13 @@ describe("case routes", () => {
         resolve();
       });
     });
+  });
+
+  it("oculta una causa de otra organizacion", async () => {
+    setAuthorizationResolverForTests(async (req, kind) => kind === "context" ? { organizationId: 1, role: "administrador", userId: req.user.id } : false);
+    const response = await fetch(`${baseUrl}/api/casos/999`);
+    assert.equal(response.status, 404);
+    setAuthorizationResolverForTests(async (req, kind) => kind === "context" ? { organizationId: 1, role: "administrador", userId: req.user.id } : true);
   });
 
   it("valida la caratula al crear un caso", async () => {

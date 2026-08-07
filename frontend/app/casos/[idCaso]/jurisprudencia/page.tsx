@@ -1,6 +1,6 @@
 import DetalleJurisprudenciaCaso from "../../../../components/casos/DetalleJurisprudenciaCaso";
 import MarcoAplicacion from "../../../../components/estructura/MarcoAplicacion";
-import { fetchCaseDetail } from "../../../../lib/legalmindApi";
+import { fetchCaseDetail } from "../../../../lib/legalmindServerApi";
 
 const fallos = [
   {

@@ -30,6 +30,8 @@ const {
 } = require("../modelos/repositorioIA");
 
 const router = express.Router();
+const { requireSession } = require("../autenticacion/sesion");
+const { attachSecurityContext, recordAudit, requireCaseAccess, requireOptionalCaseAccess, requireRole } = require("../autenticacion/autorizacion");
 
 router.get("/health", (req, res) => {
   const localAIConfig = getLocalAIConfig();
@@ -56,7 +58,7 @@ router.get("/health", (req, res) => {
 
 router.get("/tools", (req, res) => res.json({ tools: listTools() }));
 
-router.post("/extract-file", (req, res) => {
+router.post("/extract-file", requireSession, attachSecurityContext, (req, res) => {
   parseTextFileUpload(req, async (uploadError) => {
     if (uploadError) return res.status(400).json({ error: getUploadErrorMessage(uploadError) });
     try {
@@ -67,22 +69,24 @@ router.post("/extract-file", (req, res) => {
   }, { allowAllDocuments: true });
 });
 
-router.get("/cases/:caseId/queries", async (req, res, next) => {
+router.use(requireSession, attachSecurityContext);
+
+router.get("/cases/:caseId/queries", requireCaseAccess, async (req, res, next) => {
   try { return res.json({ queries: await listAIQueries(parseRequiredNumericId(req.params.caseId)) }); }
   catch (error) { return next(error); }
 });
-router.get("/cases/:caseId/queries/:queryId", async (req, res, next) => {
+router.get("/cases/:caseId/queries/:queryId", requireCaseAccess, async (req, res, next) => {
   try { const item = await getAIQuery(parseRequiredNumericId(req.params.caseId), parseRequiredNumericId(req.params.queryId));
     return item ? res.json({ query: item }) : res.status(404).json({ error: "Consulta no encontrada." }); }
   catch (error) { return next(error); }
 });
-router.delete("/cases/:caseId/queries/:queryId", async (req, res, next) => {
+router.delete("/cases/:caseId/queries/:queryId", requireCaseAccess, requireRole("abogado"), async (req, res, next) => {
   try { const deleted = await deleteAIQuery(parseRequiredNumericId(req.params.caseId), parseRequiredNumericId(req.params.queryId));
     return deleted ? res.status(204).send() : res.status(404).json({ error: "Consulta no encontrada." }); }
   catch (error) { return next(error); }
 });
 
-router.post("/tools/:toolId/run", async (req, res) => {
+router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asistente"), async (req, res) => {
   const tool = getTool(req.params.toolId);
   if (!tool) return res.status(404).json({ error: "Herramienta de IA inexistente." });
   const primaryText = String(req.body?.primary_text || req.body?.text || "").trim();
@@ -121,13 +125,14 @@ router.post("/tools/:toolId/run", async (req, res) => {
     if (caseId) savedQuery = await createAIQuery({ caseId, toolId: req.params.toolId,
       title: result.titulo || tool.label, query, input: { primary_text: primaryText, secondary_text: secondaryText, parameters: req.body?.parameters || {} },
       result, citations: chunks, metadata });
+    if (savedQuery) await recordAudit(req, { action: "ia.consulta_creada", resourceType: "consulta_ia", resourceId: savedQuery.id, metadata: { herramienta: req.params.toolId, causa_id: caseId } });
     return res.json({ result, citations: chunks, saved_query: savedQuery, _metadata: metadata });
   } catch (error) {
     return res.status(getLocalAIErrorStatus(error)).json({ error: "No se pudo ejecutar la herramienta.", details: error.message });
   }
 });
 
-router.post("/analyze", async (req, res) => {
+router.post("/analyze", requireOptionalCaseAccess, async (req, res) => {
   const { text } = req.body;
 
   if (typeof text !== "string" || text.trim().length === 0) {
@@ -184,7 +189,7 @@ router.post("/analyze-file", (req, res) => {
   });
 });
 
-router.get("/cases/:caseId/documents", async (req, res, next) => {
+router.get("/cases/:caseId/documents", requireCaseAccess, async (req, res, next) => {
   try {
     const caseId = parseRequiredNumericId(req.params.caseId);
     const documents = await listDocumentsForCase(caseId);
@@ -206,7 +211,7 @@ router.get("/cases/:caseId/documents", async (req, res, next) => {
   }
 });
 
-router.post("/rag/query", async (req, res, next) => {
+router.post("/rag/query", requireCaseAccess, async (req, res, next) => {
   try {
     const caseId = parseRequiredNumericId(req.body.causa_id || req.body.case_id);
     const question = String(req.body.question || "").trim();
