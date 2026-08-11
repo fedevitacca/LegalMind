@@ -3,6 +3,7 @@ const express = require("express");
 const {
   buildLawyerBriefWithLocalAI,
   getLocalAIConfig,
+  probeLocalAI,
   searchLegalTextWithLocalAI,
   runLegalToolWithLocalAI,
   embedTextsWithLocalAI,
@@ -28,6 +29,7 @@ const {
 const {
   listDocumentsForCase,
 } = require("../modelos/repositorioIA");
+const { hybridSearch } = require("../modelos/repositorioRagVectorial");
 
 const router = express.Router();
 const { requireSession } = require("../autenticacion/sesion");
@@ -54,6 +56,11 @@ router.get("/health", (req, res) => {
       "scoring_confianza",
     ],
   });
+});
+
+router.get("/health/live", async (req, res) => {
+  try { return res.json({ status: "ok", ...(await probeLocalAI()), config: getLocalAIConfig() }); }
+  catch (error) { return res.status(503).json({ status: "degraded", available: false, error: error.message }); }
 });
 
 router.get("/tools", (req, res) => res.json({ tools: listTools() }));
@@ -87,6 +94,7 @@ router.delete("/cases/:caseId/queries/:queryId", requireCaseAccess, requireRole(
 });
 
 router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asistente"), async (req, res) => {
+  const startedAt = Date.now();
   const tool = getTool(req.params.toolId);
   if (!tool) return res.status(404).json({ error: "Herramienta de IA inexistente." });
   const primaryText = String(req.body?.primary_text || req.body?.text || "").trim();
@@ -118,7 +126,9 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
     });
     const metadata = {
       engine: "ollama_local_hybrid_rag", model: getLocalAIConfig().model,
-      tool_id: req.params.toolId, retrieval: "bm25_trigram_mmr_embeddings", semantic_retrieval: semanticRetrieval, generated_at: new Date().toISOString(),
+      embedding_model: getLocalAIConfig().embeddingModel, tool_id: req.params.toolId,
+      retrieval: "bm25_trigram_mmr_embeddings", semantic_retrieval: semanticRetrieval,
+      duration_ms: Date.now() - startedAt, generated_at: new Date().toISOString(),
     };
     let savedQuery = null;
     const caseId = parseOptionalNumericId(req.body?.case_id);
@@ -223,7 +233,21 @@ router.post("/rag/query", requireCaseAccess, async (req, res, next) => {
     }
 
     const documents = await listDocumentsForCase(caseId);
-    const chunks = retrieveRelevantChunks(documents, question, Number(req.body.top_k) || 5);
+    let chunks;
+    let retrieval = "lexical_memory_fallback";
+    try {
+      const [queryEmbedding] = await embedTextsWithLocalAI([question]);
+      const stored = await hybridSearch({ organizationId: req.security.organizationId, caseId, query: question,
+        queryEmbedding, limit: Number(req.body.top_k) || 5 });
+      if (stored.length) {
+        chunks = stored.map((item) => ({ id: item.id, document_id: item.documento_id,
+          document_name: item.nombre_archivo, chunk_index: item.orden, page: item.pagina,
+          text: item.texto, score: Number(item.score), lexical_score: Number(item.lexical_score),
+          semantic_score: Number(item.semantic_score), metadata: item.metadata_json }));
+        retrieval = "pgvector_hybrid_hnsw_fts";
+      }
+    } catch (error) { console.warn("RAG vectorial no disponible; se usa recuperación léxica:", error.message); }
+    if (!chunks) chunks = retrieveRelevantChunks(documents, question, Number(req.body.top_k) || 5);
     const contextText = chunks
       .map((chunk) => [
         `Documento: ${chunk.document_name}`,
@@ -256,6 +280,7 @@ router.post("/rag/query", requireCaseAccess, async (req, res, next) => {
       confidence: ragResult.answer?.requiere_revision ? "medio" : "alto",
       retrieved_chunks: chunks,
       engine: "ollama_rag",
+      retrieval,
       model: getLocalAIConfig().model,
     });
   } catch (error) {

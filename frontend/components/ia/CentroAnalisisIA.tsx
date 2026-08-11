@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Tool = { id: string; label: string; description: string; inputs: number; family?: string; resultView?: string; accent?: string; fields?: string[] };
 type CaseOption = { id: number; name: string; identificador?: string };
@@ -9,6 +9,7 @@ type Finding = { titulo: string; detalle: string; evidencia: string; prioridad: 
 type Row = { aspecto: string; documento_a: string; documento_b: string; evaluacion: string };
 type Result = { titulo: string; resumen: string; hallazgos: Finding[]; tabla: Row[]; alertas: string[]; conclusion: string; limitaciones: string[] };
 type Citation = { document_id: string; document_name: string; chunk_index: number; text: string; score: number };
+type AnalysisMetadata = { duration_ms?: number; model?: string; semantic_retrieval?: string };
 
 const apiUrl = process.env.NEXT_PUBLIC_LEGALMIND_API_URL || "http://localhost:5000";
 const fallbackTools: Tool[] = [
@@ -30,7 +31,8 @@ export default function CentroAnalisisIA() {
   const [primary, setPrimary] = useState(""); const [secondary, setSecondary] = useState("");
   const [query, setQuery] = useState(""); const [result, setResult] = useState<Result>();
   const [citations, setCitations] = useState<Citation[]>([]); const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(""); const [elapsed, setElapsed] = useState(0);
+  const [metadata, setMetadata] = useState<AnalysisMetadata>(); const requestController = useRef<AbortController | null>(null);
   const tool = useMemo(() => tools.find((item) => item.id === toolId) || tools[0], [toolId, tools]);
 
   useEffect(() => {
@@ -43,16 +45,23 @@ export default function CentroAnalisisIA() {
     if (!caseId) { setCaseDocuments([]); return; }
     fetch(`${apiUrl}/api/ia/cases/${caseId}/documents?include_text=true`, { credentials: "include" }).then((r) => r.json()).then((body) => setCaseDocuments(body.documents || [])).catch(() => setCaseDocuments([]));
   }, [caseId]);
+  useEffect(() => {
+    if (!busy) return;
+    const started = Date.now(); setElapsed(0);
+    const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, [busy]);
 
   async function execute() {
-    setBusy(true); setError(""); setResult(undefined); setCitations([]); setSavedId(undefined);
+    setBusy(true); setError(""); setResult(undefined); setCitations([]); setSavedId(undefined); setMetadata(undefined);
+    const controller = new AbortController(); requestController.current = controller;
     try {
-      const response = await fetch(`${apiUrl}/api/ia/tools/${toolId}/run`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ primary_text: primary, secondary_text: secondary, query, parameters, case_id: caseId ? Number(caseId) : null }) });
+      const response = await fetch(`${apiUrl}/api/ia/tools/${toolId}/run`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, signal: controller.signal, body: JSON.stringify({ primary_text: primary, secondary_text: secondary, query, parameters, case_id: caseId ? Number(caseId) : null }) });
       const body = await response.json();
       if (!response.ok) throw new Error([body.error, body.details].filter(Boolean).join(" "));
-      setResult(body.result); setCitations(body.citations || []); setSavedId(body.saved_query?.id);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo completar el análisis."); }
-    finally { setBusy(false); }
+      setResult(body.result); setCitations(body.citations || []); setSavedId(body.saved_query?.id); setMetadata(body._metadata);
+    } catch (cause) { setError(cause instanceof DOMException && cause.name === "AbortError" ? "Análisis cancelado por el usuario." : cause instanceof Error ? cause.message : "No se pudo completar el análisis."); }
+    finally { requestController.current = null; setBusy(false); }
   }
 
   return <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
@@ -66,9 +75,10 @@ export default function CentroAnalisisIA() {
         <header className="border-b border-[#dce5e2] bg-[linear-gradient(120deg,#f8fbfa,#edf5f2)] px-6 py-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-[#3e7774]">{tool?.family || "análisis"}</p><h2 className="mt-1 text-2xl font-semibold">{tool?.label}</h2></div><span className="rounded-full border border-[#6da39f]/30 bg-white px-3 py-1.5 text-xs font-bold text-[#346d69]">Pipeline {tool?.resultView || "jurídico"}</span></div><p className="mt-2 max-w-2xl text-sm text-[#10213e]/55">{tool?.description}</p></header>
         <div className="grid gap-4 border-b border-[#dce5e2] bg-[#fbfcfc] px-6 py-4 md:grid-cols-[minmax(220px,1fr)_2fr]"><label><span className="text-xs font-bold uppercase tracking-[.14em] text-[#10213e]/45">Expediente donde guardar</span><select value={caseId} onChange={(e) => setCaseId(e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-[#b8c8c5] bg-white px-3"><option value="">No guardar esta consulta</option>{cases.map((item) => <option key={item.id} value={item.id}>{item.identificador ? `${item.identificador} · ` : ""}{item.name}</option>)}</select></label><ToolParameters tool={tool} values={parameters} onChange={setParameters} /></div>
         <div className={`grid gap-4 p-6 ${tool?.inputs === 2 ? "lg:grid-cols-2" : ""}`}><Source label={tool?.inputs === 2 ? "Fuente A" : "Material jurídico"} value={primary} onChange={setPrimary} documents={caseDocuments} />{tool?.inputs === 2 && <Source label="Fuente B" value={secondary} onChange={setSecondary} documents={caseDocuments} />}</div>
-        <div className="border-t border-[#dce5e2] px-6 py-4"><label className="text-xs font-bold uppercase tracking-[.14em] text-[#10213e]/45">Consulta o enfoque opcional</label><div className="mt-2 flex flex-col gap-3 sm:flex-row"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ej.: ¿Qué criterio resulta más favorable para la defensa?" className="h-12 flex-1 rounded-xl border border-[#b8c8c5] bg-[#f8faf9] px-4 outline-none focus:border-[#3e7774]"/><button disabled={busy || !primary.trim() || (tool?.inputs === 2 && !secondary.trim())} onClick={execute} className="h-12 rounded-xl bg-[#b88a45] px-6 font-bold text-white shadow-lg shadow-[#b88a45]/20 transition hover:bg-[#a47736] disabled:cursor-not-allowed disabled:opacity-45">{busy ? "Analizando…" : "Ejecutar análisis"}</button></div>{error && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}</div>
+        <div className="border-t border-[#dce5e2] px-6 py-4"><label className="text-xs font-bold uppercase tracking-[.14em] text-[#10213e]/45">Consulta o enfoque opcional</label><div className="mt-2 flex flex-col gap-3 sm:flex-row"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ej.: ¿Qué criterio resulta más favorable para la defensa?" className="h-12 flex-1 rounded-xl border border-[#b8c8c5] bg-[#f8faf9] px-4 outline-none focus:border-[#3e7774]"/><button disabled={busy || !primary.trim() || (tool?.inputs === 2 && !secondary.trim())} onClick={execute} className="h-12 rounded-xl bg-[#b88a45] px-6 font-bold text-white shadow-lg shadow-[#b88a45]/20 transition hover:bg-[#a47736] disabled:cursor-not-allowed disabled:opacity-45">{busy ? `Analizando · ${elapsed}s` : "Ejecutar análisis"}</button>{busy && <button type="button" onClick={() => requestController.current?.abort()} className="h-12 rounded-xl border border-red-200 bg-red-50 px-4 font-bold text-red-700">Cancelar</button>}</div>{busy && <p className="mt-3 text-xs text-[#10213e]/50">Ollama está procesando localmente. Podés cancelar sin perder los documentos del expediente.</p>}{error && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}</div>
       </section>
       {savedId && caseId && <a href={`/casos/${caseId}/consultas?consulta=${savedId}`} className="block rounded-2xl border border-[#6da39f]/35 bg-[#e8f4f1] px-5 py-4 text-sm font-bold text-[#285f5b]">Consulta guardada en el expediente · Abrir historial →</a>}
+      {metadata && <p className="text-right text-xs text-[#10213e]/45">Procesado localmente con {metadata.model} en {((metadata.duration_ms || 0) / 1000).toFixed(1)}s · RAG: {metadata.semantic_retrieval}</p>}
       {!result ? <Empty busy={busy} /> : <Results result={result} citations={citations} view={tool?.resultView} />}
     </main>
   </div>;

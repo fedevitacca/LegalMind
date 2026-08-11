@@ -9,7 +9,8 @@
     "test:ia": "node --test IA/*.test.js src/rutas/iaRoutes.test.js",
     "test:ia:local": "node IA/probarAnalisis.js",
     "dataset:ia": "node IA/dataset/prepararMultiEurlex.js",
-    "migrate": "node scripts/migrar.js"
+    "migrate": "node scripts/migrar.js",
+    "rag:reindex": "node scripts/reindexar-rag.js"
   },
   "keywords": [],
   "author": "",
