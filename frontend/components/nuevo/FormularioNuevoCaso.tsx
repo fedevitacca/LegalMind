@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createCase } from "@/lib/legalmindApi";
+import { createCase, createCaseDate, uploadCaseDocument } from "@/lib/legalmindApi";
 
 export default function FormularioNuevoCaso() {
   const router = useRouter();
@@ -11,9 +11,11 @@ export default function FormularioNuevoCaso() {
   const [identificador, setIdentificador] = useState("");
   const [juzgado, setJuzgado] = useState("");
   const [fechaImportante, setFechaImportante] = useState("");
+  const [eventoAgenda, setEventoAgenda] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [imputados, setImputados] = useState("");
   const [documentos, setDocumentos] = useState("");
+  const [archivosOficiales, setArchivosOficiales] = useState<File[]>([]);
   const [jurisprudencia, setJurisprudencia] = useState("");
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -34,7 +36,6 @@ export default function FormularioNuevoCaso() {
         caratula,
         descripcion: buildDescription({ descripcion, juzgado }),
         documentos: splitTextList(documentos),
-        fecha_importante: fechaImportante,
         identificador,
         imputados: splitTextList(imputados).map((nombre) => ({
           nombre,
@@ -46,6 +47,19 @@ export default function FormularioNuevoCaso() {
         })),
         jurisprudencia: splitTextList(jurisprudencia),
       });
+
+      for (const file of archivosOficiales) {
+        await uploadCaseDocument(legalCase.id || legalCase.slug, file);
+      }
+
+      if (fechaImportante.trim() || eventoAgenda.trim()) {
+        await createCaseDate(legalCase.id || legalCase.slug, {
+          ...buildDatePayload(fechaImportante),
+          evento: eventoAgenda.trim() || "Fecha importante",
+          prioridad: "media",
+          tipo: "agenda",
+        });
+      }
 
       router.push(`/casos/${legalCase.slug}`);
       router.refresh();
@@ -87,8 +101,14 @@ export default function FormularioNuevoCaso() {
         <Field
           label="Fecha importante"
           onChange={setFechaImportante}
-          placeholder="dd/mm/aaaa"
+          placeholder="dd/mm/aaaa o aaaa-mm-dd"
           value={fechaImportante}
+        />
+        <Field
+          label="Evento de agenda"
+          onChange={setEventoAgenda}
+          placeholder="Ej. Audiencia, presentar escrito, vencimiento"
+          value={eventoAgenda}
         />
       </div>
 
@@ -113,6 +133,22 @@ export default function FormularioNuevoCaso() {
           value={jurisprudencia}
         />
       </div>
+
+      <label className="mt-4 block">
+        <span className="text-sm font-semibold">Archivos oficiales</span>
+        <input
+          accept=".pdf,.doc,.docx,.txt,.md,.csv,image/*"
+          className="mt-2 block w-full rounded-lg border border-[#84A2BD]/55 bg-[#F4F7F5] px-4 py-3 text-sm font-medium file:mr-4 file:rounded-full file:border-0 file:bg-[#546FC0] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-[#0F2044] focus:border-[#546FC0] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#84A2BD]/20"
+          multiple
+          onChange={(event) => setArchivosOficiales(Array.from(event.target.files || []))}
+          type="file"
+        />
+        {archivosOficiales.length ? (
+          <span className="mt-2 block text-xs font-semibold text-[#0F2044]/55">
+            {archivosOficiales.length} archivo{archivosOficiales.length === 1 ? "" : "s"} seleccionado{archivosOficiales.length === 1 ? "" : "s"}
+          </span>
+        ) : null}
+      </label>
 
       <label className="mt-4 block">
         <span className="text-sm font-semibold">Observaciones iniciales</span>
@@ -244,4 +280,23 @@ function buildDescription({
   ].filter(Boolean);
 
   return parts.join("\n\n");
+}
+
+function buildDatePayload(value: string) {
+  const trimmed = value.trim();
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const argMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+  if (isoMatch) {
+    return { fecha: trimmed };
+  }
+
+  if (argMatch) {
+    const [, day, month, year] = argMatch;
+    return {
+      fecha: `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`,
+    };
+  }
+
+  return { fecha_texto: trimmed || "Sin fecha definida" };
 }

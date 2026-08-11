@@ -64,6 +64,19 @@ export type CaseDate = {
   prioridad: "Alta" | "Media" | "Baja";
 };
 
+export type CaseDeadline = {
+  caratula: string;
+  causa_id: number;
+  dias_restantes: number | null;
+  estado: string;
+  evento: string;
+  expediente?: string | null;
+  fecha?: string | null;
+  fecha_texto?: string | null;
+  id: number;
+  prioridad: "baja" | "media" | "alta" | "urgente";
+};
+
 export type CaseDetail = {
   analisis?: CaseAnalysis;
   deadline: string;
@@ -182,6 +195,96 @@ export async function createCase(payload: CreateCasePayload): Promise<CaseDetail
   }
 
   return body.case;
+}
+
+export async function fetchDeadlines(cookieHeader?: string): Promise<CaseDeadline[]> {
+  try {
+    const response = await fetch(`${getApiUrl()}/api/casos/vencimientos/proximos?limit=5`, {
+      cache: "no-store",
+      credentials: "include",
+      headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+    });
+
+    if (!response.ok) {
+      throw new Error("No se pudieron cargar los vencimientos.");
+    }
+
+    const body = (await response.json()) as { vencimientos?: CaseDeadline[] };
+    return body.vencimientos || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function createCaseDate(
+  caseId: number | string,
+  payload: {
+    evento: string;
+    fecha?: string;
+    fecha_texto?: string;
+    prioridad: "baja" | "media" | "alta" | "urgente";
+    tipo?: string;
+  },
+): Promise<CaseDate> {
+  const response = await fetch(`${getApiUrl()}/api/casos/${caseId}/fechas`, {
+    body: JSON.stringify(payload),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  const body = (await response.json()) as { fecha?: CaseDate; error?: string };
+
+  if (!response.ok || !body.fecha) {
+    throw new Error(body.error || "No se pudo guardar la fecha.");
+  }
+
+  return body.fecha;
+}
+
+export async function updateCaseDate(
+  caseId: number | string,
+  dateId: number | string,
+  payload: { estado?: "pendiente" | "en_seguimiento" | "completada" | "cancelada" },
+): Promise<CaseDate> {
+  const response = await fetch(`${getApiUrl()}/api/casos/${caseId}/fechas/${dateId}`, {
+    body: JSON.stringify(payload),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "PUT",
+  });
+
+  const body = (await response.json()) as { fecha?: CaseDate; error?: string };
+
+  if (!response.ok || !body.fecha) {
+    throw new Error(body.error || "No se pudo actualizar la fecha.");
+  }
+
+  return body.fecha;
+}
+
+export async function uploadCaseDocument(caseId: number | string, file: File): Promise<CaseDocument> {
+  const formData = new FormData();
+  formData.append("archivo", file);
+  formData.append("tipo_archivo", "oficial");
+
+  const response = await fetch(`${getApiUrl()}/api/casos/${caseId}/documentos`, {
+    body: formData,
+    credentials: "include",
+    method: "POST",
+  });
+
+  const body = (await response.json()) as { documento?: CaseDocument; error?: string };
+
+  if (!response.ok || !body.documento) {
+    throw new Error(body.error || `No se pudo subir ${file.name}.`);
+  }
+
+  return body.documento;
 }
 
 function buildSampleCaseFromSlug(slug: string): CaseDetail {

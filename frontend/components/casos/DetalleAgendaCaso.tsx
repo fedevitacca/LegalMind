@@ -68,7 +68,7 @@ export default function DetalleAgendaCaso({
             </div>
           </header>
 
-          <EspacioAgenda fechas={caso.fechas} />
+          <EspacioAgenda caseId={idCaso} editable fechas={caso.fechas} />
         </div>
       </section>
 

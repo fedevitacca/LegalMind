@@ -1,7 +1,7 @@
 import EspacioAgenda from "../../components/casos/EspacioAgenda";
 import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
 import BarraBusqueda from "../../components/panel/BarraBusqueda";
-import { fetchCases } from "../../lib/legalmindServerApi";
+import { fetchCases, fetchDeadlines } from "../../lib/legalmindServerApi";
 
 const analisisAgenda = [
   {
@@ -19,22 +19,18 @@ const analisisAgenda = [
 ];
 
 export default async function AgendaPage() {
-  const cases = await fetchCases();
-  const agendaGeneral = cases
-    .filter((legalCase) => legalCase.proxima_alerta)
-    .map((legalCase) => {
-      const date = new Date(legalCase.proxima_alerta as string);
+  const [cases, deadlines] = await Promise.all([fetchCases(), fetchDeadlines()]);
+  const agendaGeneral = deadlines
+    .filter((deadline) => deadline.fecha)
+    .map((deadline) => {
+      const date = new Date(deadline.fecha as string);
 
       return {
-        descripcion: `${legalCase.name} - Fecha importante`,
+        descripcion: `${deadline.caratula} - ${deadline.evento}`,
         dia: `${date.getDate()}/${date.getMonth() + 1}`,
         hora: "09:00",
-        prioridad:
-          legalCase.alert_level === "urgente"
-            ? ("Alta" as const)
-            : legalCase.alert_level === "proximo"
-              ? ("Media" as const)
-              : ("Baja" as const),
+        id: deadline.id,
+        prioridad: toUiPriority(deadline.prioridad),
       };
     });
 
@@ -56,7 +52,14 @@ export default async function AgendaPage() {
               </p>
             </header>
 
-            <EspacioAgenda editable fechas={agendaGeneral} />
+            <EspacioAgenda
+              caseOptions={cases.map((legalCase) => ({
+                id: legalCase.id || legalCase.slug,
+                name: legalCase.name,
+              }))}
+              editable
+              fechas={agendaGeneral}
+            />
           </div>
         </section>
 
@@ -79,4 +82,16 @@ export default async function AgendaPage() {
       </div>
     </MarcoAplicacion>
   );
+}
+
+function toUiPriority(priority: "baja" | "media" | "alta" | "urgente") {
+  if (priority === "urgente" || priority === "alta") {
+    return "Alta" as const;
+  }
+
+  if (priority === "baja") {
+    return "Baja" as const;
+  }
+
+  return "Media" as const;
 }

@@ -1,12 +1,6 @@
 import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
 import FormularioNuevoCaso from "../../components/nuevo/FormularioNuevoCaso";
 
-const exampleFiles = [
-  "Escrito de inicio.pdf",
-  "Informe policial.pdf",
-  "Declaracion testimonial.docx",
-];
-
 export default function NewCasePage() {
   return (
     <MarcoAplicacion activeSection="Nuevo caso">
@@ -23,31 +17,7 @@ export default function NewCasePage() {
             </p>
           </header>
 
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-            <FormularioNuevoCaso />
-
-            <aside className="rounded-lg border border-[#84A2BD]/35 bg-white p-5 shadow-[0_10px_28px_rgba(15,32,68,0.06)]">
-              <h2 className="text-xl font-semibold">Archivos iniciales</h2>
-              <p className="mt-2 text-sm font-medium leading-5 text-[#0F2044]/62">
-                Estos nombres son ejemplos hasta conectar la carga real.
-              </p>
-
-              <button className="mt-4 w-full rounded-lg border border-dashed border-[#546FC0]/55 bg-[#F4F7F5] px-4 py-5 text-sm font-semibold text-[#0F2044] transition hover:border-[#546FC0] hover:bg-white">
-                Agregar archivos
-              </button>
-
-              <ul className="mt-4 grid gap-2">
-                {exampleFiles.map((file) => (
-                  <li
-                    className="rounded-lg bg-[#F4F7F5] px-3 py-2 text-sm font-medium"
-                    key={file}
-                  >
-                    {file}
-                  </li>
-                ))}
-              </ul>
-            </aside>
-          </div>
+          <FormularioNuevoCaso />
         </div>
       </section>
     </MarcoAplicacion>
