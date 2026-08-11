@@ -7,8 +7,15 @@ let authorizationResolverForTests;
 async function attachSecurityContext(req, res, next) {
   try {
     if (authorizationResolverForTests) { req.security = await authorizationResolverForTests(req, "context"); return next(); }
-    const requested = Number(req.headers["x-legalmind-organization"] || 0);
+    const requestedHeader = req.headers["x-legalmind-organization"];
+    const requested = Number(requestedHeader || 0);
+    if (requestedHeader && (!Number.isInteger(requested) || requested <= 0)) {
+      return res.status(400).json({ error: "La organizacion solicitada debe ser numerica." });
+    }
     let membership = requested ? await findMembership(req.user.id, requested) : await findFirstMembership(req.user.id);
+    if (requested && !membership) {
+      return res.status(403).json({ error: "No tenes acceso a la organizacion solicitada." });
+    }
     if (!membership) membership = await createPersonalWorkspace(req.user);
     req.security = { organizationId: Number(membership.organizacion_id), role: membership.rol, userId: req.user.id };
     return next();
@@ -41,12 +48,12 @@ async function requireOptionalCaseAccess(req, res, next) {
   return requireCaseAccess(req, res, next);
 }
 
-async function recordAudit(req, { action, resourceType, resourceId, metadata = {} }) {
+async function recordAudit(req, { action, resourceType, resourceId, metadata = {}, risk = "normal" }) {
   if (authorizationResolverForTests) return;
   const ip = String(req.ip || req.socket?.remoteAddress || "");
   const ipHash = ip ? crypto.createHash("sha256").update(`${process.env.AUDIT_HASH_SALT || "legalmind-local"}:${ip}`).digest("hex") : null;
-  await pool.query(`INSERT INTO auditoria (organizacion_id, user_id, accion, recurso_tipo, recurso_id, metadata_json, ip_hash)
-    VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7)`, [req.security?.organizationId || null, req.user?.id || null, action, resourceType, resourceId ? String(resourceId) : null, JSON.stringify(metadata), ipHash]);
+  await pool.query(`INSERT INTO auditoria (organizacion_id, user_id, accion, recurso_tipo, recurso_id, metadata_json, ip_hash, request_id, riesgo)
+    VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9)`, [req.security?.organizationId || null, req.user?.id || null, action, resourceType, resourceId ? String(resourceId) : null, JSON.stringify(metadata), ipHash, req.requestId || null, risk]);
 }
 
 async function findMembership(userId, organizationId) { const result = await pool.query("SELECT organizacion_id, rol FROM membresias WHERE user_id=$1 AND organizacion_id=$2", [userId, organizationId]); return result.rows[0]; }

@@ -127,4 +127,36 @@ describe("case routes", () => {
     assert.match(body.error, /estado_procesamiento/);
     assert.match(body.error, /pendiente/);
   });
+
+  it("valida fechas clave antes de persistir vencimientos", async () => {
+    const response = await fetch(`${baseUrl}/api/casos/1/fechas`, {
+      body: JSON.stringify({
+        evento: "Vencimiento de apelacion",
+        fecha: "12/08/2026",
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.match(body.error, /YYYY-MM-DD/);
+  });
+
+  it("responde 400 ante JSON invalido", async () => {
+    const response = await fetch(`${baseUrl}/api/casos`, {
+      body: "{\"caratula\":",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(body.error, "JSON invalido.");
+    assert.ok(body.request_id);
+  });
 });

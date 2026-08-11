@@ -36,13 +36,22 @@ async function createAIQuery(payload) {
 
 async function listAIQueries(caseId) {
   await ensureTable();
-  const result = await pool.query(`SELECT * FROM consultas_ia WHERE causa_id = $1 ORDER BY created_at DESC, id DESC`, [caseId]);
+  const result = await pool.query(`
+    SELECT id, causa_id, herramienta, titulo, consulta, entrada_json, resultado_json, citas_json, metadata_json, created_at
+    FROM consultas_ia
+    WHERE causa_id = $1
+    ORDER BY created_at DESC, id DESC
+  `, [caseId]);
   return result.rows.map(mapRow);
 }
 
 async function getAIQuery(caseId, id) {
   await ensureTable();
-  const result = await pool.query(`SELECT * FROM consultas_ia WHERE causa_id = $1 AND id = $2`, [caseId, id]);
+  const result = await pool.query(`
+    SELECT id, causa_id, herramienta, titulo, consulta, entrada_json, resultado_json, citas_json, metadata_json, created_at
+    FROM consultas_ia
+    WHERE causa_id = $1 AND id = $2
+  `, [caseId, id]);
   return result.rows[0] ? mapRow(result.rows[0]) : null;
 }
 
