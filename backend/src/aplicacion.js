@@ -42,11 +42,11 @@ const allowedOrigins = new Set(
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  const fallbackOrigin = process.env.FRONTEND_URL || "http://localhost:3000";
+  const responseOrigin = origin && allowedOrigins.has(origin) ? origin : fallbackOrigin;
 
-  if (origin && allowedOrigins.has(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Vary", "Origin");
-  }
+  res.setHeader("Access-Control-Allow-Origin", responseOrigin);
+  res.setHeader("Vary", "Origin");
 
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-LegalMind-Organization, X-Request-Id");
