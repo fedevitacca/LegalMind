@@ -57,7 +57,7 @@ function buildRecentCases(cases: CaseListItem[]) {
 
 function buildAlerts(deadlines: CaseDeadline[]) {
   return deadlines
-    .slice(0, 2)
+    .filter((deadline) => deadline.dias_restantes === null || deadline.dias_restantes >= 0)
     .map((deadline) => ({
       caseName: deadline.caratula,
       detail: formatDeadlineDetail(deadline),

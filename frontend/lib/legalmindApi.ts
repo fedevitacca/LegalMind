@@ -199,7 +199,8 @@ export async function createCase(payload: CreateCasePayload): Promise<CaseDetail
 
 export async function fetchDeadlines(cookieHeader?: string): Promise<CaseDeadline[]> {
   try {
-    const response = await fetch(`${getApiUrl()}/api/casos/vencimientos/proximos?limit=5`, {
+    const today = formatDateForQuery(new Date());
+    const response = await fetch(`${getApiUrl()}/api/casos/vencimientos/proximos?desde=${today}&limit=20`, {
       cache: "no-store",
       credentials: "include",
       headers: cookieHeader ? { cookie: cookieHeader } : undefined,
@@ -317,4 +318,12 @@ function buildSampleCaseFromSlug(slug: string): CaseDetail {
 
 function getApiUrl() {
   return process.env.NEXT_PUBLIC_LEGALMIND_API_URL || "http://localhost:5000";
+}
+
+function formatDateForQuery(date: Date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }
