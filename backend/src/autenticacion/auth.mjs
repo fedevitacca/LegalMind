@@ -47,6 +47,14 @@ export const auth = betterAuth({
   database: authDatabase,
   baseURL: backendUrl,
   trustedOrigins: [...new Set(frontendUrls)],
+  advanced: {
+    defaultCookieAttributes: {
+      sameSite: "none",
+      secure: true,
+      partitioned: true,
+    },
+    useSecureCookies: true,
+  },
   socialProviders,
   account: {
     accountLinking: {
