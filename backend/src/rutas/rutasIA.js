@@ -31,6 +31,7 @@ const {
   saveLegalAnalysis,
 } = require("../modelos/repositorioIA");
 const { hybridSearch } = require("../modelos/repositorioRagVectorial");
+const { assessEvidence, buildLegalCitations } = require("../servicios/citasJuridicas");
 
 const router = express.Router();
 const { requireSession } = require("../autenticacion/sesion");
@@ -125,19 +126,21 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
       parameters: req.body?.parameters || {},
       context: chunks.map((chunk) => `[${chunk.document_id}:${chunk.chunk_index}] ${chunk.text}`),
     });
+    const caseId = parseOptionalNumericId(req.body?.case_id);
+    const citations = buildLegalCitations(chunks, { caseId });
+    const evidence = assessEvidence(citations);
     const metadata = {
       engine: "ollama_local_hybrid_rag", model: getLocalAIConfig().model,
       embedding_model: getLocalAIConfig().embeddingModel, tool_id: req.params.toolId,
       retrieval: "bm25_trigram_mmr_embeddings", semantic_retrieval: semanticRetrieval,
-      duration_ms: Date.now() - startedAt, generated_at: new Date().toISOString(),
+      duration_ms: Date.now() - startedAt, evidence, generated_at: new Date().toISOString(),
     };
     let savedQuery = null;
-    const caseId = parseOptionalNumericId(req.body?.case_id);
     if (caseId) savedQuery = await createAIQuery({ caseId, toolId: req.params.toolId,
       title: result.titulo || tool.label, query, input: { primary_text: primaryText, secondary_text: secondaryText, parameters: req.body?.parameters || {} },
-      result, citations: chunks, metadata });
+      result, citations, metadata });
     if (savedQuery) await recordAudit(req, { action: "ia.consulta_creada", resourceType: "consulta_ia", resourceId: savedQuery.id, metadata: { herramienta: req.params.toolId, causa_id: caseId } });
-    return res.json({ result, citations: chunks, saved_query: savedQuery, _metadata: metadata });
+    return res.json({ result, citations, evidence, saved_query: savedQuery, _metadata: metadata });
   } catch (error) {
     return res.status(getLocalAIErrorStatus(error)).json({ error: "No se pudo ejecutar la herramienta.", details: error.message });
   }
@@ -249,6 +252,8 @@ router.post("/rag/query", requireCaseAccess, async (req, res, next) => {
       }
     } catch (error) { console.warn("RAG vectorial no disponible; se usa recuperación léxica:", error.message); }
     if (!chunks) chunks = retrieveRelevantChunks(documents, question, Number(req.body.top_k) || 5);
+    const citations = buildLegalCitations(chunks, { caseId });
+    const evidence = assessEvidence(citations);
     const contextText = chunks
       .map((chunk) => [
         `Documento: ${chunk.document_name}`,
@@ -263,7 +268,8 @@ router.post("/rag/query", requireCaseAccess, async (req, res, next) => {
       return res.json({
         ...answer,
         case_id: caseId,
-        retrieved_chunks: chunks,
+        retrieved_chunks: citations,
+        evidence,
         engine: "ollama_rag",
         model: getLocalAIConfig().model,
       });
@@ -279,7 +285,8 @@ router.post("/rag/query", requireCaseAccess, async (req, res, next) => {
       answer: ragResult.answer?.respuesta || "No se pudo generar una respuesta con respaldo.",
       case_id: caseId,
       confidence: ragResult.answer?.requiere_revision ? "medio" : "alto",
-      retrieved_chunks: chunks,
+      retrieved_chunks: citations,
+      evidence,
       engine: "ollama_rag",
       retrieval,
       model: getLocalAIConfig().model,
