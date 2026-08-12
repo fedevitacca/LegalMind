@@ -151,11 +151,9 @@ async function sendOllamaChatRequest({ messages }) {
         keep_alive: process.env.LOCAL_AI_KEEP_ALIVE || "15m",
         messages,
         model,
-        options: {
-          num_ctx: Number(process.env.LOCAL_AI_CONTEXT_SIZE) || 8192,
+        options: { num_ctx: Number(process.env.LOCAL_AI_CONTEXT_SIZE) || 8192,
           num_predict: Number(process.env.LOCAL_AI_MAX_OUTPUT_TOKENS) || 900,
-          temperature: Number(process.env.LOCAL_AI_TEMPERATURE) || 0.1,
-        },
+          temperature: Number(process.env.LOCAL_AI_TEMPERATURE) || 0.1 },
         stream: false,
       }),
       headers: {
