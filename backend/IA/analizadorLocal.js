@@ -148,8 +148,12 @@ async function sendOllamaChatRequest({ messages }) {
     const response = await fetch(`${baseUrl}/api/chat`, {
       body: JSON.stringify({
         format: "json",
+        keep_alive: process.env.LOCAL_AI_KEEP_ALIVE || "15m",
         messages,
         model,
+        options: { num_ctx: Number(process.env.LOCAL_AI_CONTEXT_SIZE) || 8192,
+          num_predict: Number(process.env.LOCAL_AI_MAX_OUTPUT_TOKENS) || 900,
+          temperature: Number(process.env.LOCAL_AI_TEMPERATURE) || 0.1 },
         stream: false,
       }),
       headers: {
@@ -193,13 +197,32 @@ async function sendOllamaChatRequest({ messages }) {
 async function embedTextsWithLocalAI(texts) {
   if (localAIClientFactoryForTests) throw new Error("Embeddings omitidos durante pruebas aisladas.");
   const baseUrl = (process.env.LOCAL_AI_BASE_URL || DEFAULT_LOCAL_AI_BASE_URL).replace(/\/$/, "");
-  const model = process.env.LOCAL_AI_EMBEDDING_MODEL || process.env.LOCAL_AI_MODEL || DEFAULT_LOCAL_AI_MODEL;
-  const response = await fetch(`${baseUrl}/api/embed`, { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, input: texts }) });
-  if (!response.ok) throw new Error(`Embeddings locales no disponibles (${response.status}).`);
+  const model = process.env.LOCAL_AI_EMBEDDING_MODEL || "nomic-embed-text";
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Number(process.env.LOCAL_AI_EMBEDDING_TIMEOUT_MS) || 30000);
+  try {
+    const response = await fetch(`${baseUrl}/api/embed`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model, input: texts, keep_alive: process.env.LOCAL_AI_KEEP_ALIVE || "15m" }), signal: controller.signal });
+    if (!response.ok) throw new Error(`Embeddings locales no disponibles (${response.status}).`);
+    const body = await response.json();
+    if (!Array.isArray(body.embeddings) || body.embeddings.length !== texts.length) throw new Error("Respuesta de embeddings invalida.");
+    return body.embeddings;
+  } catch (error) {
+    if (error.name === "AbortError") throw new Error("El modelo de embeddings excedió el tiempo de espera.");
+    throw error;
+  } finally { clearTimeout(timeout); }
+}
+
+async function probeLocalAI() {
+  const config = getLocalAIConfig();
+  const started = Date.now();
+  const response = await fetch(`${config.baseUrl}/api/tags`, { signal: AbortSignal.timeout(5000) });
+  if (!response.ok) throw new Error(`Ollama respondió ${response.status}.`);
   const body = await response.json();
-  if (!Array.isArray(body.embeddings) || body.embeddings.length !== texts.length) throw new Error("Respuesta de embeddings invalida.");
-  return body.embeddings;
+  const models = (body.models || []).map((item) => item.name);
+  return { available: true, latencyMs: Date.now() - started, models,
+    chatModelReady: models.some((name) => name === config.model || name.startsWith(`${config.model}:`)),
+    embeddingModelReady: models.some((name) => name === config.embeddingModel || name.startsWith(`${config.embeddingModel}:`)) };
 }
 
 function parseJsonObject(rawText) {
@@ -275,6 +298,9 @@ function getLocalAIConfig() {
   return {
     baseUrl: (process.env.LOCAL_AI_BASE_URL || DEFAULT_LOCAL_AI_BASE_URL).replace(/\/$/, ""),
     model: process.env.LOCAL_AI_MODEL || DEFAULT_LOCAL_AI_MODEL,
+    embeddingModel: process.env.LOCAL_AI_EMBEDDING_MODEL || "nomic-embed-text",
+    timeoutMs: Number(process.env.LOCAL_AI_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS,
+    maxOutputTokens: Number(process.env.LOCAL_AI_MAX_OUTPUT_TOKENS) || 900,
   };
 }
 
@@ -291,6 +317,7 @@ module.exports = {
   embedTextsWithLocalAI,
   buildLawyerBriefWithLocalAI,
   getLocalAIConfig,
+  probeLocalAI,
   resetLocalAIClientFactoryForTests,
   searchLegalTextWithLocalAI,
   runLegalToolWithLocalAI,

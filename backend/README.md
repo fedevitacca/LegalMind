@@ -52,7 +52,13 @@ El worker documental inicia junto al backend y consume `trabajos_documentales` c
 
 El OCR usa Tesseract.js localmente y renderiza PDFs por página. `OCR_LANGUAGE=spa` selecciona español; `OCR_LANG_PATH` permite alojar los datos de idioma dentro de la infraestructura y evitar su descarga inicial. El documento nunca se envía a un proveedor externo.
 
-El modelo español está incluido mediante `@tesseract.js-data/spa`, por lo que la configuración predeterminada funciona sin CDN. La migración `006_pgvector_rag.sql` prepara índices RAG versionados con búsqueda textual y vectorial; el indexador automático se implementa en la fase siguiente.
+El modelo español está incluido mediante `@tesseract.js-data/spa`, por lo que la configuración predeterminada funciona sin CDN. La migración `006_pgvector_rag.sql` incorpora índices RAG versionados con búsqueda textual y vectorial. Después de la extracción u OCR, el worker fragmenta por páginas y límites jurídicos, genera embeddings locales con `nomic-embed-text` y los persiste en pgvector. Las consultas combinan similitud semántica con full-text en español y conservan un fallback léxico.
+
+Antes de indexar por primera vez ejecutá `ollama pull nomic-embed-text`.
+
+Para enviar a la cola los documentos anteriores a esta implementación ejecutá `npm run rag:reindex` dentro de `backend`.
+
+La inferencia local usa contexto y salida acotados, temperatura baja y `keep_alive` para evitar recargar el modelo en cada herramienta. Estos valores se ajustan con `LOCAL_AI_CONTEXT_SIZE`, `LOCAL_AI_MAX_OUTPUT_TOKENS`, `LOCAL_AI_TEMPERATURE` y `LOCAL_AI_KEEP_ALIVE`. El endpoint `GET /api/ia/health/live` comprueba Ollama y confirma que los modelos generativo y de embeddings estén instalados.
 
 ## Seguridad profesional
 

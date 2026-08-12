@@ -25,7 +25,8 @@ Esto resulta adecuado para demostraciones y pruebas controladas. No debe conside
 - Cola documental persistente en PostgreSQL con reclamo seguro, progreso, reintentos exponenciales y estados terminales.
 - Extracción asíncrona de PDF, DOCX y texto; detección explícita de PDF que requiere OCR.
 - OCR local con Tesseract.js para imágenes y PDFs renderizados por página, confianza y texto persistido por página.
-- Base `pgvector` preparada con índices versionados, aislamiento por organización/causa, búsqueda full-text en español y HNSW para embeddings de 768 dimensiones.
+- RAG persistente sobre `pgvector`: índices versionados, aislamiento por organización/causa, fragmentación jurídica por página, embeddings locales de 768 dimensiones, full-text en español y búsqueda HNSW híbrida.
+- Inferencia local operable: límites de contexto/salida, temperatura determinista, modelo caliente, timeouts separados, diagnóstico en vivo, cancelación desde el frontend y métricas de duración por consulta.
 - Pruebas negativas para sesión, rol de lectura y acceso entre organizaciones.
 
 Pendiente para completar plenamente las fases: gestión de invitaciones y cambio de organización en UI, matriz exhaustiva de permisos, almacenamiento privado externo, baseline completo para base nueva y pruebas E2E.

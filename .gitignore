@@ -33,6 +33,7 @@ yarn-error.log*
 .pnpm-debug.log*
 dev-server*.log
 *.log
+.runtime/
 .npm-cache/
 backend/uploads/
 backend/IA/dataset/dataset_multieurlex_*.csv

@@ -7,6 +7,7 @@ const {
 const JOB_TYPES = Object.freeze({
   EXTRACT_TEXT: "extraer_texto",
   OCR: "ocr",
+  INDEX_RAG: "indexar_rag",
 });
 
 async function enqueueDocumentJob(
@@ -121,7 +122,7 @@ async function claimNextJob() {
       [job.id, DOCUMENT_JOB_STATES.PROCESSING]
     );
 
-    await client.query(
+    if (job.tipo !== JOB_TYPES.INDEX_RAG) await client.query(
       `
         UPDATE documentos
         SET estado_procesamiento = $2,
@@ -160,7 +161,7 @@ async function completeJob(job, text) {
       [job.documento_id, text, DOCUMENT_PROCESSING_STATES.TEXT_EXTRACTED]
     );
 
-    await completeJobRow(client, job.id);
+    await completeJobAndEnqueueIndex(client, job);
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
@@ -205,14 +206,14 @@ async function failJob(job, error, { requiresOcr = false } = {}) {
         job.id,
         jobState,
         final ? 100 : 0,
-        requiresOcr ? "OCR_REQUIRED" : "EXTRACTION_ERROR",
+        requiresOcr ? "OCR_REQUIRED" : job.tipo === JOB_TYPES.INDEX_RAG ? "RAG_INDEX_ERROR" : "EXTRACTION_ERROR",
         String(error.message || error).slice(0, 1000),
         final || requiresOcr,
         delay,
       ]
     );
 
-    await client.query(
+    if (job.tipo !== JOB_TYPES.INDEX_RAG) await client.query(
       `
         UPDATE documentos
         SET estado_procesamiento = $2,
@@ -290,7 +291,7 @@ async function completeOcrJob(job, result) {
       );
     }
 
-    await completeJobRow(client, job.id);
+    await completeJobAndEnqueueIndex(client, job);
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
@@ -316,10 +317,29 @@ async function completeJobRow(client, jobId) {
   );
 }
 
+async function completeJobAndEnqueueIndex(client, job) {
+  await completeJobRow(client, job.id);
+  await client.query(
+    `INSERT INTO trabajos_documentales (documento_id, causa_id, tipo)
+     SELECT $1, $2, $3
+     WHERE NOT EXISTS (
+       SELECT 1 FROM trabajos_documentales
+       WHERE documento_id=$1 AND tipo=$3 AND estado IN ($4,$5)
+     )`,
+    [job.documento_id, job.causa_id, JOB_TYPES.INDEX_RAG, DOCUMENT_JOB_STATES.PENDING, DOCUMENT_JOB_STATES.PROCESSING]
+  );
+}
+
+async function completeIndexJob(job) {
+  const client = await pool.connect();
+  try { await completeJobRow(client, job.id); } finally { client.release(); }
+}
+
 module.exports = {
   JOB_TYPES,
   claimNextJob,
   completeJob,
+  completeIndexJob,
   completeOcrJob,
   enqueueDocumentJob,
   failJob,
