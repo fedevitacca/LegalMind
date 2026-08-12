@@ -1,11 +1,13 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import { createCaseDate, updateCaseDate } from "@/lib/legalmindApi";
 
 type FechaAgenda = {
   descripcion: string;
   dia: string;
   hora: string;
+  id?: number;
   prioridad: "Alta" | "Media" | "Baja";
 };
 
@@ -32,9 +34,13 @@ const monthNames = [
 const weekDays = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
 
 export default function EspacioAgenda({
+  caseId,
+  caseOptions = [],
   editable = false,
   fechas,
 }: {
+  caseId?: string;
+  caseOptions?: Array<{ id: number | string; name: string }>;
   editable?: boolean;
   fechas: FechaAgenda[];
 }) {
@@ -43,7 +49,7 @@ export default function EspacioAgenda({
     fechas.map((fecha, index) => ({
       ...fecha,
       dateKey: toDateKeyFromDay(fecha.dia, today.getFullYear()),
-      id: `agenda-inicial-${index}`,
+      id: fecha.id ? String(fecha.id) : `agenda-inicial-${index}`,
     })),
   );
   const [visibleMonth, setVisibleMonth] = useState(
@@ -56,6 +62,11 @@ export default function EspacioAgenda({
     useState<FechaAgenda["prioridad"]>("Media");
   const [formVisible, setFormVisible] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [selectedCaseId] = useState(() =>
+    caseId || String(caseOptions[0]?.id || ""),
+  );
 
   const calendarDays = useMemo(() => getCalendarDays(visibleMonth), [visibleMonth]);
   const selectedEvents = events.filter((event) => event.dateKey === selectedDate);
@@ -63,40 +74,75 @@ export default function EspacioAgenda({
     .sort((a, b) => `${a.dateKey} ${a.hora}`.localeCompare(`${b.dateKey} ${b.hora}`))
     .slice(0, 5);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError("");
 
     if (!newDescription.trim()) {
       return;
     }
 
+    setIsSaving(true);
+    const targetCaseId = caseId || selectedCaseId;
+    const nextEvent = {
+      dateKey: selectedDate,
+      descripcion: newDescription.trim(),
+      dia: formatDayLabel(selectedDate),
+      hora: newTime,
+      id: `agenda-${selectedDate}-${newTime}-${Date.now()}`,
+      prioridad: newPriority,
+    };
+
+    try {
+      if (!targetCaseId) {
+        throw new Error("Selecciona un caso para guardar el evento.");
+      }
+
+      if (targetCaseId) {
+        const savedDate = await createCaseDate(targetCaseId, {
+          evento: nextEvent.descripcion,
+          fecha: selectedDate,
+          prioridad: toApiPriority(newPriority),
+          tipo: "agenda",
+        });
+
+        nextEvent.id = String(savedDate.id || nextEvent.id);
+      }
+
     setEvents((currentEvents) => [
       ...currentEvents,
-      {
-        dateKey: selectedDate,
-        descripcion: newDescription.trim(),
-        dia: formatDayLabel(selectedDate),
-        hora: newTime,
-        id: `agenda-${selectedDate}-${newTime}-${Date.now()}`,
-        prioridad: newPriority,
-      },
+      nextEvent,
     ]);
     setNewDescription("");
     setNewTime("09:00");
     setNewPriority("Media");
     setFormVisible(false);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "No se pudo guardar la fecha.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
-  function handleDelete(eventId: string) {
+  async function handleDelete(eventId: string) {
     if (pendingDeleteId !== eventId) {
       setPendingDeleteId(eventId);
       return;
     }
 
+    setError("");
+    try {
+      if (caseId && /^\d+$/.test(eventId)) {
+        await updateCaseDate(caseId, eventId, { estado: "cancelada" });
+      }
+
     setEvents((currentEvents) =>
       currentEvents.filter((event) => event.id !== eventId),
     );
     setPendingDeleteId(null);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "No se pudo eliminar la fecha.");
+    }
   }
 
   return (
@@ -292,11 +338,11 @@ export default function EspacioAgenda({
               onSubmit={handleSubmit}
             >
               <label>
-                <span className="text-sm font-semibold">Trabajo o entrega</span>
+                <span className="text-sm font-semibold">Evento</span>
                 <input
                   className="mt-2 h-11 w-full rounded-lg border border-[#84A2BD]/55 bg-white px-3 text-sm font-medium outline-none placeholder:text-[#0F2044]/38 focus:border-[#546FC0] focus:ring-4 focus:ring-[#84A2BD]/20"
                   onChange={(event) => setNewDescription(event.target.value)}
-                  placeholder="Ej. Presentar escrito"
+                  placeholder="Ej. Audiencia, vencimiento, presentar escrito"
                   type="text"
                   value={newDescription}
                 />
@@ -327,10 +373,19 @@ export default function EspacioAgenda({
                 </select>
               </label>
 
-              <button className="h-11 self-end rounded-full bg-[#546FC0] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(84,111,192,0.22)] transition hover:bg-[#0F2044]">
-                Guardar
+              <button
+                className="h-11 self-end rounded-full bg-[#546FC0] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(84,111,192,0.22)] transition hover:bg-[#0F2044] disabled:cursor-wait disabled:bg-[#84A2BD]"
+                disabled={isSaving}
+              >
+                {isSaving ? "Guardando..." : "Guardar"}
               </button>
             </form>
+          ) : null}
+
+          {error ? (
+            <p className="mt-3 rounded-lg border border-[#A68147]/45 bg-[#A68147]/12 px-4 py-3 text-sm font-semibold" role="alert">
+              {error}
+            </p>
           ) : null}
         </div>
       </section>
@@ -398,4 +453,8 @@ function formatDayLabel(dateKey: string) {
 function formatReadableDate(dateKey: string) {
   const [year, month, day] = dateKey.split("-");
   return `${Number(day)}/${Number(month)}/${year}`;
+}
+
+function toApiPriority(priority: FechaAgenda["prioridad"]) {
+  return priority === "Alta" ? "alta" : priority === "Baja" ? "baja" : "media";
 }

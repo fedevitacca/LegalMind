@@ -3,7 +3,7 @@ import CasosRecientes from "../components/panel/CasosRecientes";
 import MarcoAplicacion from "../components/estructura/MarcoAplicacion";
 import MesaTrabajo from "../components/panel/MesaTrabajo";
 import PanelLateralInicio from "../components/panel/PanelLateralInicio";
-import { CaseListItem, fetchCases } from "../lib/legalmindServerApi";
+import { CaseDeadline, CaseListItem, fetchCases, fetchDeadlines } from "../lib/legalmindServerApi";
 
 const defaultWorkItems = [
   {
@@ -21,9 +21,9 @@ const defaultWorkItems = [
 ];
 
 export default async function Home() {
-  const cases = await fetchCases();
+  const [cases, deadlines] = await Promise.all([fetchCases(), fetchDeadlines()]);
   const recentCases = buildRecentCases(cases);
-  const alerts = buildAlerts(cases);
+  const alerts = buildAlerts(deadlines);
   const workItems = buildWorkItems(cases);
 
   return (
@@ -55,16 +55,37 @@ function buildRecentCases(cases: CaseListItem[]) {
   }));
 }
 
-function buildAlerts(cases: CaseListItem[]) {
-  return cases
-    .filter((legalCase) => legalCase.alert_level)
-    .slice(0, 2)
-    .map((legalCase) => ({
-      caseName: legalCase.name,
-      detail: legalCase.caption,
-      href: `/casos/${legalCase.slug}`,
-      title: legalCase.alert_level === "urgente" ? "Urgente" : "Proximo",
+function buildAlerts(deadlines: CaseDeadline[]) {
+  return deadlines
+    .filter((deadline) => deadline.dias_restantes === null || deadline.dias_restantes >= 0)
+    .map((deadline) => ({
+      caseName: deadline.caratula,
+      detail: formatDeadlineDetail(deadline),
+      href: `/casos/${deadline.causa_id}/agenda`,
+      title: getDeadlineTitle(deadline),
     }));
+}
+
+function getDeadlineTitle(deadline: CaseDeadline) {
+  if (deadline.prioridad === "urgente" || (deadline.dias_restantes ?? 8) <= 0) {
+    return "Urgente";
+  }
+
+  return "Proximo";
+}
+
+function formatDeadlineDetail(deadline: CaseDeadline) {
+  const dateLabel = deadline.fecha
+    ? new Date(deadline.fecha).toLocaleDateString("es-AR")
+    : deadline.fecha_texto || "Sin fecha";
+  const daysLabel =
+    deadline.dias_restantes === null
+      ? ""
+      : deadline.dias_restantes <= 0
+        ? "vence hoy"
+        : `faltan ${deadline.dias_restantes} dias`;
+
+  return [deadline.evento, dateLabel, daysLabel].filter(Boolean).join(" | ");
 }
 
 function buildWorkItems(cases: CaseListItem[]) {

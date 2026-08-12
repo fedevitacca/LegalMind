@@ -13,7 +13,14 @@ const organizationRoutes = require("./rutas/rutasOrganizaciones");
 const app = express();
 app.disable("x-powered-by");
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
-app.use((req, res, next) => { req.requestId = req.headers["x-request-id"] || crypto.randomUUID(); res.setHeader("X-Request-Id", req.requestId); next(); });
+app.use((req, res, next) => {
+  req.requestId = req.headers["x-request-id"] || crypto.randomUUID();
+  req.setTimeout(Number(process.env.REQUEST_TIMEOUT_MS || 120000));
+  res.setHeader("X-Request-Id", req.requestId);
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Pragma", "no-cache");
+  next();
+});
 app.use("/api", rateLimit({ windowMs: 60_000, limit: Number(process.env.API_RATE_LIMIT_PER_MINUTE || 180), standardHeaders: "draft-8", legacyHeaders: false,
   skip: () => process.env.NODE_ENV === "test", message: { error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." } }));
 
@@ -35,11 +42,11 @@ const allowedOrigins = new Set(
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  const fallbackOrigin = process.env.FRONTEND_URL || "http://localhost:3000";
+  const responseOrigin = origin && allowedOrigins.has(origin) ? origin : fallbackOrigin;
 
-  if (origin && allowedOrigins.has(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Vary", "Origin");
-  }
+  res.setHeader("Access-Control-Allow-Origin", responseOrigin);
+  res.setHeader("Vary", "Origin");
 
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-LegalMind-Organization, X-Request-Id");
@@ -77,6 +84,20 @@ app.use((req, res) => {
 });
 
 app.use((error, req, res, next) => {
+  if (error instanceof SyntaxError && "body" in error) {
+    return res.status(400).json({
+      error: "JSON invalido.",
+      request_id: req.requestId,
+    });
+  }
+
+  if (error.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({
+      error: "El archivo supera el limite permitido.",
+      request_id: req.requestId,
+    });
+  }
+
   const statusCode = error.statusCode || 500;
 
   res.status(statusCode).json({
@@ -85,6 +106,7 @@ app.use((error, req, res, next) => {
         ? "Error interno del servidor."
         : error.message,
     details: statusCode === 500 ? error.message : undefined,
+    request_id: req.requestId,
   });
 });
 

@@ -1,5 +1,6 @@
 const { pool } = require("../configuracion/baseDatos");
 const { DOCUMENT_PROCESSING_STATES } = require("./estadosDocumentos");
+const crypto = require("node:crypto");
 
 const databaseConfigured = () => Boolean(process.env.DATABASE_URL);
 
@@ -59,6 +60,22 @@ async function saveLegalAnalysis({
     await saveRagFragments(client, { analysis, analysisId, causaId, documentoId: documentId });
     await saveAlerts(client, { analysis, analysisId, causaId, documentoId: documentId });
 
+    if (documentId) {
+      await client.query(
+        `
+          UPDATE documentos
+          SET estado_procesamiento = $2,
+              updated_at = NOW()
+          WHERE id = $1
+        `,
+        [documentId, DOCUMENT_PROCESSING_STATES.ANALYZED]
+      );
+    }
+
+    if (causaId) {
+      await client.query("UPDATE causas SET updated_at = NOW() WHERE id = $1", [causaId]);
+    }
+
     await client.query("COMMIT");
 
     return {
@@ -114,9 +131,10 @@ async function createDocumentForAnalysis(client, { causaId, sourceFile, text }) 
         mime_type,
         tamano_bytes,
         texto_extraido,
-        estado_procesamiento
+        estado_procesamiento,
+        sha256
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING id
     `,
     [
@@ -127,6 +145,7 @@ async function createDocumentForAnalysis(client, { causaId, sourceFile, text }) 
       sourceFile?.size_bytes || Buffer.byteLength(text, "utf8"),
       text,
       DOCUMENT_PROCESSING_STATES.ANALYZED,
+      crypto.createHash("sha256").update(text, "utf8").digest("hex"),
     ]
   );
 
@@ -135,6 +154,8 @@ async function createDocumentForAnalysis(client, { causaId, sourceFile, text }) 
 
 async function saveDates(client, { analysis, analysisId, causaId, documentoId }) {
   for (const date of analysis.fechas_relevantes || []) {
+    const dateText = date.fecha || date.fecha_texto || date.evento || "Fecha detectada";
+
     await client.query(
       `
         INSERT INTO fechas_relevantes (
@@ -153,8 +174,8 @@ async function saveDates(client, { analysis, analysisId, causaId, documentoId })
         causaId,
         documentoId,
         analysisId,
-        date.fecha,
-        date.fecha_normalizada || parseLegalDate(date.fecha),
+        dateText,
+        date.fecha_normalizada || parseLegalDate(date.fecha || date.fecha_texto),
         date.evento || "",
         date.tipo || "fecha_mencionada",
         Boolean(date.requiere_alerta),
@@ -215,7 +236,7 @@ async function saveEntities(client, { analysis, analysisId, causaId, documentoId
 }
 
 async function saveRelations(client, { analysis, analysisId, causaId, documentoId }) {
-  for (const relation of analysis.grafo_conocimiento?.relaciones || []) {
+  for (const [index, relation] of (analysis.grafo_conocimiento?.relaciones || []).entries()) {
     await client.query(
       `
         INSERT INTO relaciones_juridicas (
@@ -234,10 +255,10 @@ async function saveRelations(client, { analysis, analysisId, causaId, documentoI
         causaId,
         documentoId,
         analysisId,
-        relation.id,
-        relation.origen,
-        relation.destino,
-        relation.tipo,
+        relation.id || `relacion-${index + 1}`,
+        String(relation.origen || "origen-no-informado"),
+        String(relation.destino || "destino-no-informado"),
+        relation.tipo || "relacion_juridica",
         relation.evidencia || null,
       ]
     );
@@ -245,7 +266,7 @@ async function saveRelations(client, { analysis, analysisId, causaId, documentoI
 }
 
 async function saveRagFragments(client, { analysis, analysisId, causaId, documentoId }) {
-  for (const fragment of analysis.rag_juridico?.fragmentos || []) {
+  for (const [index, fragment] of (analysis.rag_juridico?.fragmentos || []).entries()) {
     await client.query(
       `
         INSERT INTO fragmentos_rag (
@@ -265,9 +286,9 @@ async function saveRagFragments(client, { analysis, analysisId, causaId, documen
         causaId,
         documentoId,
         analysisId,
-        fragment.id,
-        fragment.orden,
-        fragment.texto,
+        fragment.id || `fragmento-${index + 1}`,
+        Number.isInteger(fragment.orden) ? fragment.orden : index + 1,
+        String(fragment.texto || ""),
         fragment.embedding_id,
         null,
         JSON.stringify({
@@ -284,7 +305,7 @@ async function saveRagFragments(client, { analysis, analysisId, causaId, documen
 }
 
 async function saveAlerts(client, { analysis, analysisId, causaId, documentoId }) {
-  for (const alert of analysis.alertas || []) {
+  for (const [index, alert] of (analysis.alertas || []).entries()) {
     await client.query(
       `
         INSERT INTO alertas_ia (
@@ -306,14 +327,14 @@ async function saveAlerts(client, { analysis, analysisId, causaId, documentoId }
         causaId,
         documentoId,
         analysisId,
-        alert.id,
-        alert.tipo,
-        alert.titulo,
-        alert.descripcion,
+        alert.id || `alerta-${index + 1}`,
+        alert.tipo || "revision",
+        alert.titulo || `Alerta ${index + 1}`,
+        alert.descripcion || alert.detalle || "Revisar el hallazgo detectado por IA.",
         alert.fecha_normalizada || null,
         alert.prioridad,
         alert.estado || "pendiente",
-        alert.fuente,
+        alert.fuente || "ia",
       ]
     );
   }

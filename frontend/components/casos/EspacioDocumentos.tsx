@@ -61,12 +61,6 @@ export default function EspacioDocumentos({
                 className="rounded-full bg-white px-3 py-1.5 transition hover:bg-[#84A2BD]/20"
                 href={documento.download_url ? `${apiUrl}${documento.download_url}` : "#"}
               >
-                Ver
-              </a>
-              <a
-                className="rounded-full bg-white px-3 py-1.5 transition hover:bg-[#84A2BD]/20"
-                href="#"
-              >
                 Descargar
               </a>
             </div>

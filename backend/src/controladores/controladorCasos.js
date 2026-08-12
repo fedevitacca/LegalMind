@@ -1,5 +1,8 @@
 const {
   addDefendantToCase,
+  createDateForCase,
+  createDeadlineReminder,
+  createInternalComparison,
   createDocument,
   createCase,
   deleteCase,
@@ -7,24 +10,40 @@ const {
   deleteDefendantFromCase,
   getDocumentById,
   getCaseById,
+  getCaseRelations,
+  linkActionToDefendant,
+  linkDocumentToAction,
+  linkDocumentToDefendant,
+  listActionsByCase,
   listCases,
+  listDatesByCase,
+  listDeadlinesByOrganization,
+  listInternalComparisons,
   listDocumentsByCase,
   listDefendantsByCase,
+  listPendingReminders,
   updateCase,
+  updateDateForCase,
   updateDocument,
   updateDefendantInCase,
+  updateReminderStatus,
 } = require("../modelos/repositorioCasos");
 const { recordAudit } = require("../autenticacion/autorizacion");
-const { enqueueDocumentJob } = require("../modelos/repositorioTrabajosDocumentales");
+const { JOB_TYPES, enqueueDocumentJob } = require("../modelos/repositorioTrabajosDocumentales");
 const {
   ALLOWED_DOCUMENT_PROCESSING_STATES,
   isValidDocumentProcessingState,
 } = require("../modelos/estadosDocumentos");
 const fs = require("node:fs/promises");
+const path = require("node:path");
+
+const uploadRoot = path.resolve(process.env.UPLOADS_DIR || path.join(process.cwd(), "uploads"));
 
 async function listarCasos(req, res, next) {
   try {
-    const cases = await listCases(req.security.organizationId);
+    const cases = await listCases(req.security.organizationId, {
+      expediente: getOptionalText(req.query.expediente || req.query.q),
+    });
     res.json({ cases });
   } catch (error) {
     next(error);
@@ -171,8 +190,274 @@ async function eliminarImputado(req, res, next) {
 async function listarDocumentos(req, res, next) {
   try {
     const caseId = parseNumericId(req.params.id, "caso");
-    const documentos = await listDocumentsByCase(caseId);
+    const filterError = validateDocumentFilters(req.query);
+
+    if (filterError) {
+      return res.status(400).json({ error: filterError });
+    }
+
+    const documentos = await listDocumentsByCase(caseId, parseDocumentFilters(req.query));
     return res.json({ documentos });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function listarVencimientos(req, res, next) {
+  try {
+    const validationError = validateDeadlineFilters(req.query);
+
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const vencimientos = await listDeadlinesByOrganization(
+      req.security.organizationId,
+      parseDeadlineFilters(req.query, req.user.id)
+    );
+    return res.json({ vencimientos });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function listarActuaciones(req, res, next) {
+  try {
+    const caseId = parseNumericId(req.params.id, "caso");
+    const filterError = validateActionFilters(req.query);
+
+    if (filterError) {
+      return res.status(400).json({ error: filterError });
+    }
+
+    const actuaciones = await listActionsByCase(caseId, parseActionFilters(req.query));
+    return res.json({ actuaciones });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function listarRelaciones(req, res, next) {
+  try {
+    const caseId = parseNumericId(req.params.id, "caso");
+    return res.json({ relaciones: await getCaseRelations(caseId) });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function listarFechas(req, res, next) {
+  try {
+    const caseId = parseNumericId(req.params.id, "caso");
+    const validationError = validateDateFilters(req.query);
+
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const fechas = await listDatesByCase(caseId, parseDateFilters(req.query));
+    return res.json({ fechas });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function agregarFecha(req, res, next) {
+  try {
+    const caseId = parseNumericId(req.params.id, "caso");
+    const validationError = validateDatePayload(req.body);
+
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const fecha = await createDateForCase(caseId, normalizeDatePayload(req.body));
+    await recordAudit(req, { action: "fecha.creada", resourceType: "fecha_relevante", resourceId: fecha.id, metadata: { causa_id: caseId, prioridad: fecha.prioridad } });
+    return res.status(201).json({ fecha });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function actualizarFecha(req, res, next) {
+  try {
+    const caseId = parseNumericId(req.params.id, "caso");
+    const dateId = parseNumericId(req.params.fechaId, "fecha");
+    const validationError = validateDatePayload(req.body, { partial: true });
+
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const fecha = await updateDateForCase(caseId, dateId, normalizeDatePayload(req.body));
+
+    if (!fecha) {
+      return res.status(404).json({ error: "Fecha relevante no encontrada para esta causa." });
+    }
+
+    await recordAudit(req, { action: "fecha.actualizada", resourceType: "fecha_relevante", resourceId: dateId, metadata: { causa_id: caseId, campos: Object.keys(req.body || {}) } });
+    return res.json({ fecha });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function crearRecordatorio(req, res, next) {
+  try {
+    const caseId = parseNumericId(req.params.id, "caso");
+    const validationError = validateReminderPayload(req.body);
+
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const recordatorio = await createDeadlineReminder(caseId, normalizeReminderPayload(req.body));
+
+    if (!recordatorio) {
+      return res.status(404).json({ error: "Fecha relevante no encontrada para esta causa." });
+    }
+
+    await recordAudit(req, { action: "recordatorio.creado", resourceType: "recordatorio_vencimiento", resourceId: recordatorio.id, metadata: { causa_id: caseId, fecha_relevante_id: recordatorio.fecha_relevante_id } });
+    return res.status(201).json({ recordatorio });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function listarRecordatorios(req, res, next) {
+  try {
+    const validationError = validateReminderFilters(req.query);
+
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const recordatorios = await listPendingReminders(
+      req.security.organizationId,
+      parseReminderFilters(req.query)
+    );
+    return res.json({ recordatorios });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function actualizarRecordatorio(req, res, next) {
+  try {
+    const reminderId = parseNumericId(req.params.recordatorioId, "recordatorio");
+    const validationError = validateReminderStatusPayload(req.body);
+
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const recordatorio = await updateReminderStatus(req.security.organizationId, reminderId, req.body);
+
+    if (!recordatorio) {
+      return res.status(404).json({ error: "Recordatorio no encontrado." });
+    }
+
+    await recordAudit(req, { action: "recordatorio.actualizado", resourceType: "recordatorio_vencimiento", resourceId: reminderId, metadata: { estado: req.body.estado } });
+    return res.json({ recordatorio });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function vincularDocumentoImputado(req, res, next) {
+  try {
+    const caseId = parseNumericId(req.params.id, "caso");
+    const validationError = validateDocumentDefendantLink(req.body);
+
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const relacion = await linkDocumentToDefendant(caseId, req.body);
+
+    if (!relacion) {
+      return res.status(404).json({ error: "Documento o imputado no encontrado para esta causa." });
+    }
+
+    await recordAudit(req, { action: "relacion.documento_imputado", resourceType: "relacion", metadata: { causa_id: caseId, documento_id: req.body.documento_id, imputado_id: req.body.imputado_id } });
+    return res.status(201).json({ relacion });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function vincularActuacionImputado(req, res, next) {
+  try {
+    const caseId = parseNumericId(req.params.id, "caso");
+    const validationError = validateActionDefendantLink(req.body);
+
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const relacion = await linkActionToDefendant(caseId, req.body);
+
+    if (!relacion) {
+      return res.status(404).json({ error: "Actuacion o imputado no encontrado para esta causa." });
+    }
+
+    await recordAudit(req, { action: "relacion.actuacion_imputado", resourceType: "relacion", metadata: { causa_id: caseId, actuacion_id: req.body.actuacion_id, imputado_id: req.body.imputado_id } });
+    return res.status(201).json({ relacion });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function vincularDocumentoActuacion(req, res, next) {
+  try {
+    const caseId = parseNumericId(req.params.id, "caso");
+    const validationError = validateDocumentActionLink(req.body);
+
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const relacion = await linkDocumentToAction(caseId, req.body);
+
+    if (!relacion) {
+      return res.status(404).json({ error: "Documento o actuacion no encontrada para esta causa." });
+    }
+
+    await recordAudit(req, { action: "relacion.documento_actuacion", resourceType: "relacion", metadata: { causa_id: caseId, documento_id: req.body.documento_id, actuacion_id: req.body.actuacion_id } });
+    return res.status(201).json({ relacion });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function listarComparacionesInternas(req, res, next) {
+  try {
+    const caseId = parseNumericId(req.params.id, "caso");
+    const validationError = validateComparisonFilters(req.query);
+
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const comparaciones = await listInternalComparisons(caseId, parseComparisonFilters(req.query));
+    return res.json({ comparaciones });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function prepararComparacionInterna(req, res, next) {
+  try {
+    const caseId = parseNumericId(req.params.id, "caso");
+    const validationError = validateInternalComparison(req.body);
+
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const comparacion = await createInternalComparison(caseId, normalizeComparisonPayload(req.body));
+    await recordAudit(req, { action: "comparacion.preparada", resourceType: "comparacion_interna", resourceId: comparacion.id, metadata: { causa_id: caseId, tipo: comparacion.tipo } });
+    return res.status(201).json({ comparacion });
   } catch (error) {
     return next(error);
   }
@@ -192,7 +477,13 @@ async function agregarDocumento(req, res, next) {
       ...req.body,
       archivo: req.file,
     });
-    if (documento.estado === "pendiente") await enqueueDocumentJob(documento.id, caseId, { type: req.file?.mimetype?.startsWith("image/") ? "ocr" : "extraer_texto" });
+    if (documento.estado === "pendiente") {
+      await enqueueDocumentJob(documento.id, caseId, {
+        type: req.file?.mimetype?.startsWith("image/")
+          ? JOB_TYPES.OCR
+          : JOB_TYPES.EXTRACT_TEXT,
+      });
+    }
     await recordAudit(req, { action: "documento.creado", resourceType: "documento", resourceId: documento.id, metadata: { causa_id: caseId, mime_type: documento.mime_type, tamano_bytes: documento.tamano_bytes } });
 
     return res.status(201).json({ documento });
@@ -238,9 +529,19 @@ async function descargarDocumento(req, res, next) {
     if (!documento.ruta_archivo) {
       return res.status(404).json({ error: "El documento no tiene archivo fisico asociado." });
     }
-    await recordAudit(req, { action: "documento.descargado", resourceType: "documento", resourceId: documentId, metadata: { causa_id: caseId } });
+    const safePath = resolveSafeStoredFilePath(documento.ruta_archivo);
 
-    return res.download(documento.ruta_archivo, documento.nombre_archivo);
+    if (!safePath) {
+      await recordAudit(req, { action: "documento.descarga_bloqueada", resourceType: "documento", resourceId: documentId, metadata: { causa_id: caseId, motivo: "ruta_fuera_de_uploads" }, risk: "alto" });
+      return res.status(403).json({ error: "La ruta del archivo no es segura." });
+    }
+
+    await fs.access(safePath);
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    await recordAudit(req, { action: "documento.descargado", resourceType: "documento", resourceId: documentId, metadata: { causa_id: caseId }, risk: "sensible" });
+
+    return res.download(safePath, documento.nombre_archivo);
   } catch (error) {
     return next(error);
   }
@@ -363,13 +664,13 @@ function validateDocument(body, file, { partial = false } = {}) {
     return "El campo 'texto_extraido' debe ser texto.";
   }
 
-  if ("estado_procesamiento" in (body || {}) && !body.estado_procesamiento) {
+  if ("estado_procesamiento" in (body || {}) && !String(body.estado_procesamiento).trim()) {
     return "El campo 'estado_procesamiento' no puede estar vacio.";
   }
 
   if (
     "estado_procesamiento" in (body || {}) &&
-    !isValidDocumentProcessingState(body.estado_procesamiento)
+    !isValidDocumentProcessingState(String(body.estado_procesamiento).trim())
   ) {
     return `El campo 'estado_procesamiento' debe ser uno de: ${ALLOWED_DOCUMENT_PROCESSING_STATES.join(", ")}.`;
   }
@@ -383,6 +684,398 @@ function validateDocument(body, file, { partial = false } = {}) {
   }
 
   return null;
+}
+
+function validateDocumentFilters(query = {}) {
+  return validateOptionalNumericQuery(query.imputado_id, "imputado_id");
+}
+
+function validateActionFilters(query = {}) {
+  return (
+    validateOptionalNumericQuery(query.imputado_id, "imputado_id") ||
+    validateOptionalNumericQuery(query.documento_id, "documento_id")
+  );
+}
+
+function validateComparisonFilters(query = {}) {
+  if (query.tipo && !["documentos", "actuaciones", "mixta"].includes(query.tipo)) {
+    return "El filtro 'tipo' debe ser 'documentos', 'actuaciones' o 'mixta'.";
+  }
+
+  return validateOptionalNumericQuery(query.imputado_id, "imputado_id");
+}
+
+function validateDocumentDefendantLink(body) {
+  return (
+    validateRequiredNumericBody(body, "documento_id") ||
+    validateRequiredNumericBody(body, "imputado_id") ||
+    validateOptionalTextBody(body, "tipo_relacion") ||
+    validateOptionalTextBody(body, "evidencia")
+  );
+}
+
+function validateActionDefendantLink(body) {
+  return (
+    validateRequiredNumericBody(body, "actuacion_id") ||
+    validateRequiredNumericBody(body, "imputado_id") ||
+    validateOptionalTextBody(body, "tipo_relacion") ||
+    validateOptionalTextBody(body, "evidencia")
+  );
+}
+
+function validateDocumentActionLink(body) {
+  return (
+    validateRequiredNumericBody(body, "documento_id") ||
+    validateRequiredNumericBody(body, "actuacion_id") ||
+    validateOptionalTextBody(body, "tipo_relacion") ||
+    validateOptionalTextBody(body, "evidencia")
+  );
+}
+
+function validateInternalComparison(body) {
+  if (!body || typeof body !== "object") {
+    return "El body debe ser un objeto JSON.";
+  }
+
+  const type = normalizeComparisonType(body.tipo, body.origen_tipo, body.destino_tipo);
+
+  if (!["documentos", "actuaciones", "mixta"].includes(type)) {
+    return "El campo 'tipo' debe ser 'documentos', 'actuaciones' o 'mixta'.";
+  }
+
+  if (!["documento", "actuacion"].includes(body.origen_tipo)) {
+    return "El campo 'origen_tipo' debe ser 'documento' o 'actuacion'.";
+  }
+
+  if (!["documento", "actuacion"].includes(body.destino_tipo)) {
+    return "El campo 'destino_tipo' debe ser 'documento' o 'actuacion'.";
+  }
+
+  return (
+    validateRequiredNumericBody(body, "origen_id") ||
+    validateRequiredNumericBody(body, "destino_id") ||
+    validateOptionalNumericQuery(body.imputado_id, "imputado_id") ||
+    validateOptionalTextBody(body, "criterio")
+  );
+}
+
+function parseDocumentFilters(query) {
+  return {
+    categoria: getOptionalText(query.categoria),
+    estado: getOptionalText(query.estado),
+    expediente: getOptionalText(query.expediente),
+    imputadoId: parseOptionalNumericId(query.imputado_id),
+    q: getOptionalText(query.q),
+  };
+}
+
+function parseActionFilters(query) {
+  return {
+    documentoId: parseOptionalNumericId(query.documento_id),
+    estado: getOptionalText(query.estado),
+    fuente: getOptionalText(query.fuente),
+    imputadoId: parseOptionalNumericId(query.imputado_id),
+    q: getOptionalText(query.q),
+  };
+}
+
+function parseComparisonFilters(query) {
+  return {
+    imputadoId: parseOptionalNumericId(query.imputado_id),
+    tipo: getOptionalText(query.tipo),
+  };
+}
+
+function parseDeadlineFilters(query, userId) {
+  const mineOnly = query.mias === "true" || query.mias === true;
+
+  return {
+    desde: getOptionalText(query.desde),
+    estado: getOptionalText(query.estado),
+    hasta: getOptionalText(query.hasta),
+    limit: parseOptionalNumericId(query.limit) || 100,
+    responsableUserId: mineOnly ? userId : getOptionalText(query.responsable_user_id),
+  };
+}
+
+function parseDateFilters(query) {
+  return {
+    estado: getOptionalText(query.estado),
+    tipo: getOptionalText(query.tipo),
+  };
+}
+
+function parseReminderFilters(query) {
+  return {
+    estado: getOptionalText(query.estado),
+    hasta: getOptionalText(query.hasta),
+    limit: parseOptionalNumericId(query.limit) || 100,
+  };
+}
+
+function normalizeComparisonPayload(body) {
+  return {
+    criterio: getOptionalText(body.criterio) || "comparacion_interna",
+    destino_id: Number(body.destino_id),
+    destino_tipo: body.destino_tipo,
+    imputado_id: parseOptionalNumericId(body.imputado_id),
+    metadata: typeof body.metadata === "object" && body.metadata !== null ? body.metadata : {},
+    origen_id: Number(body.origen_id),
+    origen_tipo: body.origen_tipo,
+    tipo: normalizeComparisonType(body.tipo, body.origen_tipo, body.destino_tipo),
+  };
+}
+
+function normalizeDatePayload(body) {
+  return {
+    estado: getOptionalText(body.estado),
+    evento: getOptionalText(body.evento),
+    fecha: getOptionalText(body.fecha),
+    fecha_texto: getOptionalText(body.fecha_texto),
+    metadata: typeof body.metadata === "object" && body.metadata !== null ? body.metadata : {},
+    prioridad: getOptionalText(body.prioridad),
+    recordatorio_at: getOptionalText(body.recordatorio_at),
+    requiere_alerta: "requiere_alerta" in (body || {}) ? Boolean(body.requiere_alerta) : undefined,
+    responsable_user_id: getOptionalText(body.responsable_user_id),
+    tipo: getOptionalText(body.tipo),
+  };
+}
+
+function normalizeReminderPayload(body) {
+  return {
+    canal: getOptionalText(body.canal) || "app",
+    destinatario_user_id: getOptionalText(body.destinatario_user_id),
+    fecha_relevante_id: Number(body.fecha_relevante_id),
+    mensaje: body.mensaje.trim(),
+    metadata: typeof body.metadata === "object" && body.metadata !== null ? body.metadata : {},
+    programado_para: body.programado_para,
+    titulo: body.titulo.trim(),
+  };
+}
+
+function normalizeComparisonType(type, originType, targetType) {
+  if (type) {
+    return type;
+  }
+
+  if (originType === "documento" && targetType === "documento") {
+    return "documentos";
+  }
+
+  if (originType === "actuacion" && targetType === "actuacion") {
+    return "actuaciones";
+  }
+
+  return "mixta";
+}
+
+function validateRequiredNumericBody(body, field) {
+  if (!body || !Number.isInteger(Number(body[field])) || Number(body[field]) <= 0) {
+    return `El campo '${field}' debe ser numerico.`;
+  }
+
+  return null;
+}
+
+function validateRequiredTextBody(body, field) {
+  if (typeof body?.[field] !== "string" || !body[field].trim()) {
+    return `El campo '${field}' es obligatorio.`;
+  }
+
+  return null;
+}
+
+function validateRequiredDateTimeBody(body, field) {
+  if (typeof body?.[field] !== "string" || Number.isNaN(Date.parse(body[field]))) {
+    return `El campo '${field}' debe ser una fecha valida.`;
+  }
+
+  return null;
+}
+
+function validateDeadlineFilters(query = {}) {
+  return (
+    validateOptionalDateQuery(query.desde, "desde") ||
+    validateOptionalDateQuery(query.hasta, "hasta") ||
+    validateOptionalDeadlineState(query.estado) ||
+    validateOptionalNumericQuery(query.limit, "limit")
+  );
+}
+
+function validateDateFilters(query = {}) {
+  return validateOptionalDeadlineState(query.estado);
+}
+
+function validateDatePayload(body, { partial = false } = {}) {
+  if (!body || typeof body !== "object") {
+    return "El body debe ser un objeto JSON.";
+  }
+
+  if (!partial && !body.fecha && !body.fecha_texto) {
+    return "Debe enviar 'fecha' o 'fecha_texto'.";
+  }
+
+  if ("fecha" in body && body.fecha && !isValidIsoDate(body.fecha)) {
+    return "El campo 'fecha' debe tener formato YYYY-MM-DD.";
+  }
+
+  if ("fecha_texto" in body && body.fecha_texto && typeof body.fecha_texto !== "string") {
+    return "El campo 'fecha_texto' debe ser texto.";
+  }
+
+  if (!partial || "evento" in body) {
+    if (typeof body.evento !== "string" || !body.evento.trim()) {
+      return "El campo 'evento' es obligatorio.";
+    }
+  }
+
+  if ("estado" in body && !["pendiente", "en_seguimiento", "completada", "cancelada"].includes(body.estado)) {
+    return "El campo 'estado' debe ser 'pendiente', 'en_seguimiento', 'completada' o 'cancelada'.";
+  }
+
+  if ("prioridad" in body && !["baja", "media", "alta", "urgente"].includes(body.prioridad)) {
+    return "El campo 'prioridad' debe ser 'baja', 'media', 'alta' o 'urgente'.";
+  }
+
+  if ("responsable_user_id" in body && body.responsable_user_id && typeof body.responsable_user_id !== "string") {
+    return "El campo 'responsable_user_id' debe ser texto.";
+  }
+
+  if ("recordatorio_at" in body && body.recordatorio_at && Number.isNaN(Date.parse(body.recordatorio_at))) {
+    return "El campo 'recordatorio_at' debe ser una fecha valida.";
+  }
+
+  if ("metadata" in body && (typeof body.metadata !== "object" || body.metadata === null || Array.isArray(body.metadata))) {
+    return "El campo 'metadata' debe ser un objeto.";
+  }
+
+  return null;
+}
+
+function validateReminderPayload(body) {
+  if (!body || typeof body !== "object") {
+    return "El body debe ser un objeto JSON.";
+  }
+
+  return (
+    validateRequiredNumericBody(body, "fecha_relevante_id") ||
+    validateRequiredTextBody(body, "titulo") ||
+    validateRequiredTextBody(body, "mensaje") ||
+    validateRequiredDateTimeBody(body, "programado_para") ||
+    validateOptionalTextBody(body, "destinatario_user_id") ||
+    validateOptionalTextBody(body, "canal")
+  );
+}
+
+function validateReminderFilters(query = {}) {
+  if (query.estado && !["pendiente", "enviado", "leido", "cancelado", "error"].includes(query.estado)) {
+    return "El filtro 'estado' no es valido.";
+  }
+
+  return (
+    validateOptionalDateTimeQuery(query.hasta, "hasta") ||
+    validateOptionalNumericQuery(query.limit, "limit")
+  );
+}
+
+function validateReminderStatusPayload(body) {
+  if (!body || typeof body !== "object") {
+    return "El body debe ser un objeto JSON.";
+  }
+
+  if (!["pendiente", "enviado", "leido", "cancelado", "error"].includes(body.estado)) {
+    return "El campo 'estado' debe ser 'pendiente', 'enviado', 'leido', 'cancelado' o 'error'.";
+  }
+
+  return validateOptionalTextBody(body, "error_detalle");
+}
+
+function validateOptionalNumericQuery(value, field) {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  if (!Number.isInteger(Number(value)) || Number(value) <= 0) {
+    return `El campo '${field}' debe ser numerico.`;
+  }
+
+  return null;
+}
+
+function validateOptionalDateQuery(value, field) {
+  if (!value) {
+    return null;
+  }
+
+  if (!isValidIsoDate(value)) {
+    return `El campo '${field}' debe tener formato YYYY-MM-DD.`;
+  }
+
+  return null;
+}
+
+function validateOptionalDateTimeQuery(value, field) {
+  if (!value) {
+    return null;
+  }
+
+  if (Number.isNaN(Date.parse(value))) {
+    return `El campo '${field}' debe ser una fecha valida.`;
+  }
+
+  return null;
+}
+
+function validateOptionalDeadlineState(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (!["pendiente", "en_seguimiento", "completada", "cancelada"].includes(value)) {
+    return "El filtro 'estado' no es valido.";
+  }
+
+  return null;
+}
+
+function validateOptionalTextBody(body, field) {
+  if (!(field in (body || {}))) {
+    return null;
+  }
+
+  if (typeof body[field] !== "string") {
+    return `El campo '${field}' debe ser texto.`;
+  }
+
+  return null;
+}
+
+function parseOptionalNumericId(value) {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+function getOptionalText(value) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function isValidIsoDate(value) {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function resolveSafeStoredFilePath(filePath) {
+  const resolved = path.resolve(filePath);
+  const relative = path.relative(uploadRoot, resolved);
+
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return null;
+  }
+
+  return resolved;
 }
 
 async function removeUploadedFile(file) {
@@ -416,16 +1109,30 @@ function isTextList(value) {
 module.exports = {
   actualizarCaso,
   actualizarDocumento,
+  actualizarFecha,
   actualizarImputado,
+  actualizarRecordatorio,
   agregarDocumento,
+  agregarFecha,
   agregarImputado,
+  crearRecordatorio,
   crearCaso,
   descargarDocumento,
   eliminarCaso,
   eliminarDocumento,
   eliminarImputado,
+  listarActuaciones,
   listarCasos,
+  listarComparacionesInternas,
   listarDocumentos,
+  listarFechas,
   listarImputados,
+  listarRecordatorios,
+  listarRelaciones,
+  listarVencimientos,
   obtenerCaso,
+  prepararComparacionInterna,
+  vincularActuacionImputado,
+  vincularDocumentoActuacion,
+  vincularDocumentoImputado,
 };

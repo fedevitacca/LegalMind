@@ -28,6 +28,7 @@ const {
 } = require("../../IA/ragLocal");
 const {
   listDocumentsForCase,
+  saveLegalAnalysis,
 } = require("../modelos/repositorioIA");
 const { hybridSearch } = require("../modelos/repositorioRagVectorial");
 
@@ -164,7 +165,7 @@ router.post("/analyze", requireOptionalCaseAccess, async (req, res) => {
   });
 });
 
-router.post("/analyze-file", (req, res) => {
+router.post("/analyze-file", requireOptionalCaseAccess, (req, res) => {
   parseTextFileUpload(req, async (uploadError) => {
     if (uploadError) {
       return res.status(400).json({
@@ -403,8 +404,18 @@ async function sendAnalysisResponse(res, text, options = {}) {
       model: getLocalAIConfig().model,
       ...buildSourceFileMetadata(options.sourceFile),
     };
+    const payload = buildLawyerAnalysisPayload(lawyerBrief, metadata, text);
 
-    return res.json(buildLawyerAnalysisPayload(lawyerBrief, metadata, text, options));
+    if (options.persist) {
+      payload._metadata.persistence = await persistAnalysisPayload(payload, text, {
+        causaId: options.causaId,
+        documentoId: options.documentoId,
+        metadata,
+        sourceFile: options.sourceFile,
+      });
+    }
+
+    return res.json(payload);
   } catch (error) {
     return res.status(getLocalAIErrorStatus(error)).json({
       error: "No se pudo analizar el texto con la API local.",
@@ -413,26 +424,34 @@ async function sendAnalysisResponse(res, text, options = {}) {
   }
 }
 
-function buildLawyerAnalysisPayload(lawyerBrief, metadata, text, options = {}) {
+function buildLawyerAnalysisPayload(lawyerBrief, metadata, text) {
   const localData = extractSimpleCaseData(text);
   const triage = triageLegalDocumentWithRandomForest(text);
-  const payload = {
+  return {
     informe_abogado: lawyerBrief,
     datos_locales: localData,
     triage,
     ...buildFrontendCompatibilityFields(lawyerBrief, localData, triage),
     _metadata: metadata,
   };
+}
 
-  if (options.persist) {
-    payload._metadata.persistence = {
+async function persistAnalysisPayload(payload, text, options) {
+  if (!options.causaId) {
+    return {
       persisted: false,
-      reason:
-        "El analisis con Ollama ahora genera informes explicativos. La persistencia estructurada debe usar datos locales extraidos por RAG/Random Forest.",
+      reason: "Para persistir el analisis se debe enviar causa_id o case_id.",
     };
   }
 
-  return payload;
+  return saveLegalAnalysis({
+    analysis: payload,
+    causaId: options.causaId,
+    documentoId: options.documentoId,
+    metadata: options.metadata,
+    sourceFile: options.sourceFile,
+    text,
+  });
 }
 
 function buildFrontendCompatibilityFields(lawyerBrief, localData, triage) {
