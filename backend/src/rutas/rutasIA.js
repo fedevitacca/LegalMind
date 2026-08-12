@@ -31,7 +31,7 @@ const {
   saveLegalAnalysis,
 } = require("../modelos/repositorioIA");
 const { hybridSearch } = require("../modelos/repositorioRagVectorial");
-const { assessEvidence, buildLegalCitations } = require("../servicios/citasJuridicas");
+const { assessEvidence, buildLegalCitations, verifyResultClaims } = require("../servicios/citasJuridicas");
 
 const router = express.Router();
 const { requireSession } = require("../autenticacion/sesion");
@@ -129,18 +129,19 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
     const caseId = parseOptionalNumericId(req.body?.case_id);
     const citations = buildLegalCitations(chunks, { caseId });
     const evidence = assessEvidence(citations);
+    const grounding = verifyResultClaims(result, citations);
     const metadata = {
       engine: "ollama_local_hybrid_rag", model: getLocalAIConfig().model,
       embedding_model: getLocalAIConfig().embeddingModel, tool_id: req.params.toolId,
       retrieval: "bm25_trigram_mmr_embeddings", semantic_retrieval: semanticRetrieval,
-      duration_ms: Date.now() - startedAt, evidence, generated_at: new Date().toISOString(),
+      duration_ms: Date.now() - startedAt, evidence, grounding, generated_at: new Date().toISOString(),
     };
     let savedQuery = null;
     if (caseId) savedQuery = await createAIQuery({ caseId, toolId: req.params.toolId,
       title: result.titulo || tool.label, query, input: { primary_text: primaryText, secondary_text: secondaryText, parameters: req.body?.parameters || {} },
       result, citations, metadata });
     if (savedQuery) await recordAudit(req, { action: "ia.consulta_creada", resourceType: "consulta_ia", resourceId: savedQuery.id, metadata: { herramienta: req.params.toolId, causa_id: caseId } });
-    return res.json({ result, citations, evidence, saved_query: savedQuery, _metadata: metadata });
+    return res.json({ result, citations, evidence, grounding, saved_query: savedQuery, _metadata: metadata });
   } catch (error) {
     return res.status(getLocalAIErrorStatus(error)).json({ error: "No se pudo ejecutar la herramienta.", details: error.message });
   }

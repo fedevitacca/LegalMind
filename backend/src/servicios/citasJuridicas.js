@@ -44,9 +44,43 @@ function assessEvidence(citations) {
   };
 }
 
+function verifyResultClaims(result, citations) {
+  const claims = [
+    ...(result?.hallazgos || []).map((finding, index) => ({ claim_id: `H-${index + 1}`, type: "hallazgo",
+      text: [finding.titulo, finding.detalle, finding.evidencia].filter(Boolean).join(". ") })),
+    ...(result?.conclusion ? [{ claim_id: "CONCLUSION", type: "conclusion", text: result.conclusion }] : []),
+  ];
+  const verified = claims.map((claim) => {
+    const matches = citations.map((citation) => ({ citation_id: citation.citation_id,
+      overlap: lexicalOverlap(claim.text, citation.text), score: citation.score }))
+      .filter((match) => match.overlap >= 0.12)
+      .sort((a, b) => (b.overlap * b.score) - (a.overlap * a.score)).slice(0, 3);
+    const best = matches[0];
+    const status = best && best.overlap >= 0.28 ? "respaldada" : best ? "debil" : "sin_respaldo";
+    return { ...claim, status, citation_ids: matches.map((match) => match.citation_id),
+      support_score: Number((best ? best.overlap * (0.5 + 0.5 * best.score) : 0).toFixed(4)) };
+  });
+  const supported = verified.filter((claim) => claim.status === "respaldada").length;
+  const weak = verified.filter((claim) => claim.status === "debil").length;
+  return { claims: verified, total_claims: verified.length, supported_claims: supported, weak_claims: weak,
+    unsupported_claims: verified.length - supported - weak,
+    coverage: verified.length ? Number((supported / verified.length).toFixed(4)) : 0,
+    requires_human_review: verified.some((claim) => claim.status !== "respaldada") };
+}
+
+function lexicalOverlap(left, right) {
+  const source = new Set(tokens(left)); const target = new Set(tokens(right));
+  if (!source.size || !target.size) return 0;
+  let common = 0; for (const token of source) if (target.has(token)) common += 1;
+  return common / source.size;
+}
+function tokens(value) { return String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .match(/[a-z0-9]{4,}/g)?.filter((token) => !STOP_WORDS.has(token)) || []; }
+const STOP_WORDS = new Set(["para", "como", "esta", "este", "entre", "sobre", "desde", "hasta", "tiene", "debe", "puede", "documento", "fuente"]);
+
 function clampScore(value) { return Math.max(0, Math.min(1, Number(value) || 0)); }
 function optionalScore(value) { return value == null ? null : clampScore(value); }
 function positiveInteger(value) { const number = Number(value); return Number.isInteger(number) && number > 0 ? number : null; }
 function nullableNumber(value) { return Number.isFinite(Number(value)) ? Number(value) : null; }
 
-module.exports = { assessEvidence, buildLegalCitations };
+module.exports = { assessEvidence, buildLegalCitations, verifyResultClaims };

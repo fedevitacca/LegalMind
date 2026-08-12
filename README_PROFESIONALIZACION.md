@@ -28,6 +28,7 @@ Esto resulta adecuado para demostraciones y pruebas controladas. No debe conside
 - RAG persistente sobre `pgvector`: índices versionados, aislamiento por organización/causa, fragmentación jurídica por página, embeddings locales de 768 dimensiones, full-text en español y búsqueda HNSW híbrida.
 - Inferencia local operable: límites de contexto/salida, temperatura determinista, modelo caliente, timeouts separados, diagnóstico en vivo, cancelación desde el frontend y métricas de duración por consulta.
 - Evidencia verificable: cada pasaje RAG recibe identificador estable, documento, página, sección, score, enlace interno y evaluación automática de suficiencia; las respuestas débiles quedan marcadas para revisión humana.
+- Verificación de afirmaciones: hallazgos y conclusión se contrastan individualmente contra las citas, mostrando cobertura, referencias asociadas y afirmaciones débiles o sin respaldo.
 - Pruebas negativas para sesión, rol de lectura y acceso entre organizaciones.
 
 Pendiente para completar plenamente las fases: gestión de invitaciones y cambio de organización en UI, matriz exhaustiva de permisos, almacenamiento privado externo, baseline completo para base nueva y pruebas E2E.

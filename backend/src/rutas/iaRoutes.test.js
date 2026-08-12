@@ -133,6 +133,9 @@ describe("IA file routes", () => {
     assert.equal(body._metadata.engine, "ollama_local_hybrid_rag");
     assert.equal(body._metadata.retrieval, "bm25_trigram_mmr_embeddings");
     assert.ok(Array.isArray(body.citations));
+    assert.ok(body.evidence);
+    assert.ok(body.grounding);
+    assert.ok(Array.isArray(body.grounding.claims));
     assert.equal(typeof body.result, "object");
   });
 
