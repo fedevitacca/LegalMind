@@ -11,7 +11,7 @@ type FechaAgenda = {
   prioridad: "Alta" | "Media" | "Baja";
 };
 
-type EventoAgenda = FechaAgenda & {
+type EventoAgenda = Omit<FechaAgenda, "id"> & {
   dateKey: string;
   id: string;
 };
