@@ -4,9 +4,7 @@ import pg from "pg";
 const { Pool } = pg;
 
 const databaseUrl = process.env.DATABASE_URL;
-const connectionString = databaseUrl
-  ? databaseUrl.replace("sslmode=require", "sslmode=verify-full")
-  : undefined;
+const connectionString = databaseUrl;
 
 if (!connectionString) {
   console.warn(
@@ -17,7 +15,7 @@ if (!connectionString) {
 const authDatabase = connectionString
   ? new Pool({
       connectionString,
-      ssl: /localhost|127\.0\.0\.1/.test(connectionString) ? false : true,
+      ssl: getSslConfig(connectionString),
     })
   : undefined;
 
@@ -63,3 +61,12 @@ export const auth = betterAuth({
     minPasswordLength: 8,
   },
 });
+
+function getSslConfig(url) {
+  if (!url || /localhost|127\.0\.0\.1/.test(url)) {
+    return false;
+  }
+
+  const sslMode = new URL(url).searchParams.get("sslmode");
+  return sslMode && sslMode !== "disable" ? { rejectUnauthorized: false } : false;
+}

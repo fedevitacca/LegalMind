@@ -1,7 +1,5 @@
 const databaseUrl = process.env.DATABASE_URL;
-const connectionString = databaseUrl
-  ? databaseUrl.replace("sslmode=require", "sslmode=verify-full")
-  : undefined;
+const connectionString = databaseUrl;
 const isLocalDatabase = connectionString
   ? /localhost|127\.0\.0\.1/.test(connectionString)
   : false;
@@ -27,7 +25,7 @@ function createPool() {
       connectionTimeoutMillis: Number(process.env.PG_CONNECTION_TIMEOUT_MS || 10000),
       idleTimeoutMillis: Number(process.env.PG_IDLE_TIMEOUT_MS || 30000),
       max: Number(process.env.PG_POOL_MAX || 10),
-      ssl: isLocalDatabase ? false : true,
+      ssl: getSslConfig(connectionString),
     });
   } catch (error) {
     return createUnavailablePool(`No se pudo cargar PostgreSQL: ${error.message}`);
@@ -47,6 +45,15 @@ function createUnavailablePool(message) {
       throw error;
     },
   };
+}
+
+function getSslConfig(url) {
+  if (!url || isLocalDatabase) {
+    return false;
+  }
+
+  const sslMode = new URL(url).searchParams.get("sslmode");
+  return sslMode && sslMode !== "disable" ? { rejectUnauthorized: false } : false;
 }
 
 module.exports = {
