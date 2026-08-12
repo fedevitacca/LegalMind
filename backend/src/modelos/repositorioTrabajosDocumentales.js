@@ -109,7 +109,7 @@ async function claimNextJob() {
 
     const job = result.rows[0];
 
-    if (job.tipo !== JOB_TYPES.INDEX_RAG) await client.query(
+    await client.query(
       `
         UPDATE trabajos_documentales
         SET estado = $2,
@@ -122,7 +122,7 @@ async function claimNextJob() {
       [job.id, DOCUMENT_JOB_STATES.PROCESSING]
     );
 
-    await client.query(
+    if (job.tipo !== JOB_TYPES.INDEX_RAG) await client.query(
       `
         UPDATE documentos
         SET estado_procesamiento = $2,
