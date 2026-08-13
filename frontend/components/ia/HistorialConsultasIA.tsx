@@ -5,7 +5,7 @@ import NavegacionAreasCaso from "../casos/NavegacionAreasCaso";
 
 type QueryItem = { id: number; tool_id: string; title: string; query?: string; result: { resumen?: string; conclusion?: string; hallazgos?: Array<{ titulo: string; detalle: string; prioridad: string }> }; citations?: Array<{ citation_id?: string; document_name: string; chunk_index: number; page?: number | null; location_label?: string; document_url?: string | null; text: string; score: number }>; metadata?: { model?: string; evidence?: { status: string; requires_human_review: boolean } }; created_at: string };
 const apiUrl = process.env.NEXT_PUBLIC_LEGALMIND_API_URL || "http://localhost:5000";
-const labels: Record<string, string> = { resumen_expediente: "Resumen", comparar_documentos: "Comparación documental", comparar_jurisprudencia: "Jurisprudencia", cronologia: "Cronología", matriz_evidencia: "Evidencia", detectar_riesgos: "Riesgos", consulta_rag: "Consulta RAG" };
+const labels: Record<string, string> = { resumen_expediente: "Resumen", comparar_documentos: "Comparación documental", comparar_jurisprudencia: "Jurisprudencia", cronologia: "Cronología", consulta_rag: "Consulta RAG", teoria_del_caso: "Teoría del caso" };
 
 export default function HistorialConsultasIA({ caseId }: { caseId: string }) {
   const [items, setItems] = useState<QueryItem[]>([]); const [selected, setSelected] = useState<QueryItem>();

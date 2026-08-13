@@ -12,13 +12,8 @@ LegalMind es un workspace jurídico para organizar causas y analizar material se
 - comparación de documentos y cuadros;
 - comparación de jurisprudencia (hechos, cuestión, holding, criterio y aplicabilidad);
 - línea de tiempo procesal;
-- matriz de evidencia;
-- detección de riesgos, contradicciones y omisiones;
 - consulta documental RAG con citas.
 - constructor de teoría del caso;
-- radar multifuente de contradicciones;
-- auditor de citas y respaldo;
-- asistente de borradores fundamentados.
 
 Cada herramienta posee parámetros, instrucciones, flujo visual y lectura de resultados propios. Al seleccionar un expediente también se pueden reutilizar sus documentos como fuentes A/B. La ejecución se guarda en `Consultas IA` dentro del caso con entrada, parámetros, respuesta, citas, modelo y fecha, y puede reabrirse o eliminarse.
 

@@ -29,6 +29,7 @@ const frontendUrls = [
   "http://localhost:3000",
 ];
 const backendUrl = process.env.BETTER_AUTH_URL || "http://localhost:5000";
+const useSecureCookies = backendUrl.startsWith("https://");
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
@@ -49,11 +50,11 @@ export const auth = betterAuth({
   trustedOrigins: [...new Set(frontendUrls)],
   advanced: {
     defaultCookieAttributes: {
-      sameSite: "none",
-      secure: true,
-      partitioned: true,
+      sameSite: useSecureCookies ? "none" : "lax",
+      secure: useSecureCookies,
+      partitioned: useSecureCookies,
     },
-    useSecureCookies: true,
+    useSecureCookies,
   },
   socialProviders,
   account: {
