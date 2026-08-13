@@ -28,8 +28,11 @@ export type CaseAnalysis = {
 
 export type CaseDefendant = {
   caseLink: string;
+  documento_identidad?: string | null;
+  id?: number;
   keyData: string[];
   name: string;
+  notas?: string | null;
   role: string;
   status: string;
   summary: string;
@@ -105,6 +108,14 @@ export type CreateCasePayload = {
     rol?: string;
   }>;
   jurisprudencia?: string[];
+};
+
+export type CreateCaseDefendantPayload = {
+  datos_contexto?: Record<string, unknown>;
+  documento_identidad?: string;
+  nombre: string;
+  notas?: string;
+  rol?: string;
 };
 
 export const caseAreas: CaseArea[] = [
@@ -195,6 +206,31 @@ export async function createCase(payload: CreateCasePayload): Promise<CaseDetail
   }
 
   return body.case;
+}
+
+export async function createCaseDefendant(
+  caseId: number | string,
+  payload: CreateCaseDefendantPayload,
+): Promise<CaseDefendant> {
+  const response = await fetch(`${getApiUrl()}/api/casos/${caseId}/imputados`, {
+    body: JSON.stringify(payload),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  const body = (await response.json()) as {
+    error?: string;
+    imputado?: CaseDefendant;
+  };
+
+  if (!response.ok || !body.imputado) {
+    throw new Error(body.error || "No se pudo cargar el imputado.");
+  }
+
+  return body.imputado;
 }
 
 export async function fetchDeadlines(cookieHeader?: string): Promise<CaseDeadline[]> {

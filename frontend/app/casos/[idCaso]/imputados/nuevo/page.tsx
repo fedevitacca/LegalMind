@@ -1,9 +1,15 @@
 import Link from "next/link";
-import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
-import BotonSesion from "../../components/interfaz/BotonSesion";
-import FormularioNuevoCaso from "../../components/nuevo/FormularioNuevoCaso";
+import FormularioNuevoImputado from "../../../../../components/casos/FormularioNuevoImputado";
+import MarcoAplicacion from "../../../../../components/estructura/MarcoAplicacion";
+import BotonSesion from "../../../../../components/interfaz/BotonSesion";
 
-export default function NewCasePage() {
+export default async function PaginaNuevoImputado({
+  params,
+}: {
+  params: Promise<{ idCaso: string }>;
+}) {
+  const { idCaso } = await params;
+
   return (
     <MarcoAplicacion activeSection="Casos">
       <section className="h-full min-h-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
@@ -34,12 +40,12 @@ export default function NewCasePage() {
         </header>
 
         <main className="px-9 py-9">
-          <section className="mb-[50px] flex h-[90px] w-[288px] items-center gap-2 rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 text-[28px] leading-none">
-            <FolderIcon className="h-9 w-9" />
-            Nuevo caso
+          <section className="mb-[50px] flex h-[90px] w-[308px] items-center gap-2 rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 text-[28px] leading-none">
+            <UserIcon className="h-9 w-9" />
+            Agregar imputados
           </section>
 
-          <FormularioNuevoCaso />
+          <FormularioNuevoImputado caseId={idCaso} />
         </main>
       </section>
     </MarcoAplicacion>
@@ -67,14 +73,6 @@ function CogIcon({ className = "h-8 w-8" }: { className?: string }) {
   return (
     <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="currentColor">
       <path fillRule="evenodd" d="M10.7 2h2.6l.7 2.8c.5.1 1 .3 1.5.6L18 3.9l1.9 1.9-1.5 2.5c.3.5.5 1 .6 1.5l2.8.7v2.6l-2.8.7c-.1.5-.3 1-.6 1.5l1.5 2.5-1.9 1.9-2.5-1.5c-.5.3-1 .5-1.5.6l-.7 2.8h-2.6l-.7-2.8c-.5-.1-1-.3-1.5-.6L6 20.1l-1.9-1.9 1.5-2.5c-.3-.5-.5-1-.6-1.5l-2.8-.7v-2.6l2.8-.7c.1-.5.3-1 .6-1.5L4.1 5.8 6 3.9l2.5 1.5c.5-.3 1-.5 1.5-.6l.7-2.8ZM12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" clipRule="evenodd" />
-    </svg>
-  );
-}
-
-function FolderIcon({ className = "h-8 w-8" }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M2.5 6.5A1.5 1.5 0 0 1 4 5h5.1l2 2H20a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 20 19H4a1.5 1.5 0 0 1-1.5-1.5v-11Z" />
     </svg>
   );
 }

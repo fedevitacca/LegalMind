@@ -5,18 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createCase, createCaseDate, uploadCaseDocument } from "@/lib/legalmindApi";
 
+type EstadoCaso = "activa" | "archivada" | "cerrada";
+
 export default function FormularioNuevoCaso() {
   const router = useRouter();
   const [caratula, setCaratula] = useState("");
   const [identificador, setIdentificador] = useState("");
-  const [juzgado, setJuzgado] = useState("");
-  const [fechaImportante, setFechaImportante] = useState("");
-  const [eventoAgenda, setEventoAgenda] = useState("");
+  const [estado, setEstado] = useState<EstadoCaso>("activa");
   const [descripcion, setDescripcion] = useState("");
-  const [imputados, setImputados] = useState("");
-  const [documentos, setDocumentos] = useState("");
+  const [fechaCreacion, setFechaCreacion] = useState("");
   const [archivosOficiales, setArchivosOficiales] = useState<File[]>([]);
-  const [jurisprudencia, setJurisprudencia] = useState("");
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -34,28 +32,19 @@ export default function FormularioNuevoCaso() {
     try {
       const legalCase = await createCase({
         caratula,
-        descripcion: buildDescription({ descripcion, juzgado }),
-        documentos: splitTextList(documentos),
+        descripcion,
+        estado,
         identificador,
-        imputados: splitTextList(imputados).map((nombre) => ({
-          nombre,
-          rol: "imputado",
-          datos_contexto: {
-            estado: "Ficha inicial",
-            resumen: "Imputado cargado al crear el caso.",
-          },
-        })),
-        jurisprudencia: splitTextList(jurisprudencia),
       });
 
       for (const file of archivosOficiales) {
         await uploadCaseDocument(legalCase.id || legalCase.slug, file);
       }
 
-      if (fechaImportante.trim() || eventoAgenda.trim()) {
+      if (fechaCreacion.trim()) {
         await createCaseDate(legalCase.id || legalCase.slug, {
-          ...buildDatePayload(fechaImportante),
-          evento: eventoAgenda.trim() || "Fecha importante",
+          ...buildDatePayload(fechaCreacion),
+          evento: "Fecha de creacion del caso",
           prioridad: "media",
           tipo: "agenda",
         });
@@ -67,148 +56,123 @@ export default function FormularioNuevoCaso() {
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "No se pudo crear el caso."
+          : "No se pudo crear el caso.",
       );
       setIsSaving(false);
     }
   }
 
   return (
-    <form
-      className="rounded-lg border border-[#84A2BD]/35 bg-white p-5 shadow-[0_10px_28px_rgba(15,32,68,0.06)]"
-      onSubmit={handleSubmit}
-    >
-      <div className="grid gap-4 md:grid-cols-2">
-        <Field
+    <form className="max-w-[988px]" onSubmit={handleSubmit}>
+      <div className="grid grid-cols-3 gap-8">
+        <TextField
           label="Nombre del caso"
           onChange={setCaratula}
-          placeholder="Ej. Causa por hurto simple"
+          placeholder="Ej. Caso Gomez"
           required
           value={caratula}
         />
-        <Field
-          label="Numero de expediente"
+        <TextField
+          label="N° de expediente"
           onChange={setIdentificador}
-          placeholder="EXP-000123"
+          placeholder="Ej. EXP-2026-001908"
           value={identificador}
         />
-        <Field
-          label="Juzgado o fiscalia"
-          onChange={setJuzgado}
-          placeholder="Fiscalia N. 4"
-          value={juzgado}
-        />
-        <Field
-          label="Fecha importante"
-          onChange={setFechaImportante}
-          placeholder="dd/mm/aaaa o aaaa-mm-dd"
-          value={fechaImportante}
-        />
-        <Field
-          label="Evento de agenda"
-          onChange={setEventoAgenda}
-          placeholder="Ej. Audiencia, presentar escrito, vencimiento"
-          value={eventoAgenda}
-        />
-      </div>
-
-      <Field
-        label="Imputados iniciales"
-        onChange={setImputados}
-        placeholder="Juan Perez, Ana Gomez"
-        value={imputados}
-      />
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <TextAreaField
-          label="Documentos iniciales"
-          onChange={setDocumentos}
-          placeholder="Escrito inicial, informe policial, acta de audiencia"
-          value={documentos}
-        />
-        <TextAreaField
-          label="Jurisprudencia inicial"
-          onChange={setJurisprudencia}
-          placeholder="Fallo o criterio relevante para vincular al caso"
-          value={jurisprudencia}
-        />
-      </div>
-
-      <label className="mt-4 block">
-        <span className="text-sm font-semibold">Archivos oficiales</span>
-        <input
-          accept=".pdf,.doc,.docx,.txt,.md,.csv,image/*"
-          className="mt-2 block w-full rounded-lg border border-[#84A2BD]/55 bg-[#F4F7F5] px-4 py-3 text-sm font-medium file:mr-4 file:rounded-full file:border-0 file:bg-[#546FC0] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-[#0F2044] focus:border-[#546FC0] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#84A2BD]/20"
-          multiple
-          onChange={(event) => setArchivosOficiales(Array.from(event.target.files || []))}
-          type="file"
-        />
-        {archivosOficiales.length ? (
-          <span className="mt-2 block text-xs font-semibold text-[#0F2044]/55">
-            {archivosOficiales.length} archivo{archivosOficiales.length === 1 ? "" : "s"} seleccionado{archivosOficiales.length === 1 ? "" : "s"}
+        <label className="block">
+          <span className="text-[19px] leading-none">Estado</span>
+          <span className="mt-2 flex h-[70px] items-center rounded-[8px] border-2 border-[#88A9C8] bg-white px-5">
+            <span className="mr-3 h-[17px] w-[17px] rounded-full bg-[#6AD233]" />
+            <select
+              className="h-full min-w-0 flex-1 bg-transparent text-[19px] outline-none"
+              onChange={(event) => setEstado(event.target.value as EstadoCaso)}
+              value={estado}
+            >
+              <option value="activa">Activo</option>
+              <option value="archivada">Archivado</option>
+              <option value="cerrada">Cerrado</option>
+            </select>
           </span>
-        ) : null}
-      </label>
+        </label>
+      </div>
 
-      <label className="mt-4 block">
-        <span className="text-sm font-semibold">Observaciones iniciales</span>
+      <label className="mt-9 block">
+        <span className="text-[19px] leading-none">Descripcion</span>
         <textarea
-          className="mt-2 min-h-32 w-full rounded-lg border border-[#84A2BD]/55 bg-[#F4F7F5] px-4 py-3 text-sm font-medium outline-none placeholder:text-[#0F2044]/38 focus:border-[#546FC0] focus:bg-white focus:ring-4 focus:ring-[#84A2BD]/20"
+          className="mt-2 h-[114px] w-full resize-none rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 py-5 text-[18px] outline-none placeholder:text-[#64708B]/75"
           onChange={(event) => setDescripcion(event.target.value)}
-          placeholder="Datos que conviene tener presentes al abrir el caso."
+          placeholder="Describir brevemente el caso, hechos relevantes, contexto, etc."
           value={descripcion}
         />
       </label>
 
-      <section className="mt-4 rounded-lg border border-[#84A2BD]/35 bg-[#F4F7F5] p-4">
-        <div className="flex items-start gap-3">
+      <div className="mt-9 grid grid-cols-[308px_minmax(0,1fr)] items-end gap-8">
+        <label className="block">
+          <span className="text-[19px] leading-none">Fecha de creacion del caso</span>
+          <span className="mt-2 flex h-[74px] items-center rounded-[8px] border-2 border-[#88A9C8] bg-white px-3">
+            <input
+              className="min-w-0 flex-1 bg-transparent text-[23px] outline-none placeholder:text-[#64708B]"
+              onChange={(event) => setFechaCreacion(event.target.value)}
+              placeholder="26/6/2011"
+              type="text"
+              value={fechaCreacion}
+            />
+            <CalendarIcon />
+          </span>
+        </label>
+
+        <label className="block">
+          <span className="text-[19px] leading-none">Archivos oficiales</span>
+          <span className="mt-2 grid h-[74px] grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-[8px] border-2 border-[#88A9C8] bg-white px-4">
+            <span className="grid h-[43px] place-items-center rounded-[4px] border-2 border-[#88A9C8] px-4 text-[18px]">
+              Agregar archivos
+            </span>
+            <span className="truncate text-[18px] text-[#64708B]">
+              {archivosOficiales.length
+                ? `${archivosOficiales.length} archivo${archivosOficiales.length === 1 ? "" : "s"} seleccionado${archivosOficiales.length === 1 ? "" : "s"}`
+                : "Ningun archivo seleccionado"}
+            </span>
+          </span>
           <input
-            className="mt-1 h-4 w-4 accent-[#546FC0]"
-            defaultChecked
-            id="analisis-ia-inicial"
-            type="checkbox"
+            accept=".pdf,.doc,.docx,.txt,.md,.csv,image/*"
+            className="sr-only"
+            multiple
+            onChange={(event) =>
+              setArchivosOficiales(Array.from(event.target.files || []))
+            }
+            type="file"
           />
-          <label htmlFor="analisis-ia-inicial">
-            <span className="block text-sm font-semibold">
-              Preparar el caso para analisis IA
-            </span>
-            <span className="mt-1 block text-sm font-medium leading-5 text-[#0F2044]/62">
-              La causa queda lista para asociar documentos y guardar resultados
-              de IA cuando se carguen archivos.
-            </span>
-          </label>
-        </div>
-      </section>
+        </label>
+      </div>
 
       {error ? (
         <p
-          className="mt-4 rounded-lg border border-[#A68147]/45 bg-[#A68147]/12 px-4 py-3 text-sm font-semibold"
+          className="mt-6 max-w-[988px] rounded-[8px] border-2 border-[#A68147]/55 bg-[#A68147]/10 px-5 py-3 text-[17px] font-semibold"
           role="alert"
         >
           {error}
         </p>
       ) : null}
 
-      <div className="mt-5 flex flex-wrap justify-end gap-3 border-t border-[#84A2BD]/28 pt-4">
-        <Link
-          className="rounded-full px-4 py-2 text-sm font-semibold text-[#0F2044] transition hover:bg-[#84A2BD]/20"
-          href="/casos"
-        >
-          Cancelar
-        </Link>
+      <div className="mt-8 flex gap-5">
         <button
-          className="rounded-full bg-[#546FC0] px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(84,111,192,0.22)] transition hover:bg-[#0F2044] disabled:cursor-wait disabled:bg-[#84A2BD]"
+          className="h-[61px] rounded-[4px] border-2 border-[#88A9C8] bg-white px-5 text-[19px] transition hover:bg-white/80 disabled:cursor-wait disabled:text-[#0F2044]/50"
           disabled={isSaving}
           type="submit"
         >
           {isSaving ? "Creando..." : "Crear caso"}
         </button>
+        <Link
+          className="grid h-[61px] place-items-center rounded-[4px] border-2 border-[#88A9C8] bg-white px-7 text-[19px] transition hover:bg-white/80"
+          href="/casos"
+        >
+          Cancelar
+        </Link>
       </div>
     </form>
   );
 }
 
-function Field({
+function TextField({
   label,
   onChange,
   placeholder,
@@ -222,10 +186,10 @@ function Field({
   value: string;
 }) {
   return (
-    <label className="mt-4 block first:mt-0">
-      <span className="text-sm font-semibold">{label}</span>
+    <label className="block">
+      <span className="text-[19px] leading-none">{label}</span>
       <input
-        className="mt-2 h-11 w-full rounded-lg border border-[#84A2BD]/55 bg-[#F4F7F5] px-4 text-sm font-medium outline-none placeholder:text-[#0F2044]/38 focus:border-[#546FC0] focus:bg-white focus:ring-4 focus:ring-[#84A2BD]/20"
+        className="mt-2 h-[70px] w-full rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 text-[18px] outline-none placeholder:text-[#64708B]/75"
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={required}
@@ -234,52 +198,6 @@ function Field({
       />
     </label>
   );
-}
-
-function TextAreaField({
-  label,
-  onChange,
-  placeholder,
-  value,
-}: {
-  label: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  value: string;
-}) {
-  return (
-    <label className="mt-4 block">
-      <span className="text-sm font-semibold">{label}</span>
-      <textarea
-        className="mt-2 min-h-24 w-full rounded-lg border border-[#84A2BD]/55 bg-[#F4F7F5] px-4 py-3 text-sm font-medium outline-none placeholder:text-[#0F2044]/38 focus:border-[#546FC0] focus:bg-white focus:ring-4 focus:ring-[#84A2BD]/20"
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        value={value}
-      />
-    </label>
-  );
-}
-
-function splitTextList(value: string) {
-  return value
-    .split(/\r?\n|,/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function buildDescription({
-  descripcion,
-  juzgado,
-}: {
-  descripcion: string;
-  juzgado: string;
-}) {
-  const parts = [
-    juzgado.trim() ? `Juzgado o fiscalia: ${juzgado.trim()}` : "",
-    descripcion.trim(),
-  ].filter(Boolean);
-
-  return parts.join("\n\n");
 }
 
 function buildDatePayload(value: string) {
@@ -299,4 +217,13 @@ function buildDatePayload(value: string) {
   }
 
   return { fecha_texto: trimmed || "Sin fecha definida" };
+}
+
+function CalendarIcon() {
+  return (
+    <svg aria-hidden="true" className="h-9 w-9 shrink-0" viewBox="0 0 24 24" fill="none">
+      <path d="M7 3.5v3M17 3.5v3M5 8.5h14M6 5.5h12A1.5 1.5 0 0 1 19.5 7v12A1.5 1.5 0 0 1 18 20.5H6A1.5 1.5 0 0 1 4.5 19V7A1.5 1.5 0 0 1 6 5.5Z" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
+      <path d="M9 12h6v5H9z" fill="currentColor" />
+    </svg>
+  );
 }

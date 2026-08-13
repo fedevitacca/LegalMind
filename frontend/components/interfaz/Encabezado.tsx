@@ -10,7 +10,7 @@ export default function Encabezado() {
   const { data: session, isPending, refetch } = authClient.useSession();
   const user = session?.user;
 
-  if (pathname === "/") {
+  if (pathname !== "/inicio") {
     return null;
   }
 

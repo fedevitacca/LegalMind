@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import MarcoAplicacion from "../components/estructura/MarcoAplicacion";
+import BotonSesion from "../components/interfaz/BotonSesion";
 import {
   CaseDeadline,
   CaseListItem,
@@ -45,52 +46,46 @@ export default async function Home() {
   return (
     <MarcoAplicacion activeSection="Dashboard">
       <section className="h-full min-h-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
-        <header className="grid min-h-[58px] grid-cols-[minmax(190px,1fr)_minmax(300px,464px)_144px] items-center border-b-4 border-[#88A9C8] bg-white px-10">
-          <h1 className="brand-font text-[34px] font-semibold leading-none">
+        <header className="grid min-h-[48px] grid-cols-[minmax(170px,1fr)_minmax(280px,464px)_128px] items-center border-b-4 border-[#88A9C8] bg-white px-8">
+          <h1 className="brand-font text-[29px] font-semibold leading-none">
             Dashboard
           </h1>
           <label className="relative block">
-            <span className="absolute left-5 top-1/2 -translate-y-1/2 text-xl font-bold">
-              O
+            <span className="absolute left-5 top-1/2 -translate-y-1/2">
+              <SearchIcon />
             </span>
             <input
-              className="h-[35px] w-full rounded-full border-2 border-[#88A9C8] bg-white pl-16 pr-5 text-[28px] leading-none outline-none placeholder:text-[#0F2044]"
+              className="h-[31px] w-full rounded-full border-2 border-[#88A9C8] bg-white pl-[52px] pr-5 text-[23px] leading-none outline-none placeholder:text-[#0F2044]"
               placeholder="Buscar..."
               type="search"
             />
           </label>
-          <div className="flex items-center justify-end gap-6">
+          <div className="flex items-center justify-end gap-5">
             <Link
               aria-label="Configuracion"
-              className="grid h-10 w-10 place-items-center rounded-md text-2xl font-bold"
+              className="grid h-9 w-9 place-items-center rounded-md"
               href="/configuracion"
             >
-              S
+              <CogIcon className="h-9 w-9" />
             </Link>
-            <Link
-              aria-label="Usuario"
-              className="grid h-10 w-10 place-items-center rounded-md text-2xl font-bold"
-              href="/configuracion"
-            >
-              U
-            </Link>
+            <BotonSesion className="h-8 w-8" />
           </div>
         </header>
 
-        <main className="grid grid-cols-[minmax(0,1fr)_192px] gap-4 px-9 py-9">
-          <section className="grid gap-6">
+        <main className="grid min-h-[calc(100vh-48px)] grid-cols-[minmax(0,1fr)_192px] gap-4 px-9 py-6">
+          <section className="flex min-w-0 flex-col gap-4">
             <TodayCard today={today} />
 
             <div className="grid grid-cols-3 gap-4">
               <MetricCard
                 detail={`${Math.min(cases.length, 3)} actualizados hoy`}
-                icon="U"
+                icon={<UserIcon className="h-9 w-9" />}
                 label="Casos activos"
                 value={String(activeCases.length).padStart(2, "0")}
               />
               <MetricCard
                 detail={`${urgentDeadlines.length} vencimientos urgentes`}
-                icon="R"
+                icon={<ClockIcon className="h-9 w-9" />}
                 label="Vencimientos hoy"
                 value={String(todayDeadlines.length).padStart(2, "0")}
               />
@@ -102,16 +97,16 @@ export default async function Home() {
             </div>
 
             <div className="grid grid-cols-[minmax(0,1.16fr)_minmax(0,0.92fr)] gap-4">
-              <DashboardPanel icon="R" title="Actividad reciente">
-                <div className="mt-7 grid gap-5">
+              <DashboardPanel icon={<HistoryIcon />} title="Actividad reciente">
+                <div className="mt-6 grid gap-5">
                   {buildActivity(cases).map((item) => (
                     <div
                       className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3"
                       key={`${item.title}-${item.detail}`}
                     >
-                      <span className="text-xl font-bold">{item.icon}</span>
+                      <span className="text-[#0F2044]">{item.icon}</span>
                       <div className="min-w-0">
-                        <h3 className="truncate text-[23px] font-semibold leading-none">
+                        <h3 className="truncate text-[22px] font-semibold leading-none">
                           {item.title}
                         </h3>
                         <p className="text-[17px] leading-tight text-[#0F2044]/85">
@@ -126,11 +121,11 @@ export default async function Home() {
                 </div>
               </DashboardPanel>
 
-              <DashboardPanel icon="R" title="Vencimientos esta semana">
-                <div className="mt-7 grid gap-5">
+              <DashboardPanel icon={<ClockIcon className="h-9 w-9" />} title="Vencimientos esta semana">
+                <div className="mt-6 grid gap-5">
                   {buildWeekDeadlines(deadlines).map((deadline) => (
                     <Link href={deadline.href} key={deadline.title}>
-                      <h3 className="text-[23px] font-semibold leading-none">
+                      <h3 className="text-[22px] font-semibold leading-none">
                         {deadline.title}
                       </h3>
                       <p className="text-[17px] leading-tight text-[#0F2044]/85">
@@ -147,8 +142,8 @@ export default async function Home() {
               <LineLink href="/agenda" label="Ver todos los vencimientos" />
             </div>
 
-            <div className="w-[330px] rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 py-2 text-[18px]">
-              <span className="mr-2 font-bold">Z</span>
+            <div className="flex h-[42px] w-[330px] items-center gap-2 rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 text-[18px]">
+              <BoltIcon />
               Accesos rapidos
             </div>
 
@@ -159,8 +154,8 @@ export default async function Home() {
             </div>
           </section>
 
-          <aside className="grid grid-rows-[1fr_auto] gap-3">
-            <DashboardPanel compact icon="!" title="Eventos">
+          <aside className="flex min-w-0 flex-col gap-3">
+            <DashboardPanel compact icon={<AlertIcon />} title="Eventos">
               <div className="mt-3">
                 {buildEvents(deadlines).map((event, index) => (
                   <div
@@ -191,8 +186,8 @@ export default async function Home() {
 function TodayCard({ today }: { today: Date }) {
   return (
     <section className="w-[310px] rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5">
-      <p className="text-[28px] leading-none">
-        <span className="mr-2 text-xl font-bold">D</span>
+      <p className="flex items-center gap-2 text-[27px] leading-none">
+        <CalendarSmallIcon />
         Hoy:
       </p>
       <h2 className="mt-4 text-[31px] font-semibold leading-none">
@@ -210,18 +205,18 @@ function MetricCard({
   value,
 }: {
   detail: string;
-  icon?: string;
+  icon?: ReactNode;
   label: string;
   value: string;
 }) {
   return (
-    <section className="min-h-[141px] rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5">
-      <p className="text-[28px] leading-none">
-        {icon ? <span className="mr-2 text-xl font-bold">{icon}</span> : null}
+    <section className="min-h-[142px] rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5">
+      <p className="text-[27px] leading-tight">
+        {icon ? <span className="mr-2 inline-flex align-middle">{icon}</span> : null}
         {label}
       </p>
-      <p className="mt-5 text-[38px] font-semibold leading-none">{value}</p>
-      <p className="mt-1 text-[18px] leading-none">{detail}</p>
+      <p className="mt-4 text-[38px] font-semibold leading-none">{value}</p>
+      <p className="mt-1 truncate text-[18px] leading-none">{detail}</p>
     </section>
   );
 }
@@ -234,17 +229,17 @@ function DashboardPanel({
 }: {
   children: ReactNode;
   compact?: boolean;
-  icon: string;
+  icon: ReactNode;
   title: string;
 }) {
   return (
     <section
       className={`rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-6 ${
-        compact ? "min-h-[418px]" : "min-h-[253px]"
+        compact ? "min-h-[452px]" : "min-h-[254px]"
       }`}
     >
-      <h2 className="text-[29px] font-medium leading-none">
-        <span className="mr-2 text-xl font-bold">{icon}</span>
+      <h2 className="flex items-center text-[29px] font-medium leading-tight">
+        <span className="mr-2 inline-flex align-middle text-[#0F2044]">{icon}</span>
         {title}
       </h2>
       {children}
@@ -255,7 +250,7 @@ function DashboardPanel({
 function LineLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
-      className="flex h-[43px] items-center justify-between rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 text-[18px] leading-none"
+      className="flex h-[42px] items-center justify-between rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 text-[18px] leading-none"
       href={href}
     >
       <span>{label}</span>
@@ -277,12 +272,12 @@ function QuickAction({
 }) {
   return (
     <Link
-      className="grid min-h-[158px] grid-cols-[minmax(0,1fr)_32px] items-center rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5"
+      className="grid min-h-[150px] grid-cols-[minmax(0,1fr)_32px] items-center rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5"
       href={href}
     >
       <span>
-        <span className="block text-[48px] font-light leading-none">{icon}</span>
-        <span className="mt-4 block text-[24px] leading-none">{title}</span>
+        <span className="block text-[44px] font-light leading-none">{renderQuickIcon(icon)}</span>
+        <span className="mt-4 block text-[23px] leading-none">{title}</span>
         <span className="mt-2 block text-[17px] leading-none">{detail}</span>
       </span>
       <span className="text-[38px] font-semibold leading-none">&gt;</span>
@@ -295,13 +290,13 @@ function buildActivity(cases: CaseListItem[]) {
     return [
       {
         detail: "Documento agregado",
-        icon: "P",
+        icon: <DocumentIcon />,
         time: "Hace 15 min",
         title: "Caso Gomez",
       },
       {
         detail: "IA detecto inconsistencias",
-        icon: "*",
+        icon: <SparkleIcon />,
         time: "Hace 1 h",
         title: "Caso Perez",
       },
@@ -310,7 +305,7 @@ function buildActivity(cases: CaseListItem[]) {
 
   return cases.slice(0, 2).map((legalCase, index) => ({
     detail: index === 0 ? "Documento agregado" : "IA detecto inconsistencias",
-    icon: index === 0 ? "P" : "*",
+    icon: index === 0 ? <DocumentIcon /> : <SparkleIcon />,
     time: index === 0 ? "Hace 15 min" : "Hace 1 h",
     title: legalCase.name,
   }));
@@ -356,13 +351,10 @@ function buildEvents(deadlines: CaseDeadline[]) {
 }
 
 function formatShortDate(date: Date) {
-  return new Intl.DateTimeFormat("es-AR", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  })
+  const month = new Intl.DateTimeFormat("es-AR", { month: "short" })
     .format(date)
     .replace(".", "");
+  return `${date.getDate()} ${capitalize(month)} ${date.getFullYear()}`;
 }
 
 function formatLongDate(date: Date) {
@@ -386,4 +378,125 @@ function formatDeadlineDay(deadline: CaseDeadline) {
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function renderQuickIcon(icon: string) {
+  if (icon === "+") {
+    return <PlusIcon />;
+  }
+
+  if (icon === "IA") {
+    return <SparkleLargeIcon />;
+  }
+
+  return <BackIcon />;
+}
+
+function SearchIcon() {
+  return (
+    <svg aria-hidden="true" className="h-6 w-6" viewBox="0 0 24 24" fill="none">
+      <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="2.2" />
+      <path d="m15.5 15.5 5 5" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
+    </svg>
+  );
+}
+
+function UserIcon({ className = "h-8 w-8" }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 12.2a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4ZM3.4 21.1c.8-4.3 4-6.7 8.6-6.7s7.8 2.4 8.6 6.7H3.4Z" />
+    </svg>
+  );
+}
+
+function CogIcon({ className = "h-8 w-8" }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path fillRule="evenodd" d="M10.7 2h2.6l.7 2.8c.5.1 1 .3 1.5.6L18 3.9l1.9 1.9-1.5 2.5c.3.5.5 1 .6 1.5l2.8.7v2.6l-2.8.7c-.1.5-.3 1-.6 1.5l1.5 2.5-1.9 1.9-2.5-1.5c-.5.3-1 .5-1.5.6l-.7 2.8h-2.6l-.7-2.8c-.5-.1-1-.3-1.5-.6L6 20.1l-1.9-1.9 1.5-2.5c-.3-.5-.5-1-.6-1.5l-2.8-.7v-2.6l2.8-.7c.1-.5.3-1 .6-1.5L4.1 5.8 6 3.9l2.5 1.5c.5-.3 1-.5 1.5-.6l.7-2.8ZM12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
+function CalendarSmallIcon() {
+  return (
+    <svg aria-hidden="true" className="h-7 w-7" viewBox="0 0 24 24" fill="none">
+      <path d="M7 3.5v3M17 3.5v3M5 8.5h14M6 5.5h12A1.5 1.5 0 0 1 19.5 7v12A1.5 1.5 0 0 1 18 20.5H6A1.5 1.5 0 0 1 4.5 19V7A1.5 1.5 0 0 1 6 5.5Z" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M9 12h6v5H9z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function ClockIcon({ className = "h-8 w-8" }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.1" />
+      <path d="M12 6.8v5.5l3.6 3" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.1" />
+    </svg>
+  );
+}
+
+function HistoryIcon() {
+  return (
+    <svg aria-hidden="true" className="h-9 w-9" viewBox="0 0 24 24" fill="none">
+      <path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.7" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+      <path d="M4 4.8v4h4M12 7.5V12l3.2 2.4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+    </svg>
+  );
+}
+
+function AlertIcon() {
+  return (
+    <svg aria-hidden="true" className="h-7 w-7" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 3.2 22 20H2L12 3.2Zm-1.1 5.9.3 6.1h1.6l.3-6.1h-2.2Zm1.1 9.2a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4Z" />
+    </svg>
+  );
+}
+
+function DocumentIcon() {
+  return (
+    <svg aria-hidden="true" className="h-7 w-7" viewBox="0 0 24 24" fill="none">
+      <path d="M6.5 3.5h7L18.5 8v12.5h-12v-17Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="2" />
+      <path d="M13.5 3.5V8h5M9 12h6M9 16h5" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function SparkleIcon() {
+  return (
+    <svg aria-hidden="true" className="h-7 w-7" viewBox="0 0 24 24" fill="none">
+      <path d="m9 3 1.2 4.2L14.5 9l-4.3 1.8L9 15l-1.2-4.2L3.5 9l4.3-1.8L9 3ZM17 11l.9 3.1L21 15l-3.1.9L17 19l-.9-3.1L13 15l3.1-.9L17 11Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function BoltIcon() {
+  return (
+    <svg aria-hidden="true" className="h-6 w-6" viewBox="0 0 24 24" fill="none">
+      <path d="M13.5 2.8 5.8 13h5l-1.2 8.2 8-10.7h-5l.9-7.7Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="2.1" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg aria-hidden="true" className="h-10 w-10" viewBox="0 0 24 24" fill="none">
+      <path d="M12 4v16M4 12h16" stroke="currentColor" strokeLinecap="round" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function SparkleLargeIcon() {
+  return (
+    <svg aria-hidden="true" className="h-10 w-10" viewBox="0 0 24 24" fill="none">
+      <path d="m8 3 1.3 4.7L14 9l-4.7 1.3L8 15l-1.3-4.7L2 9l4.7-1.3L8 3ZM17 10l1 3.5 3.5 1-3.5 1L17 19l-1-3.5-3.5-1 3.5-1 1-3.5Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function BackIcon() {
+  return (
+    <svg aria-hidden="true" className="h-10 w-10" viewBox="0 0 24 24" fill="none">
+      <path d="M9 7 4 12l5 5M5 12h9a5 5 0 0 1 5 5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+    </svg>
+  );
 }

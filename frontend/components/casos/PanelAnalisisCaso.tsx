@@ -11,9 +11,53 @@ export type AnalisisCaso = {
 
 export default function PanelAnalisisCaso({
   analisis,
+  variant = "default",
 }: {
   analisis: AnalisisCaso;
+  variant?: "default" | "wireframe";
 }) {
+  if (variant === "wireframe") {
+    return (
+      <aside className="min-h-[466px] rounded-[23px] border-2 border-[#88A9C8] bg-white px-[18px] py-6">
+        <h2 className="text-[28px] font-medium leading-none">
+          Analisis IA <span aria-hidden="true">✧</span>
+        </h2>
+
+        <section className="mt-5 border-b border-[#88A9C8] pb-4">
+          <h3 className="text-[20px] leading-none">Resumen</h3>
+          <p className="mt-2 max-h-[45px] overflow-hidden text-[18px] leading-[1.25]">
+            {analisis.resumen}
+          </p>
+        </section>
+
+        <section className="border-b border-[#88A9C8] py-4">
+          <h3 className="text-[20px] leading-none">Datos claves</h3>
+          <p className="mt-2 text-[18px] leading-[1.25]">
+            {analisis.datosClave.length} fechas importantes
+          </p>
+          <p className="text-[18px] leading-[1.25]">
+            {analisis.documentosBase.length} personas mencionadas
+          </p>
+        </section>
+
+        <section className="py-4">
+          <h3 className="text-[20px] leading-none">Sugerencia</h3>
+          <p className="mt-2 text-[18px] leading-[1.25]">
+            {analisis.observacion}
+          </p>
+        </section>
+
+        <a
+          className="mt-16 flex items-center justify-between text-[20px] font-semibold leading-none"
+          href="/analisis"
+        >
+          <span>Ver analisis completo</span>
+          <span className="text-[30px]">&gt;</span>
+        </a>
+      </aside>
+    );
+  }
+
   return (
     <aside className="h-full overflow-y-auto border-l border-[#84A2BD]/45 bg-white/90 px-5 py-6">
       <h2 className="text-2xl font-semibold">Analisis IA</h2>

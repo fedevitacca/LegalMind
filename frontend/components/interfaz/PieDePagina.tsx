@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 export default function PieDePagina() {
   const pathname = usePathname();
 
-  if (pathname === "/") {
+  if (pathname !== "/inicio") {
     return null;
   }
 
