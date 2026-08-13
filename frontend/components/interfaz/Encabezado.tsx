@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { authClient } from "@/lib/authClient";
 import MenuUsuario from "./MenuUsuario";
 
 export default function Encabezado() {
+  const pathname = usePathname();
   const { data: session, isPending, refetch } = authClient.useSession();
   const user = session?.user;
+
+  if (pathname === "/") {
+    return null;
+  }
 
   return (
     <header className="flex h-[64px] shrink-0 items-center justify-between border-b border-[#84A2BD]/35 bg-white/95 px-6 shadow-[0_1px_12px_rgba(15,32,68,0.06)]">
