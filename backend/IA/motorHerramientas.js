@@ -31,22 +31,6 @@ const TOOL_DEFINITIONS = {
     fields: ["fecha_corte", "incluir_inferidas"],
     instruction: "Construye una cronologia procesal ordenada. Distingue fecha cierta de fecha inferida, identifica vencimientos y marca eventos que requieren revision urgente.",
   },
-  matriz_evidencia: {
-    label: "Matriz de evidencia",
-    description: "Relaciona hechos, evidencia, fuente, contradicciones y fuerza probatoria.",
-    inputs: 1,
-    family: "probatoria", resultView: "matrix", accent: "green",
-    fields: ["hipotesis", "estandar", "parte_analizada"],
-    instruction: "Construye una matriz de hechos y evidencia. Para cada hecho indica evidencia favorable y adversa, fuente, contradicciones, vacios y fuerza estimada sin decidir culpabilidad.",
-  },
-  detectar_riesgos: {
-    label: "Detector de riesgos y omisiones",
-    description: "Busca inconsistencias, plazos, vacíos documentales y puntos de revisión.",
-    inputs: 1,
-    family: "auditoria", resultView: "risk", accent: "red",
-    fields: ["rol", "fecha_corte", "nivel_conservador"],
-    instruction: "Audita el material buscando plazos, inconsistencias, omisiones, ambiguedades, datos sin respaldo y riesgos procesales. Prioriza cada hallazgo y explica su evidencia.",
-  },
   consulta_rag: {
     label: "Consulta documental RAG",
     description: "Responde preguntas únicamente con fragmentos recuperados del material.",
@@ -61,27 +45,6 @@ const TOOL_DEFINITIONS = {
     inputs: 1, family: "estrategia", resultView: "theory", accent: "indigo",
     fields: ["parte_representada", "hipotesis_central", "etapa_procesal"],
     instruction: "Construye una teoria del caso provisional. Separa proposiciones facticas, encuadre juridico mencionado en las fuentes, evidencia de apoyo, evidencia adversa, vacios y lineas de investigacion. No inventes normas.",
-  },
-  contradicciones_multifuente: {
-    label: "Radar de contradicciones",
-    description: "Cruza declaraciones o piezas y localiza divergencias materiales y explicables.",
-    inputs: 2, family: "consistencia", resultView: "contradictions", accent: "orange",
-    fields: ["tipo_fuente_a", "tipo_fuente_b", "umbral_materialidad"],
-    instruction: "Alinea afirmaciones comparables de ambas fuentes. Clasifica contradicciones en materiales, temporales, nominales o aparentes; cita evidencia de ambos lados y evita tratar como contradiccion una mera ausencia.",
-  },
-  auditor_citas: {
-    label: "Auditor de citas y respaldo",
-    description: "Verifica si las afirmaciones de un escrito están respaldadas por el material citado.",
-    inputs: 2, family: "verificacion", resultView: "citations", accent: "cyan",
-    fields: ["tipo_escrito", "nivel_exigencia", "jurisdiccion"],
-    instruction: "Toma Fuente A como escrito o afirmaciones y Fuente B como material de respaldo. Verifica afirmacion por afirmacion si existe apoyo total, parcial, contradictorio o inexistente. No verifiques validez externa de normas no aportadas.",
-  },
-  borrador_juridico: {
-    label: "Asistente de borrador",
-    description: "Produce una estructura argumental editable basada exclusivamente en fuentes aportadas.",
-    inputs: 1, family: "redaccion", resultView: "draft", accent: "rose",
-    fields: ["tipo_escrito", "destinatario", "pretension"],
-    instruction: "Prepara un borrador estructurado y prudente con objeto, antecedentes, argumentos respaldados, petitorio sugerido y marcadores visibles para datos faltantes. No inventes citas ni datos formales.",
   },
 };
 

@@ -119,8 +119,10 @@ describe("IA file routes", () => {
     const response = await fetch(`${baseUrl}/api/ia/tools`);
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.ok(body.tools.length >= 7);
+    assert.equal(body.tools.length, 6);
     assert.ok(body.tools.some((tool) => tool.id === "comparar_jurisprudencia" && tool.inputs === 2));
+    const removedTools = ["matriz_evidencia", "detectar_riesgos", "contradicciones_multifuente", "auditor_citas", "borrador_juridico"];
+    assert.ok(body.tools.every((tool) => !removedTools.includes(tool.id)));
   });
 
   it("ejecuta una herramienta sobre RAG hibrido y Ollama local", async () => {

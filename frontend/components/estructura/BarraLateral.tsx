@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const sideItems = [
   { icon: HomeIcon, label: "Dashboard", href: "/" },
   { icon: FolderIcon, label: "Casos", href: "/casos" },
@@ -12,12 +14,12 @@ export default function BarraLateral({
 }) {
   return (
     <aside className="h-full overflow-y-auto bg-[#0F2044] px-6 py-8 text-white">
-      <a
+      <Link
         className="brand-font block text-[36px] font-semibold leading-none tracking-normal"
         href="/"
       >
         LegalMind
-      </a>
+      </Link>
 
       <nav className="mt-[50px] space-y-[30px]">
         {sideItems.map((item) => {
@@ -25,7 +27,7 @@ export default function BarraLateral({
           const Icon = item.icon;
 
           return (
-            <a
+            <Link
               className={`flex h-10 items-center gap-[14px] rounded-[6px] px-0 text-[28px] font-normal leading-none transition ${
                 isActive
                   ? "text-white"
@@ -38,7 +40,7 @@ export default function BarraLateral({
                 <Icon />
               </span>
               {item.label}
-            </a>
+            </Link>
           );
         })}
       </nav>
