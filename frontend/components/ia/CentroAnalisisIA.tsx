@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { downloadPlainTextReport, printPlainTextReport } from "../../lib/legalReport";
 
 type Tool = { id: string; label: string; description: string; inputs: number; family?: string; resultView?: string; accent?: string; fields?: string[] };
 type CaseOption = { id: number; name: string; identificador?: string };
@@ -32,6 +33,7 @@ export default function CentroAnalisisIA() {
   const [query, setQuery] = useState(""); const [result, setResult] = useState<Result>();
   const [citations, setCitations] = useState<Citation[]>([]); const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [reportNotice, setReportNotice] = useState("");
   const requestController = useRef<AbortController | null>(null);
   const [evidence, setEvidence] = useState<Evidence>();
   const [grounding, setGrounding] = useState<Grounding>();
@@ -64,7 +66,7 @@ export default function CentroAnalisisIA() {
     fetch(`${apiUrl}/api/ia/cases/${caseId}/documents?include_text=true`, { credentials: "include" }).then((r) => r.json()).then((body) => setCaseDocuments(body.documents || [])).catch(() => setCaseDocuments([]));
   }, [caseId]);
   async function execute() {
-    setBusy(true); setError(""); setResult(undefined); setCitations([]); setSavedId(undefined); setEvidence(undefined); setGrounding(undefined);
+    setBusy(true); setError(""); setReportNotice(""); setResult(undefined); setCitations([]); setSavedId(undefined); setEvidence(undefined); setGrounding(undefined);
     const controller = new AbortController(); requestController.current = controller;
     try {
       const response = await fetch(`${apiUrl}/api/ia/tools/${toolId}/run`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, signal: controller.signal, body: JSON.stringify({ primary_text: primary, secondary_text: secondary, query, parameters, case_id: caseId ? Number(caseId) : null }) });
@@ -73,6 +75,26 @@ export default function CentroAnalisisIA() {
       setResult(body.result); setCitations(body.citations || []); setSavedId(body.saved_query?.id); setEvidence(body.evidence); setGrounding(body.grounding);
     } catch (cause) { setError(cause instanceof DOMException && cause.name === "AbortError" ? "Análisis cancelado por el usuario." : cause instanceof Error ? cause.message : "No se pudo completar el análisis."); }
     finally { requestController.current = null; setBusy(false); }
+  }
+
+  async function copyReport() {
+    if (!result) return;
+    try {
+      await navigator.clipboard.writeText(formatReport(result, citations));
+      setReportNotice("Informe copiado al portapapeles.");
+    } catch { setReportNotice("No fue posible copiar el informe."); }
+  }
+
+  function downloadReport() {
+    if (!result) return;
+    downloadPlainTextReport(result.titulo || tool?.label || "informe-juridico", formatReport(result, citations));
+    setReportNotice("Informe descargado.");
+  }
+
+  function printReport() {
+    if (!result) return;
+    try { printPlainTextReport(result.titulo, formatReport(result, citations)); setReportNotice("Vista de impresión abierta."); }
+    catch (cause) { setReportNotice(cause instanceof Error ? cause.message : "No fue posible abrir la impresión."); }
   }
 
   return <div className="grid gap-6 xl:grid-cols-[270px_minmax(0,1fr)]">
@@ -91,7 +113,7 @@ export default function CentroAnalisisIA() {
       {savedId && caseId && <a href={`/casos/${caseId}/consultas?consulta=${savedId}`} className="block border border-[#b9ccc8] bg-[#f1f6f4] px-5 py-4 text-sm font-semibold text-[#285f5b]">El análisis fue incorporado al expediente · Abrir registro →</a>}
       {evidence && <EvidenceStatus evidence={evidence} />}
       {grounding && <GroundingStatus grounding={grounding} />}
-      {!result ? <Empty busy={busy} /> : <Results result={result} citations={citations} view={tool?.resultView} />}
+      {!result ? <Empty busy={busy} /> : <><ReportActions notice={reportNotice} onCopy={() => void copyReport()} onDownload={downloadReport} onPrint={printReport} /><Results result={result} citations={citations} view={tool?.resultView} /></>}
     </main>
   </div>;
 }
@@ -109,8 +131,30 @@ function Source({ label, value, onChange, documents }: { label: string; value: s
     <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder="Pegue aquí el contenido que desea analizar o adjunte un documento." className="mt-2 min-h-48 w-full resize-y border border-[#bfc4c1] bg-white p-4 text-sm leading-6 outline-none focus:border-[#3f6f6b]"/><span className="mt-1 block text-right text-xs text-[#7b838e]">{value.length.toLocaleString("es-AR")} caracteres</span></div>;
 }
 function Empty({ busy }: { busy: boolean }) { return <section className="border border-[#d6d8d5] bg-white px-6 py-7"><h3 className="text-base font-semibold text-[#283446]">{busy ? "Análisis en curso" : "Cómo comenzar"}</h3><p className="mt-2 max-w-3xl text-sm leading-6 text-[#687180]">{busy ? "El documento está siendo procesado. Puede cancelar la operación desde el formulario." : "Seleccione un tipo de análisis, incorpore el material jurídico y, si corresponde, asócielo a un expediente antes de iniciar."}</p></section>; }
+function ReportActions({ notice, onCopy, onDownload, onPrint }: { notice: string; onCopy: () => void; onDownload: () => void; onPrint: () => void }) { return <div className="flex flex-wrap items-center justify-between gap-3 border border-[#d6d8d5] bg-[#fafaf8] px-4 py-3"><p aria-live="polite" className="text-xs text-[#687180]">{notice || "El informe puede incorporarse a un escrito o conservarse fuera del sistema."}</p><div className="flex flex-wrap gap-2"><button type="button" onClick={onCopy} className="border border-[#bfc4c1] bg-white px-3 py-2 text-xs font-semibold text-[#34413f] hover:bg-[#f3f4f2]">Copiar</button><button type="button" onClick={onDownload} className="border border-[#bfc4c1] bg-white px-3 py-2 text-xs font-semibold text-[#34413f] hover:bg-[#f3f4f2]">Descargar .txt</button><button type="button" onClick={onPrint} className="bg-[#34413f] px-3 py-2 text-xs font-semibold text-white hover:bg-[#293432]">Imprimir / PDF</button></div></div>; }
 function Results({ result, citations, view }: { result: Result; citations: Citation[]; view?: string }) { const timeline = view === "timeline"; return <section className="space-y-4"><div className="border border-[#d6d8d5] bg-white px-6 py-6"><p className="text-xs font-semibold uppercase tracking-[.1em] text-[#65716f]">{view === "precedents" ? "Comparación jurídica" : view === "answer" ? "Respuesta documental" : "Informe de análisis"}</p><h2 className="mt-2 text-2xl font-semibold text-[#182338]">{result.titulo}</h2><p className="mt-3 max-w-4xl leading-7 text-[#596473]">{result.resumen}</p></div>{result.hallazgos?.length > 0 && <Panel title={timeline ? "Secuencia procesal" : "Hallazgos"}><div className={timeline ? "border-l border-[#9b7a45] pl-5" : "divide-y divide-[#e1e3e0]"}>{result.hallazgos.map((item, i) => <article key={i} className={timeline ? "relative mb-3 border border-[#e2d8c7] bg-[#fdfbf7] p-4 before:absolute before:-left-[26px] before:top-5 before:h-2 before:w-2 before:rounded-full before:bg-[#8c6a36]" : "py-4 first:pt-0 last:pb-0"}><div className="flex justify-between gap-3"><h4 className="font-semibold text-[#283446]">{item.titulo}</h4><span className="text-xs font-semibold uppercase text-[#8a662f]">{item.prioridad}</span></div><p className="mt-2 text-sm leading-6 text-[#606a78]">{item.detalle}</p>{item.evidencia && <p className="mt-2 border-l-2 border-[#819d99] pl-3 text-xs text-[#687180]">{item.evidencia}</p>}</article>)}</div></Panel>}{result.tabla?.length > 0 && <Panel title={view === "precedents" ? "Contraste de precedentes" : "Cuadro comparativo"}><div className="overflow-x-auto"><table className="w-full min-w-[680px] border-collapse text-left text-sm"><thead className="border-y border-[#d6d8d5] bg-[#f7f7f5] text-xs uppercase text-[#59636f]"><tr><th className="p-3">Aspecto</th><th className="p-3">Fuente / postura A</th><th className="p-3">Fuente / postura B</th><th className="p-3">Evaluación</th></tr></thead><tbody>{result.tabla.map((row, i) => <tr key={i} className="border-b border-[#e1e3e0]"><td className="p-3 font-semibold">{row.aspecto}</td><td className="p-3">{row.documento_a}</td><td className="p-3">{row.documento_b}</td><td className="p-3 text-[#285f5b]">{row.evaluacion}</td></tr>)}</tbody></table></div></Panel>}{result.alertas?.length > 0 && <Panel title="Observaciones"><ul className="divide-y divide-[#e6dfd3] border border-[#e6dfd3]">{result.alertas.map((item) => <li key={item} className="bg-[#fdfbf7] px-4 py-3 text-sm font-medium text-[#70572f]">{item}</li>)}</ul></Panel>}<Panel title={view === "precedents" ? "Aplicabilidad y criterio" : "Conclusión"}><p className="leading-7 text-[#596473]">{result.conclusion}</p></Panel>{citations.length > 0 && <Panel title="Documentos consultados"><div className="divide-y divide-[#e1e3e0] border border-[#d6d8d5]">{citations.map((item) => <details key={item.citation_id} className="px-4 py-3"><summary className="cursor-pointer text-sm font-semibold"><span className="mr-2 text-xs text-[#3f6f6b]">{item.citation_id}</span>{item.document_name} · {item.location_label || `Fragmento ${item.chunk_index + 1}`}</summary>{item.section && <p className="mt-3 text-xs font-semibold uppercase text-[#3e7774]">Sección: {item.section}</p>}<blockquote className="mt-2 border-l-2 border-[#819d99] pl-3 text-sm leading-6 text-[#606a78]">{item.text}</blockquote>{item.document_url && <a href={item.document_url} className="mt-3 inline-block text-xs font-semibold text-[#285f5b]">Abrir en el expediente →</a>}</details>)}</div></Panel>}{result.limitaciones?.length > 0 && <Panel title="Consideraciones para la revisión"><ul className="list-disc space-y-1 pl-5 text-sm text-[#606a78]">{result.limitaciones.map((item) => <li key={item}>{item}</li>)}</ul></Panel>}</section>; }
 function EvidenceStatus({ evidence }: { evidence: Evidence }) { const supported = evidence.status === "respaldado"; return <section className={`rounded-2xl border px-5 py-4 ${supported ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}><div className="flex flex-wrap items-center justify-between gap-2"><strong>{supported ? "Evidencia documental suficiente" : "Revisión humana necesaria"}</strong><span className="text-xs font-bold uppercase">{evidence.usable_citations}/{evidence.citations_count} citas utilizables</span></div><p className="mt-1 text-sm opacity-75">{supported ? "La respuesta tiene múltiples pasajes recuperados; verificá igualmente el texto original." : "La respuesta no alcanzó el umbral de respaldo documental. No la uses como conclusión jurídica sin verificar las fuentes."}</p></section>; }
 function GroundingStatus({ grounding }: { grounding: Grounding }) { return <details className={`rounded-2xl border px-5 py-4 ${grounding.requires_human_review ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}><summary className="cursor-pointer font-bold">Cobertura de afirmaciones: {(grounding.coverage * 100).toFixed(0)}% · {grounding.supported_claims}/{grounding.total_claims} respaldadas</summary><div className="mt-3 grid gap-2">{grounding.claims.map((claim) => <article key={claim.claim_id} className="rounded-xl bg-white/70 p-3 text-sm"><div className="flex flex-wrap justify-between gap-2"><strong>{claim.claim_id} · {claim.type}</strong><span className={`text-xs font-bold uppercase ${claim.status === "respaldada" ? "text-emerald-700" : claim.status === "debil" ? "text-amber-700" : "text-red-700"}`}>{claim.status.replace("_", " ")}</span></div><p className="mt-1 text-[#10213e]/60">{claim.text}</p>{claim.citation_ids.length > 0 && <p className="mt-2 text-xs font-semibold text-[#285f5b]">Respaldo: {claim.citation_ids.join(", ")}</p>}</article>)}</div></details>; }
 function ToolParameters({ tool, values, onChange }: { tool?: Tool; values: Record<string, string | boolean>; onChange: (value: Record<string, string | boolean>) => void }) { if (!tool?.fields?.length) return <div/>; return <div><span className="text-xs font-bold uppercase tracking-[.14em] text-[#10213e]/45">Configuración profesional</span><div className="mt-2 flex flex-wrap gap-2">{tool.fields.map((field) => <input key={field} value={String(values[field] || "")} onChange={(e) => onChange({ ...values, [field]: e.target.value })} placeholder={field.replaceAll("_", " ")} className="h-11 min-w-44 flex-1 rounded-xl border border-[#b8c8c5] bg-white px-3 text-sm" />)}</div></div>; }
 function Panel({ title, children }: { title: string; children: React.ReactNode }) { return <section className="border border-[#d6d8d5] bg-white p-5"><h3 className="mb-4 border-b border-[#e1e3e0] pb-3 text-base font-semibold text-[#283446]">{title}</h3>{children}</section>; }
+
+function formatReport(result: Result, citations: Citation[]) {
+  const lines = [result.titulo, "=".repeat(Math.min(72, Math.max(12, result.titulo.length))), "", "RESUMEN", result.resumen, ""];
+  if (result.hallazgos?.length) {
+    lines.push("HALLAZGOS");
+    result.hallazgos.forEach((item, index) => lines.push(`${index + 1}. ${item.titulo} [${item.prioridad}]`, item.detalle, item.evidencia ? `Evidencia: ${item.evidencia}` : "", ""));
+  }
+  if (result.tabla?.length) {
+    lines.push("CUADRO COMPARATIVO");
+    result.tabla.forEach((row, index) => lines.push(`${index + 1}. ${row.aspecto}`, `Fuente A: ${row.documento_a}`, `Fuente B: ${row.documento_b}`, `Evaluación: ${row.evaluacion}`, ""));
+  }
+  if (result.alertas?.length) lines.push("OBSERVACIONES", ...result.alertas.map((item) => `- ${item}`), "");
+  lines.push("CONCLUSIÓN", result.conclusion, "");
+  if (citations.length) {
+    lines.push("DOCUMENTOS CONSULTADOS");
+    citations.forEach((item) => lines.push(`[${item.citation_id}] ${item.document_name} · ${item.location_label || `Fragmento ${item.chunk_index + 1}`}`, item.text, ""));
+  }
+  if (result.limitaciones?.length) lines.push("CONSIDERACIONES PARA LA REVISIÓN", ...result.limitaciones.map((item) => `- ${item}`), "");
+  lines.push(`Generado por LegalMind · ${new Date().toLocaleString("es-AR")}`, "Documento de trabajo sujeto a revisión profesional.");
+  return lines.filter((line, index) => line !== "" || lines[index - 1] !== "").join("\n").trim();
+}
