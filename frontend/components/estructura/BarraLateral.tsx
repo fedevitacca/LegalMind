@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 const sideItems = [
-  { icon: HomeIcon, label: "Dashboard", href: "/" },
+  { icon: HomeIcon, label: "Dashboard", href: "/dashboard" },
   { icon: FolderIcon, label: "Casos", href: "/casos" },
   { icon: CalendarIcon, label: "Agenda", href: "/agenda" },
   { icon: SettingsIcon, label: "Configuracion", href: "/configuracion" },

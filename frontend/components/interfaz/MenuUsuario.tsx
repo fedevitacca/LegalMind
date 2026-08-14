@@ -156,7 +156,7 @@ export default function MenuUsuario({
     await refetchSession();
     setIsSignOutArmed(false);
     setIsOpen(false);
-    router.push("/inicio#login");
+    router.push("/#login");
   };
 
   const handleSaveAccount = async () => {
@@ -233,7 +233,7 @@ export default function MenuUsuario({
       <button
         aria-expanded={isOpen}
         aria-haspopup="menu"
-        className="flex items-center gap-3 rounded-full border border-[#84A2BD]/40 bg-[#F4F7F5] py-1 pl-1 pr-2 shadow-[0_1px_10px_rgba(15,32,68,0.06)] transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#546FC0]/30"
+        className="flex max-w-[286px] items-center gap-3 rounded-full border border-[#84A2BD]/40 bg-[#F4F7F5] py-1 pl-1 pr-2 shadow-[0_1px_10px_rgba(15,32,68,0.06)] transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#546FC0]/30"
         type="button"
         onClick={() => {
           const next = !isOpen;

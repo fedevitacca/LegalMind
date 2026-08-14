@@ -13,7 +13,7 @@ export default async function PaginaNuevaJurisprudencia({
   return (
     <MarcoAplicacion activeSection="Casos">
       <section className="h-full min-h-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
-        <header className="grid min-h-[58px] grid-cols-[minmax(180px,1fr)_minmax(300px,464px)_144px] items-center border-b-4 border-[#88A9C8] bg-white px-20">
+        <header className="grid min-h-[58px] grid-cols-[minmax(180px,1fr)_minmax(300px,464px)_minmax(286px,auto)] items-center gap-6 border-b-4 border-[#88A9C8] bg-white px-20">
           <h1 className="brand-font text-[34px] font-semibold leading-none">
             Casos
           </h1>
