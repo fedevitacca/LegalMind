@@ -118,6 +118,21 @@ export type CreateCaseDefendantPayload = {
   rol?: string;
 };
 
+export type CreateCaseDocumentPayload = {
+  archivo?: File | null;
+  nombre_archivo: string;
+  texto_extraido?: string;
+  tipo_archivo?: string;
+};
+
+export type CreateCaseJurisprudencePayload = {
+  anio?: string;
+  referencia?: string;
+  resumen?: string;
+  titulo: string;
+  tribunal?: string;
+};
+
 export const caseAreas: CaseArea[] = [
   {
     label: "Imputados",
@@ -304,10 +319,21 @@ export async function updateCaseDate(
   return body.fecha;
 }
 
-export async function uploadCaseDocument(caseId: number | string, file: File): Promise<CaseDocument> {
+export async function createCaseDocument(
+  caseId: number | string,
+  payload: CreateCaseDocumentPayload,
+): Promise<CaseDocument> {
   const formData = new FormData();
-  formData.append("archivo", file);
-  formData.append("tipo_archivo", "oficial");
+  formData.append("nombre_archivo", payload.nombre_archivo);
+  formData.append("tipo_archivo", payload.tipo_archivo || "oficial");
+
+  if (payload.texto_extraido) {
+    formData.append("texto_extraido", payload.texto_extraido);
+  }
+
+  if (payload.archivo) {
+    formData.append("archivo", payload.archivo);
+  }
 
   const response = await fetch(`${getApiUrl()}/api/casos/${caseId}/documentos`, {
     body: formData,
@@ -318,10 +344,43 @@ export async function uploadCaseDocument(caseId: number | string, file: File): P
   const body = (await response.json()) as { documento?: CaseDocument; error?: string };
 
   if (!response.ok || !body.documento) {
-    throw new Error(body.error || `No se pudo subir ${file.name}.`);
+    throw new Error(body.error || "No se pudo cargar el documento.");
   }
 
   return body.documento;
+}
+
+export async function createCaseJurisprudence(
+  caseId: number | string,
+  payload: CreateCaseJurisprudencePayload,
+): Promise<CaseJurisprudence> {
+  const response = await fetch(`${getApiUrl()}/api/casos/${caseId}/jurisprudencia`, {
+    body: JSON.stringify(payload),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  const body = (await response.json()) as {
+    error?: string;
+    jurisprudencia?: CaseJurisprudence;
+  };
+
+  if (!response.ok || !body.jurisprudencia) {
+    throw new Error(body.error || "No se pudo cargar la jurisprudencia.");
+  }
+
+  return body.jurisprudencia;
+}
+
+export async function uploadCaseDocument(caseId: number | string, file: File): Promise<CaseDocument> {
+  return createCaseDocument(caseId, {
+    archivo: file,
+    nombre_archivo: file.name,
+    tipo_archivo: "oficial",
+  });
 }
 
 function buildSampleCaseFromSlug(slug: string): CaseDetail {

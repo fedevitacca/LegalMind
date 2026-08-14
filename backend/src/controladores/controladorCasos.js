@@ -4,6 +4,7 @@ const {
   createDeadlineReminder,
   createInternalComparison,
   createDocument,
+  createJurisprudenceForCase,
   createCase,
   deleteCase,
   deleteDocument,
@@ -547,6 +548,31 @@ async function descargarDocumento(req, res, next) {
   }
 }
 
+async function agregarJurisprudencia(req, res, next) {
+  try {
+    const caseId = parseNumericId(req.params.id, "caso");
+    const validationError = validateJurisprudencePayload(req.body);
+
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
+    const jurisprudencia = await createJurisprudenceForCase(
+      caseId,
+      normalizeJurisprudencePayload(req.body),
+    );
+    await recordAudit(req, {
+      action: "jurisprudencia.creada",
+      resourceType: "jurisprudencia",
+      resourceId: jurisprudencia.id,
+      metadata: { causa_id: caseId },
+    });
+    return res.status(201).json({ jurisprudencia });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function eliminarDocumento(req, res, next) {
   try {
     const caseId = parseNumericId(req.params.id, "caso");
@@ -853,6 +879,16 @@ function normalizeReminderPayload(body) {
   };
 }
 
+function normalizeJurisprudencePayload(body) {
+  return {
+    anio: getOptionalText(body.anio),
+    referencia: getOptionalText(body.referencia),
+    resumen: getOptionalText(body.resumen),
+    titulo: getOptionalText(body.titulo),
+    tribunal: getOptionalText(body.tribunal),
+  };
+}
+
 function normalizeComparisonType(type, originType, targetType) {
   if (type) {
     return type;
@@ -990,6 +1026,21 @@ function validateReminderStatusPayload(body) {
   return validateOptionalTextBody(body, "error_detalle");
 }
 
+function validateJurisprudencePayload(body) {
+  if (!getOptionalText(body.titulo)) {
+    return "El campo 'titulo' es obligatorio.";
+  }
+
+  if (body.anio !== undefined && body.anio !== null && body.anio !== "") {
+    const year = Number(body.anio);
+    if (!Number.isInteger(year) || year < 1800 || year > 2200) {
+      return "El campo 'anio' debe ser un anio valido.";
+    }
+  }
+
+  return null;
+}
+
 function validateOptionalNumericQuery(value, field) {
   if (value === undefined || value === null || value === "") {
     return null;
@@ -1115,6 +1166,7 @@ module.exports = {
   agregarDocumento,
   agregarFecha,
   agregarImputado,
+  agregarJurisprudencia,
   crearRecordatorio,
   crearCaso,
   descargarDocumento,

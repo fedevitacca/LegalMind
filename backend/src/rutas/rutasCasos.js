@@ -17,6 +17,7 @@ const {
   agregarDocumento,
   agregarFecha,
   agregarImputado,
+  agregarJurisprudencia,
   crearRecordatorio,
   crearCaso,
   descargarDocumento,
@@ -93,6 +94,7 @@ router.post("/:id/relaciones/actuacion-imputado", requireCaseAccess, requireRole
 router.post("/:id/relaciones/documento-actuacion", requireCaseAccess, requireRole("asistente"), vincularDocumentoActuacion);
 router.get("/:id/comparaciones", requireCaseAccess, listarComparacionesInternas);
 router.post("/:id/comparaciones", requireCaseAccess, requireRole("asistente"), prepararComparacionInterna);
+router.post("/:id/jurisprudencia", requireCaseAccess, requireRole("asistente"), agregarJurisprudencia);
 
 router.get("/:id/documentos", requireCaseAccess, listarDocumentos);
 router.post("/:id/documentos", requireCaseAccess, requireRole("asistente"), upload.single("archivo"), agregarDocumento);

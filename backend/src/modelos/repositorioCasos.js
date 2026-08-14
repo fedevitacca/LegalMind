@@ -800,6 +800,36 @@ async function createDateForCase(caseId, payload) {
   return mapDeadlineRow(result.rows[0]);
 }
 
+async function createJurisprudenceForCase(caseId, payload) {
+  ensureDatabaseConfigured();
+
+  const result = await pool.query(
+    `
+      INSERT INTO jurisprudencia (
+        causa_id,
+        titulo,
+        anio,
+        tribunal,
+        referencia,
+        resumen
+      )
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `,
+    [
+      caseId,
+      payload.titulo,
+      payload.anio || null,
+      payload.tribunal || null,
+      payload.referencia || null,
+      payload.resumen || null,
+    ]
+  );
+
+  await pool.query("UPDATE causas SET updated_at = NOW() WHERE id = $1", [caseId]);
+  return mapJurisprudenceRow(result.rows[0]);
+}
+
 async function updateDateForCase(caseId, dateId, payload) {
   ensureDatabaseConfigured();
 
@@ -1962,6 +1992,7 @@ module.exports = {
   createDeadlineReminder,
   createInternalComparison,
   createDocument,
+  createJurisprudenceForCase,
   createCase,
   deleteCase,
   deleteDocument,

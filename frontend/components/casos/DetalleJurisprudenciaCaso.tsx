@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import BarraBusqueda from "../panel/BarraBusqueda";
 import NavegacionAreasCaso from "./NavegacionAreasCaso";
@@ -100,12 +101,12 @@ export default function DetalleJurisprudenciaCaso({
               </div>
             </section>
 
-            <button
-              className="mt-12 rounded-full border border-[#0F2044]/24 bg-white px-8 py-3 text-lg font-semibold text-[#0F2044] shadow-[0_8px_20px_rgba(15,32,68,0.07)] transition hover:bg-[#84A2BD]/20"
-              type="button"
+            <Link
+              className="mt-12 inline-flex rounded-full border border-[#0F2044]/24 bg-white px-8 py-3 text-lg font-semibold text-[#0F2044] shadow-[0_8px_20px_rgba(15,32,68,0.07)] transition hover:bg-[#84A2BD]/20"
+              href={`/casos/${idCaso}/jurisprudencia/nuevo`}
             >
               + Cargar fallo
-            </button>
+            </Link>
           </main>
         </div>
       </section>
