@@ -41,7 +41,7 @@ function getErrorMessage(error: unknown) {
 export default function FormularioInicio() {
   const router = useRouter();
   const authRef = useRef<HTMLDivElement>(null);
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession();
   const [mode, setMode] = useState<AuthMode>("login");
   const [form, setForm] = useState<FormState>(initialState);
   const [error, setError] = useState("");
@@ -52,6 +52,12 @@ export default function FormularioInicio() {
 
   const isRegisterMode = mode === "registro";
   const isLoggedIn = Boolean(session?.user);
+
+  useEffect(() => {
+    if (!isPending && isLoggedIn) {
+      router.replace("/dashboard");
+    }
+  }, [isLoggedIn, isPending, router]);
 
   useEffect(() => {
     const syncModeFromHash = () => {

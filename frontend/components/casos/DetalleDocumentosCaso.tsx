@@ -49,6 +49,7 @@ export default function DetalleDocumentosCaso({
         }`}
       >
         <section className="min-w-0">
+          <BackToCaseLink idCaso={idCaso} />
           <SummaryCard caseName={caso.name} documents={caso.documentos} />
 
           <div className="mt-6 grid gap-[13px]">
@@ -112,6 +113,17 @@ export default function DetalleDocumentosCaso({
         ) : null}
       </main>
     </section>
+  );
+}
+
+function BackToCaseLink({ idCaso }: { idCaso: string }) {
+  return (
+    <Link
+      className="mb-6 inline-flex rounded-full border border-[#0F2044]/18 bg-[#0F2044] px-4 py-2 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(15,32,68,0.14)] transition hover:bg-[#546FC0]"
+      href={`/casos/${idCaso}`}
+    >
+      ← Volver al caso
+    </Link>
   );
 }
 

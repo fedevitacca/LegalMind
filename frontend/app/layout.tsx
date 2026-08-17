@@ -6,6 +6,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "LegalMind",
   description: "Dashboard para organizar causas, documentos y vencimientos.",
+  icons: {
+    apple: "/legalmind-logo.png",
+    icon: "/legalmind-logo.png",
+    shortcut: "/legalmind-logo.png",
+  },
 };
 
 export default function RootLayout({

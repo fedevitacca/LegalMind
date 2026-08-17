@@ -1,8 +1,10 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const sideItems = [
   { icon: HomeIcon, label: "Dashboard", href: "/dashboard" },
   { icon: FolderIcon, label: "Casos", href: "/casos" },
+  { icon: SparkIcon, label: "Analisis IA", href: "/analisis" },
   { icon: CalendarIcon, label: "Agenda", href: "/agenda" },
   { icon: SettingsIcon, label: "Configuracion", href: "/configuracion" },
 ];
@@ -15,13 +17,21 @@ export default function BarraLateral({
   return (
     <aside className="h-full overflow-y-auto bg-[#0F2044] px-6 py-8 text-white">
       <Link
-        className="brand-font block text-[36px] font-semibold leading-none tracking-normal"
-        href="/"
+        className="block w-fit rounded-[6px]"
+        href="/dashboard"
+        aria-label="Ir al dashboard de LegalMind"
       >
-        LegalMind
+        <Image
+          alt="LegalMind"
+          className="h-[118px] w-[118px]"
+          height={118}
+          priority
+          src="/legalmind-logo.png"
+          width={118}
+        />
       </Link>
 
-      <nav className="mt-[50px] space-y-[30px]">
+      <nav className="mt-[42px] space-y-[30px]">
         {sideItems.map((item) => {
           const isActive = item.label === activeSection;
           const Icon = item.icon;
@@ -69,6 +79,14 @@ function CalendarIcon() {
     <svg aria-hidden="true" className="h-[34px] w-[34px]" viewBox="0 0 24 24" fill="none">
       <path d="M6 3.5v3M18 3.5v3M4 8.5h16M5.5 5.5h13A1.5 1.5 0 0 1 20 7v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19V7a1.5 1.5 0 0 1 1.5-1.5Z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
       <path d="M9 12h6v5H9z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function SparkIcon() {
+  return (
+    <svg aria-hidden="true" className="h-[34px] w-[34px]" viewBox="0 0 24 24" fill="none">
+      <path d="M10 3 8.4 8.4 3 10l5.4 1.6L10 17l1.6-5.4L17 10l-5.4-1.6L10 3ZM17 13l-1 3-3 1 3 1 1 3 1-3 3-1-3-1-1-3Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="2" />
     </svg>
   );
 }

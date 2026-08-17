@@ -152,11 +152,18 @@ export default function MenuUsuario({
       return;
     }
 
-    await authClient.signOut();
-    await refetchSession();
-    setIsSignOutArmed(false);
-    setIsOpen(false);
-    router.push("/#login");
+    try {
+      await authClient.signOut();
+      await refetchSession();
+      setIsSignOutArmed(false);
+      setIsOpen(false);
+      window.location.assign("/");
+    } catch (error) {
+      setStatus("error");
+      setMessage(
+        error instanceof Error ? error.message : "No se pudo cerrar la sesion.",
+      );
+    }
   };
 
   const handleSaveAccount = async () => {

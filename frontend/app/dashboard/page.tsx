@@ -90,16 +90,17 @@ export default async function Home() {
                 value={String(todayDeadlines.length).padStart(2, "0")}
               />
               <MetricCard
-                detail="3 analisis nuevos"
+                detail="Sin analisis pendientes"
                 label="Analisis pendientes"
-                value="05"
+                value="00"
               />
             </div>
 
             <div className="grid grid-cols-[minmax(0,1.16fr)_minmax(0,0.92fr)] gap-4">
               <DashboardPanel icon={<HistoryIcon />} title="Actividad reciente">
-                <div className="mt-6 grid gap-5">
-                  {buildActivity(cases).map((item) => (
+                {buildActivity(cases).length ? (
+                  <div className="mt-6 grid gap-5">
+                    {buildActivity(cases).map((item) => (
                     <div
                       className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3"
                       key={`${item.title}-${item.detail}`}
@@ -117,13 +118,17 @@ export default async function Home() {
                         {item.time}
                       </span>
                     </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyPanelMessage text="Sin actividad cargada." />
+                )}
               </DashboardPanel>
 
               <DashboardPanel icon={<ClockIcon className="h-9 w-9" />} title="Vencimientos esta semana">
-                <div className="mt-6 grid gap-5">
-                  {buildWeekDeadlines(deadlines).map((deadline) => (
+                {buildWeekDeadlines(deadlines).length ? (
+                  <div className="mt-6 grid gap-5">
+                    {buildWeekDeadlines(deadlines).map((deadline) => (
                     <Link href={deadline.href} key={deadline.title}>
                       <h3 className="text-[22px] font-semibold leading-none">
                         {deadline.title}
@@ -132,8 +137,11 @@ export default async function Home() {
                         {deadline.detail}
                       </p>
                     </Link>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyPanelMessage text="Sin vencimientos cargados." />
+                )}
               </DashboardPanel>
             </div>
 
@@ -156,8 +164,9 @@ export default async function Home() {
 
           <aside className="flex min-w-0 flex-col gap-3">
             <DashboardPanel compact icon={<AlertIcon />} title="Eventos">
-              <div className="mt-3">
-                {buildEvents(deadlines).map((event, index) => (
+              {buildEvents(deadlines).length ? (
+                <div className="mt-3">
+                  {buildEvents(deadlines).map((event, index) => (
                   <div
                     className={`py-4 ${index ? "border-t border-[#88A9C8]" : ""}`}
                     key={`${event.time}-${event.title}`}
@@ -172,8 +181,11 @@ export default async function Home() {
                       {event.detail}
                     </p>
                   </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyPanelMessage text="Sin eventos cargados." />
+              )}
             </DashboardPanel>
             <LineLink href="/agenda" label="Ver agenda" />
           </aside>
@@ -247,6 +259,14 @@ function DashboardPanel({
   );
 }
 
+function EmptyPanelMessage({ text }: { text: string }) {
+  return (
+    <p className="mt-6 rounded-[14px] border-2 border-dashed border-[#88A9C8] bg-white px-4 py-5 text-[18px] leading-6 text-[#0F2044]/70">
+      {text}
+    </p>
+  );
+}
+
 function LineLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
@@ -287,44 +307,20 @@ function QuickAction({
 
 function buildActivity(cases: CaseListItem[]) {
   if (!cases.length) {
-    return [
-      {
-        detail: "Documento agregado",
-        icon: <DocumentIcon />,
-        time: "Hace 15 min",
-        title: "Caso Gomez",
-      },
-      {
-        detail: "IA detecto inconsistencias",
-        icon: <SparkleIcon />,
-        time: "Hace 1 h",
-        title: "Caso Perez",
-      },
-    ];
+    return [];
   }
 
-  return cases.slice(0, 2).map((legalCase, index) => ({
-    detail: index === 0 ? "Documento agregado" : "IA detecto inconsistencias",
-    icon: index === 0 ? <DocumentIcon /> : <SparkleIcon />,
-    time: index === 0 ? "Hace 15 min" : "Hace 1 h",
+  return cases.slice(0, 2).map((legalCase) => ({
+    detail: legalCase.identificador || "Caso cargado en el sistema",
+    icon: <DocumentIcon />,
+    time: "",
     title: legalCase.name,
   }));
 }
 
 function buildWeekDeadlines(deadlines: CaseDeadline[]) {
   if (!deadlines.length) {
-    return [
-      {
-        detail: "Presentacion",
-        href: "/agenda",
-        title: "Caso Gomez - Lun 29",
-      },
-      {
-        detail: "Audiencia",
-        href: "/agenda",
-        title: "Caso Perez - Mie 1",
-      },
-    ];
+    return [];
   }
 
   return deadlines.slice(0, 2).map((deadline) => ({
@@ -336,16 +332,12 @@ function buildWeekDeadlines(deadlines: CaseDeadline[]) {
 
 function buildEvents(deadlines: CaseDeadline[]) {
   if (!deadlines.length) {
-    return [
-      { detail: "Audiencia", time: "9:00", title: "Caso Gomez" },
-      { detail: "Presentacion", time: "14:30", title: "Caso Gomez" },
-      { detail: "Revision", time: "16:00", title: "Caso Perez" },
-    ];
+    return [];
   }
 
   return deadlines.slice(0, 3).map((deadline, index) => ({
     detail: deadline.evento,
-    time: ["9:00", "14:30", "16:00"][index] || "9:00",
+    time: formatEventTime(deadline.fecha),
     title: deadline.caratula,
   }));
 }
@@ -374,6 +366,22 @@ function formatDeadlineDay(deadline: CaseDeadline) {
     .format(date)
     .replace(".", "");
   return `${capitalize(dayName)} ${date.getDate()}`;
+}
+
+function formatEventTime(value?: string | null) {
+  if (!value) {
+    return "--:--";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "--:--";
+  }
+
+  return new Intl.DateTimeFormat("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function capitalize(value: string) {

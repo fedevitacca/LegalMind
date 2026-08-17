@@ -1,6 +1,5 @@
 import Link from "next/link";
 import BarraBusqueda from "../panel/BarraBusqueda";
-import NavegacionAreasCaso from "./NavegacionAreasCaso";
 
 type CasoResumen = {
   analisis?: {
@@ -100,12 +99,8 @@ export default function ResumenCaso({
     <section className="h-full overflow-y-auto bg-[#F4F7F5] px-8 py-5 text-[#0F2044]">
       <div className="mx-auto flex max-w-6xl flex-col gap-5">
         <BarraBusqueda
-          actionHref={`/casos/${idCaso}/documentos`}
-          actionLabel="Cargar documentos"
           placeholder="Buscar dentro del caso"
         />
-
-        <NavegacionAreasCaso activeArea="Resumen" caseSlug={idCaso} />
 
         <header className="rounded-lg border border-[#84A2BD]/35 bg-white px-5 py-4 shadow-[0_10px_28px_rgba(15,32,68,0.06)]">
           <div className="flex flex-wrap items-start justify-between gap-3">
