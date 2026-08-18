@@ -853,18 +853,32 @@ function normalizeComparisonPayload(body) {
 }
 
 function normalizeDatePayload(body) {
-  return {
-    estado: getOptionalText(body.estado),
-    evento: getOptionalText(body.evento),
-    fecha: getOptionalText(body.fecha),
-    fecha_texto: getOptionalText(body.fecha_texto),
-    metadata: typeof body.metadata === "object" && body.metadata !== null ? body.metadata : {},
-    prioridad: getOptionalText(body.prioridad),
-    recordatorio_at: getOptionalText(body.recordatorio_at),
-    requiere_alerta: "requiere_alerta" in (body || {}) ? Boolean(body.requiere_alerta) : undefined,
-    responsable_user_id: getOptionalText(body.responsable_user_id),
-    tipo: getOptionalText(body.tipo),
-  };
+  const normalized = {};
+
+  for (const field of [
+    "estado",
+    "evento",
+    "fecha",
+    "fecha_texto",
+    "prioridad",
+    "recordatorio_at",
+    "responsable_user_id",
+    "tipo",
+  ]) {
+    if (Object.prototype.hasOwnProperty.call(body, field)) {
+      normalized[field] = getOptionalText(body[field]);
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "metadata")) {
+    normalized.metadata = body.metadata;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "requiere_alerta")) {
+    normalized.requiere_alerta = Boolean(body.requiere_alerta);
+  }
+
+  return normalized;
 }
 
 function normalizeReminderPayload(body) {

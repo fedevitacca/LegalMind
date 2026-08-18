@@ -6,7 +6,9 @@ process.env.DATABASE_URL = process.env.DATABASE_URL || "postgres://test:test@loc
 const { pool } = require("../configuracion/baseDatos");
 const {
   createDeadlineReminder,
+  listCases,
   listDeadlinesByOrganization,
+  updateDateForCase,
   updateReminderStatus,
 } = require("./repositorioCasos");
 
@@ -99,6 +101,56 @@ describe("repositorioCasos sprint 5", () => {
       assert.equal(result.id, 77);
       assert.equal(result.estado, "enviado");
       assert.deepEqual(captured.values, [2, 77, "enviado", null]);
+    } finally {
+      pool.query = originalQuery;
+    }
+  });
+
+  it("actualiza solamente los campos enviados de una fecha", async () => {
+    const originalQuery = pool.query;
+    const queries = [];
+
+    pool.query = async (sql, values) => {
+      queries.push({ sql, values });
+      return {
+        rowCount: 1,
+        rows: [{
+          causa_id: 8,
+          estado: "completada",
+          fecha: "2026-08-18",
+          id: 12,
+          metadata_json: { conservado: true },
+        }],
+      };
+    };
+
+    try {
+      await updateDateForCase(8, 12, { estado: "completada" });
+
+      assert.match(queries[0].sql, /SET estado = \$1, completado_at/);
+      assert.doesNotMatch(queries[0].sql, /metadata_json|fecha_texto|responsable_user_id/);
+      assert.deepEqual(queries[0].values, ["completada", 8, 12]);
+    } finally {
+      pool.query = originalQuery;
+    }
+  });
+
+  it("muestra fechas de PostgreSQL sin desplazarlas por zona horaria", async () => {
+    const originalQuery = pool.query;
+
+    pool.query = async () => ({
+      rows: [{
+        caratula: "Prueba",
+        estado: "activa",
+        id: 1,
+        imputados_count: 0,
+        proxima_alerta: "2026-08-18",
+      }],
+    });
+
+    try {
+      const [legalCase] = await listCases(3);
+      assert.equal(legalCase.caption, "Alerta 18/8/2026");
     } finally {
       pool.query = originalQuery;
     }

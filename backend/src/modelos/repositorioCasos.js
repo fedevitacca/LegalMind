@@ -1733,7 +1733,7 @@ function mapJurisprudenceRow(row) {
 }
 
 function mapDateRow(row) {
-  const date = row.fecha ? new Date(row.fecha) : null;
+  const date = row.fecha ? parseDatabaseDate(row.fecha) : null;
 
   return {
     descripcion: row.evento || row.tipo || "Fecha importante",
@@ -1748,7 +1748,7 @@ function mapDateRow(row) {
 }
 
 function mapDeadlineRow(row) {
-  const date = row.fecha ? new Date(row.fecha) : null;
+  const date = row.fecha ? parseDatabaseDate(row.fecha) : null;
   const today = startOfDay(new Date());
   const daysUntil = date ? Math.round((startOfDay(date) - today) / 86400000) : null;
 
@@ -1806,7 +1806,7 @@ function buildDeadline(dateRows) {
     return "Sin vencimiento cargado";
   }
 
-  return `Alerta ${new Date(nextDate.fecha).toLocaleDateString("es-AR")}`;
+  return `Alerta ${parseDatabaseDate(nextDate.fecha).toLocaleDateString("es-AR")}`;
 }
 
 function mapAnalysis(row) {
@@ -1834,7 +1834,7 @@ function mapAnalysis(row) {
 
 function buildCaption(row) {
   if (row.proxima_alerta) {
-    return `Alerta ${new Date(row.proxima_alerta).toLocaleDateString("es-AR")}`;
+    return `Alerta ${parseDatabaseDate(row.proxima_alerta).toLocaleDateString("es-AR")}`;
   }
 
   return translateStatus(row.estado);
@@ -1846,7 +1846,7 @@ function getAlertLevel(dateValue) {
   }
 
   const today = startOfDay(new Date());
-  const alertDate = startOfDay(new Date(dateValue));
+  const alertDate = startOfDay(parseDatabaseDate(dateValue));
   const diffInDays = Math.round((alertDate - today) / 86400000);
 
   if (diffInDays <= 0) {
@@ -1862,6 +1862,19 @@ function getAlertLevel(dateValue) {
 
 function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function parseDatabaseDate(value) {
+  if (typeof value === "string") {
+    const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (dateOnlyMatch) {
+      const [, year, month, day] = dateOnlyMatch;
+      return new Date(Number(year), Number(month) - 1, Number(day));
+    }
+  }
+
+  return new Date(value);
 }
 
 function translateStatus(status) {
