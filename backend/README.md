@@ -86,6 +86,8 @@ La migracion `008_sprint4_relaciones_consultas.sql` agrega tablas puente e indic
 
 Vencimientos, recordatorios y seguridad:
 
+El worker de recordatorios entrega automáticamente los avisos vencidos. El canal `app` queda disponible en la API y el canal `email` usa SMTP; se configura con `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` y `SMTP_FROM`.
+
 - `GET /api/casos/vencimientos/proximos?desde=2026-08-01&hasta=2026-08-31&mias=true`: lista vencimientos próximos de la organización.
 - `GET /api/casos/:id/fechas`: lista fechas clave de una causa.
 - `POST /api/casos/:id/fechas`: crea una fecha clave o vencimiento.

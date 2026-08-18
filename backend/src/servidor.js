@@ -6,6 +6,7 @@ const app = require("./aplicacion");
 const { testConnection } = require("./configuracion/baseDatos");
 const { runMigrations } = require("./configuracion/migraciones");
 const { startDocumentWorker } = require("./trabajos/procesadorDocumental");
+const { startReminderWorker } = require("./trabajos/procesadorRecordatorios");
 
 const PORT = process.env.PORT || 5000;
 
@@ -15,6 +16,7 @@ const startServer = async () => {
       await testConnection();
       await runMigrations();
       startDocumentWorker();
+      startReminderWorker();
     } else {
       console.warn("DATABASE_URL is not configured. Starting without PostgreSQL connection check.");
     }

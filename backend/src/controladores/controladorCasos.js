@@ -993,6 +993,14 @@ function validateReminderPayload(body) {
     return "El body debe ser un objeto JSON.";
   }
 
+  if (body.canal && !["app", "email"].includes(body.canal)) {
+    return "El campo 'canal' debe ser 'app' o 'email'.";
+  }
+
+  if (body.canal === "email" && !body.destinatario_user_id) {
+    return "Un recordatorio por email requiere 'destinatario_user_id'.";
+  }
+
   return (
     validateRequiredNumericBody(body, "fecha_relevante_id") ||
     validateRequiredTextBody(body, "titulo") ||
