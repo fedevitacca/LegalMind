@@ -335,7 +335,7 @@ function buildEvents(deadlines: CaseDeadline[]) {
     return [];
   }
 
-  return deadlines.slice(0, 3).map((deadline, index) => ({
+  return deadlines.slice(0, 3).map((deadline) => ({
     detail: deadline.evento,
     time: formatEventTime(deadline.fecha),
     title: deadline.caratula,
@@ -465,14 +465,6 @@ function DocumentIcon() {
     <svg aria-hidden="true" className="h-7 w-7" viewBox="0 0 24 24" fill="none">
       <path d="M6.5 3.5h7L18.5 8v12.5h-12v-17Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="2" />
       <path d="M13.5 3.5V8h5M9 12h6M9 16h5" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
-    </svg>
-  );
-}
-
-function SparkleIcon() {
-  return (
-    <svg aria-hidden="true" className="h-7 w-7" viewBox="0 0 24 24" fill="none">
-      <path d="m9 3 1.2 4.2L14.5 9l-4.3 1.8L9 15l-1.2-4.2L3.5 9l4.3-1.8L9 3ZM17 11l.9 3.1L21 15l-3.1.9L17 19l-.9-3.1L13 15l3.1-.9L17 11Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.8" />
     </svg>
   );
 }

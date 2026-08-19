@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { authClient } from "@/lib/authClient";
 import {
@@ -58,7 +57,6 @@ export default function MenuUsuario({
   refetchSession: () => Promise<unknown>;
   user: SessionUser;
 }) {
-  const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [panel, setPanel] = useState<UserMenuPanel>("perfil");
