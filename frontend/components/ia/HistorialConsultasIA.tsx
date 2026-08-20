@@ -5,9 +5,8 @@ import Link from "next/link";
 import NavegacionAreasCaso from "../casos/NavegacionAreasCaso";
 import { downloadPlainTextReport, printPlainTextReport } from "../../lib/legalReport";
 
-type Finding = { titulo: string; detalle: string; prioridad: string };
 type Citation = { citation_id?: string; document_name: string; chunk_index: number; page?: number | null; location_label?: string; document_url?: string | null; text: string; score: number };
-type QueryItem = { id: number; tool_id: string; title: string; query?: string; result: { resumen?: string; conclusion?: string; hallazgos?: Finding[] }; citations?: Citation[]; metadata?: { model?: string; evidence?: { status: string; requires_human_review: boolean } }; created_at: string };
+type QueryItem = { id: number; tool_id: string; title: string; query?: string; result: { resumen?: string; conclusion?: string; puntos_clave?: string[] }; citations?: Citation[]; created_at: string };
 
 const apiUrl = process.env.NEXT_PUBLIC_LEGALMIND_API_URL || "http://localhost:5000";
 const labels: Record<string, string> = { resumen_expediente: "Resumen", comparar_documentos: "Comparación documental", comparar_jurisprudencia: "Jurisprudencia", cronologia: "Cronología", consulta_rag: "Consulta documental", teoria_del_caso: "Teoría del caso" };
@@ -63,26 +62,21 @@ export default function HistorialConsultasIA({ caseId }: { caseId: string }) {
 }
 
 function StoredReport({ item, notice, onDelete, onDownload, onPrint }: { item: QueryItem; notice: string; onDelete: () => void; onDownload: () => void; onPrint: () => void }) {
-  const evidence = item.metadata?.evidence;
   return <article className="space-y-5 border border-[#d6d8d5] bg-white p-6">
     <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#e1e3e0] pb-4">
       <div><span className="text-xs font-semibold uppercase tracking-[.08em] text-[#3f6f6b]">{labels[item.tool_id] || item.tool_id}</span><h2 className="mt-1 text-2xl font-semibold">{item.title}</h2><p className="mt-2 text-xs text-[#747d7b]">Registro #{item.id} · {new Date(item.created_at).toLocaleString("es-AR")}</p>{item.query && <p className="mt-3 text-sm text-[#596473]"><strong>Consulta:</strong> {item.query}</p>}</div>
       <div className="flex flex-wrap gap-2"><button onClick={onDownload} className="border border-[#bfc4c1] px-3 py-2 text-xs font-semibold">Descargar .txt</button><button onClick={onPrint} className="bg-[#34413f] px-3 py-2 text-xs font-semibold text-white">Imprimir / PDF</button><button onClick={onDelete} className="border border-red-200 px-3 py-2 text-xs font-semibold text-red-700">Eliminar</button></div>
     </div>
     {notice && <p aria-live="polite" className="text-xs text-[#3f6f6b]">{notice}</p>}
-    {evidence && <div className={`border-l-4 px-4 py-3 text-sm ${evidence.requires_human_review ? "border-amber-500 bg-amber-50 text-amber-900" : "border-emerald-600 bg-emerald-50 text-emerald-900"}`}><strong>{evidence.requires_human_review ? "Requiere revisión de fuentes" : "Respaldo documental suficiente"}</strong><p className="mt-1 text-xs opacity-75">Estado registrado: {evidence.status.replaceAll("_", " ")}.</p></div>}
-    <section><h3 className="mb-3 border-b border-[#e1e3e0] pb-2 font-semibold">Resumen</h3><p className="leading-7 text-[#596473]">{item.result.resumen || "Sin resumen registrado."}</p></section>
-    {item.result.hallazgos?.length ? <section><h3 className="mb-2 border-b border-[#e1e3e0] pb-2 font-semibold">Hallazgos</h3><div className="divide-y divide-[#e1e3e0]">{item.result.hallazgos.map((finding, index) => <div key={index} className="py-3"><div className="flex justify-between gap-3"><h4 className="font-semibold">{finding.titulo}</h4><span className="text-xs font-semibold uppercase text-[#8a662f]">{finding.prioridad}</span></div><p className="mt-1 text-sm leading-6 text-[#606a78]">{finding.detalle}</p></div>)}</div></section> : null}
-    <section className="border-l-4 border-[#3f6f6b] bg-[#f4f7f6] p-4"><h3 className="font-semibold">Conclusión registrada</h3><p className="mt-2 leading-7 text-[#596473]">{item.result.conclusion || "Sin conclusión registrada."}</p></section>
-    {item.citations?.length ? <section><h3 className="mb-3 border-b border-[#e1e3e0] pb-2 font-semibold">Documentos consultados ({item.citations.length})</h3><div className="divide-y divide-[#e1e3e0] border border-[#d6d8d5]">{item.citations.map((citation, index) => <details key={citation.citation_id || index} className="px-4 py-3"><summary className="cursor-pointer text-sm font-semibold"><span className="mr-2 text-[#3f6f6b]">{citation.citation_id || `Fuente ${index + 1}`}</span>{citation.document_name} · {citation.location_label || (citation.page ? `Página ${citation.page}` : `Fragmento ${citation.chunk_index + 1}`)}</summary><blockquote className="mt-3 border-l-2 border-[#819d99] pl-3 text-sm leading-6 text-[#606a78]">{citation.text}</blockquote><div className="mt-2 flex items-center justify-between gap-3 text-xs text-[#747d7b]"><span>Coincidencia documental: {(citation.score * 100).toFixed(0)}%</span>{citation.document_url && <a className="font-semibold text-[#285f5b]" href={citation.document_url}>Abrir en el expediente →</a>}</div></details>)}</div></section> : null}
+    <div className="border-l-4 border-[#3f6f6b] bg-[#f4f7f6] p-4"><p className="leading-7 text-[#34413f]">{item.result.conclusion || item.result.resumen || "Sin respuesta registrada."}</p>{item.result.puntos_clave?.length ? <ul className="mt-4 space-y-2 border-t border-[#d8e3e0] pt-3">{item.result.puntos_clave.map((point, index) => <li key={index} className="flex gap-2 text-sm leading-6 text-[#596473]"><strong className="text-[#3f6f6b]">{index + 1}.</strong><span>{point}</span></li>)}</ul> : null}</div>
+    {item.citations?.length ? <details><summary className="cursor-pointer text-sm font-semibold text-[#285f5b]">Ver fuentes ({item.citations.length})</summary><div className="mt-3 divide-y divide-[#e1e3e0] border border-[#d6d8d5]">{item.citations.map((citation, index) => <details key={citation.citation_id || index} className="px-4 py-3"><summary className="cursor-pointer text-sm font-semibold">Fuente {index + 1} · {citation.document_name}</summary><blockquote className="mt-3 border-l-2 border-[#819d99] pl-3 text-sm leading-6 text-[#606a78]">{citation.text}</blockquote>{citation.document_url && <a className="mt-2 inline-block text-xs font-semibold text-[#285f5b]" href={citation.document_url}>Abrir documento →</a>}</details>)}</div></details> : null}
   </article>;
 }
 
 function formatStoredReport(item: QueryItem) {
-  const lines = [item.title, "", `Tipo: ${labels[item.tool_id] || item.tool_id}`, `Fecha: ${new Date(item.created_at).toLocaleString("es-AR")}`, item.query ? `Consulta: ${item.query}` : "", "", "RESUMEN", item.result.resumen || "Sin resumen registrado.", ""];
-  if (item.result.hallazgos?.length) { lines.push("HALLAZGOS"); item.result.hallazgos.forEach((finding, index) => lines.push(`${index + 1}. ${finding.titulo} [${finding.prioridad}]`, finding.detalle, "")); }
-  lines.push("CONCLUSIÓN", item.result.conclusion || "Sin conclusión registrada.", "");
-  if (item.citations?.length) { lines.push("DOCUMENTOS CONSULTADOS"); item.citations.forEach((citation, index) => lines.push(`[${citation.citation_id || index + 1}] ${citation.document_name} · ${citation.location_label || `Fragmento ${citation.chunk_index + 1}`}`, citation.text, "")); }
+  const lines = [item.title, "", `Tipo: ${labels[item.tool_id] || item.tool_id}`, `Fecha: ${new Date(item.created_at).toLocaleString("es-AR")}`, item.query ? `Consulta: ${item.query}` : "", "", item.result.conclusion || item.result.resumen || "Sin respuesta registrada.", ""];
+  if (item.result.puntos_clave?.length) lines.push(...item.result.puntos_clave.map((point, index) => `${index + 1}. ${point}`), "");
+  if (item.citations?.length) { lines.push("FUENTES"); item.citations.forEach((citation, index) => lines.push(`${index + 1}. ${citation.document_name}`, citation.text, "")); }
   lines.push("Documento de trabajo sujeto a revisión profesional.");
   return lines.filter((line, index) => line !== "" || lines[index - 1] !== "").join("\n").trim();
 }

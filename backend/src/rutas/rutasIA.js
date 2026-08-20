@@ -99,41 +99,101 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
   const startedAt = Date.now();
   const tool = getTool(req.params.toolId);
   if (!tool) return res.status(404).json({ error: "Herramienta de IA inexistente." });
-  const primaryText = String(req.body?.primary_text || req.body?.text || "").trim();
+  let primaryText = String(req.body?.primary_text || req.body?.text || "").trim();
   const secondaryText = String(req.body?.secondary_text || "").trim();
-  const query = String(req.body?.query || "").trim();
-  if (!primaryText) return res.status(400).json({ error: "La fuente principal es obligatoria." });
+  const query = String(req.body?.query || req.body?.parameters?.pregunta || "").trim();
+  const caseId = parseOptionalNumericId(req.body?.case_id);
+  const useCaseDocuments = req.params.toolId === "consulta_rag"
+    && Boolean(caseId)
+    && parseBoolean(req.body?.use_case_documents);
+  if (useCaseDocuments && !query) {
+    return res.status(400).json({ error: "Escriba una pregunta para consultar los documentos del expediente." });
+  }
+  if (!primaryText && !useCaseDocuments) return res.status(400).json({ error: "La fuente principal es obligatoria." });
   if (tool.inputs === 2 && !secondaryText) return res.status(400).json({ error: "Esta herramienta requiere dos fuentes." });
 
   try {
-    const documents = [
-      { id: "fuente-a", nombre_archivo: "Fuente A", texto_extraido: primaryText },
-      ...(secondaryText ? [{ id: "fuente-b", nombre_archivo: "Fuente B", texto_extraido: secondaryText }] : []),
-    ];
     const retrievalQuery = query || `${tool.label} ${primaryText.slice(0, 400)}`;
-    let chunks = retrieveRelevantChunks(documents, retrievalQuery, 12);
+    let chunks;
+    let retrieval = "bm25_trigram_mmr_embeddings";
     let semanticRetrieval = "lexical_fallback";
-    try {
-      const embeddings = await embedTextsWithLocalAI([retrievalQuery, ...chunks.map((chunk) => chunk.text)]);
-      const queryEmbedding = embeddings[0];
-      chunks = chunks.map((chunk, index) => ({ ...chunk, embedding_score: vectorCosine(queryEmbedding, embeddings[index + 1]) }))
-        .map((chunk) => ({ ...chunk, score: 0.45 * chunk.score + 0.55 * Math.max(0, chunk.embedding_score) }))
-        .sort((a, b) => b.score - a.score).slice(0, 8);
-      semanticRetrieval = "ollama_embeddings";
-    } catch { chunks = chunks.slice(0, 8); }
+    let sourceDocumentCount = secondaryText ? 2 : 1;
+
+    if (useCaseDocuments) {
+      const documents = await listDocumentsForCase(caseId);
+      sourceDocumentCount = documents.length;
+      if (!documents.length) {
+        return res.status(409).json({
+          error: "El expediente no tiene documentos procesados para consultar.",
+          details: "Cargue un documento y espere a que finalice la extracción de texto.",
+        });
+      }
+
+      try {
+        const [queryEmbedding] = await embedTextsWithLocalAI([retrievalQuery]);
+        const stored = await hybridSearch({
+          organizationId: req.security.organizationId,
+          caseId,
+          query: retrievalQuery,
+          queryEmbedding,
+          limit: 8,
+        });
+        if (stored.length) {
+          chunks = stored.map((item) => ({
+            id: item.id,
+            document_id: item.documento_id,
+            document_name: item.nombre_archivo,
+            chunk_index: item.orden,
+            page: item.pagina,
+            text: item.texto,
+            score: Number(item.score),
+            lexical_score: Number(item.lexical_score),
+            semantic_score: Number(item.semantic_score),
+            metadata: item.metadata_json,
+          }));
+          retrieval = "pgvector_hybrid_hnsw_fts";
+          semanticRetrieval = "ollama_embeddings_pgvector";
+        }
+      } catch (error) {
+        console.warn("RAG vectorial del expediente no disponible; se usa recuperación en memoria:", error.message);
+      }
+
+      if (!chunks?.length) {
+        chunks = retrieveRelevantChunks(documents, retrievalQuery, 12);
+        ({ chunks, semanticRetrieval } = await rerankChunksWithEmbeddings(chunks, retrievalQuery));
+        retrieval = "case_documents_bm25_trigram_mmr_embeddings";
+      }
+
+      if (!chunks.length) {
+        return res.status(422).json({
+          error: "No se encontraron fragmentos relevantes en los documentos del expediente.",
+          details: "Pruebe reformulando la pregunta o verifique que los documentos tengan texto extraído.",
+        });
+      }
+      primaryText = "Consulta sobre el corpus documental del expediente seleccionado. Use únicamente los fragmentos RAG recuperados.";
+    } else {
+      const documents = [
+        { id: "fuente-a", nombre_archivo: "Fuente A", texto_extraido: primaryText },
+        ...(secondaryText ? [{ id: "fuente-b", nombre_archivo: "Fuente B", texto_extraido: secondaryText }] : []),
+      ];
+      chunks = retrieveRelevantChunks(documents, retrievalQuery, 12);
+      ({ chunks, semanticRetrieval } = await rerankChunksWithEmbeddings(chunks, retrievalQuery));
+    }
+
     const result = await runLegalToolWithLocalAI({
       toolId: req.params.toolId, primaryText, secondaryText, query,
       parameters: req.body?.parameters || {},
       context: chunks.map((chunk) => `[${chunk.document_id}:${chunk.chunk_index}] ${chunk.text}`),
     });
-    const caseId = parseOptionalNumericId(req.body?.case_id);
     const citations = buildLegalCitations(chunks, { caseId });
     const evidence = assessEvidence(citations);
     const grounding = verifyResultClaims(result, citations);
     const metadata = {
       engine: "ollama_local_hybrid_rag", model: getLocalAIConfig().model,
       embedding_model: getLocalAIConfig().embeddingModel, tool_id: req.params.toolId,
-      retrieval: "bm25_trigram_mmr_embeddings", semantic_retrieval: semanticRetrieval,
+      retrieval, semantic_retrieval: semanticRetrieval,
+      source: useCaseDocuments ? "case_documents" : "ad_hoc_text",
+      source_document_count: sourceDocumentCount,
       duration_ms: Date.now() - startedAt, evidence, grounding, generated_at: new Date().toISOString(),
     };
     let savedQuery = null;
@@ -146,6 +206,26 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
     return res.status(getLocalAIErrorStatus(error)).json({ error: "No se pudo ejecutar la herramienta.", details: error.message });
   }
 });
+
+async function rerankChunksWithEmbeddings(chunks, retrievalQuery) {
+  try {
+    if (!chunks.length) return { chunks: [], semanticRetrieval: "lexical_fallback" };
+    const embeddings = await embedTextsWithLocalAI([retrievalQuery, ...chunks.map((chunk) => chunk.text)]);
+    const queryEmbedding = embeddings[0];
+    return {
+      chunks: chunks.map((chunk, index) => ({
+        ...chunk,
+        embedding_score: vectorCosine(queryEmbedding, embeddings[index + 1]),
+      }))
+        .map((chunk) => ({ ...chunk, score: 0.45 * chunk.score + 0.55 * Math.max(0, chunk.embedding_score) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 8),
+      semanticRetrieval: "ollama_embeddings",
+    };
+  } catch {
+    return { chunks: chunks.slice(0, 8), semanticRetrieval: "lexical_fallback" };
+  }
+}
 
 router.post("/analyze", requireOptionalCaseAccess, async (req, res) => {
   const { text } = req.body;
@@ -207,7 +287,7 @@ router.post("/analyze-file", requireOptionalCaseAccess, (req, res) => {
 router.get("/cases/:caseId/documents", requireCaseAccess, async (req, res, next) => {
   try {
     const caseId = parseRequiredNumericId(req.params.caseId);
-    const documents = await listDocumentsForCase(caseId);
+    const documents = await listDocumentsForCase(caseId, { includeUnprocessed: true });
 
     return res.json({
       documents: documents.map((document) => ({

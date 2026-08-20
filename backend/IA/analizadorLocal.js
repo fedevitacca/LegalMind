@@ -118,11 +118,18 @@ async function runLegalToolWithLocalAI({ toolId, primaryText, secondaryText = ""
   const tool = getTool(toolId);
   if (!tool) throw new Error("La herramienta de IA solicitada no existe.");
   const responseText = await createLocalAIClient().chat({
+    format: toolResultSchema,
+    maxOutputTokens: 500,
     messages: [{
       role: "system",
       content: [LEGALMIND_PROMPT_BASE, tool.instruction,
         "Trabaja exclusivamente con las fuentes entregadas. No inventes citas, hechos ni normas.",
-        "Diferencia evidencia textual de inferencias. Si falta respaldo, indicalo en limitaciones.",
+        "Diferencia evidencia textual de inferencias. Si falta respaldo, aclaralo brevemente en la conclusión.",
+        "Escribí como un profesional que deja una nota de trabajo breve para otro abogado.",
+        "Usá español claro y directo. No menciones inteligencia artificial, modelos, prompts, RAG ni procesos automáticos.",
+        "Evitá introducciones genéricas, repeticiones, adjetivos innecesarios y conclusiones ceremoniales.",
+        "Respondé en conclusion con 2 a 4 oraciones y un máximo de 110 palabras.",
+        "Agregá entre 2 y 4 puntos_clave distintos, de hasta 40 palabras cada uno. puntos_clave debe ser un array de strings simples, nunca objetos.",
         "Devuelve exclusivamente JSON valido, sin markdown.",
         `Schema esperado: ${JSON.stringify(toolResultSchema)}`].join("\n\n"),
     }, {
@@ -132,10 +139,10 @@ async function runLegalToolWithLocalAI({ toolId, primaryText, secondaryText = ""
         context.length ? "FRAGMENTOS RAG RECUPERADOS:" : "", ...context].filter(Boolean).join("\n\n"),
     }],
   });
-  return normalizeSchemaValue(parseJsonObject(responseText), toolResultSchema);
+  return normalizeToolResult(parseJsonObject(responseText));
 }
 
-async function sendOllamaChatRequest({ messages }) {
+async function sendOllamaChatRequest({ messages, format = "json", maxOutputTokens }) {
   const baseUrl = (process.env.LOCAL_AI_BASE_URL || DEFAULT_LOCAL_AI_BASE_URL).replace(/\/$/, "");
   const model = process.env.LOCAL_AI_MODEL || DEFAULT_LOCAL_AI_MODEL;
   const controller = new AbortController();
@@ -147,12 +154,12 @@ async function sendOllamaChatRequest({ messages }) {
   try {
     const response = await fetch(`${baseUrl}/api/chat`, {
       body: JSON.stringify({
-        format: "json",
+        format,
         keep_alive: process.env.LOCAL_AI_KEEP_ALIVE || "15m",
         messages,
         model,
         options: { num_ctx: Number(process.env.LOCAL_AI_CONTEXT_SIZE) || 8192,
-          num_predict: Number(process.env.LOCAL_AI_MAX_OUTPUT_TOKENS) || 900,
+          num_predict: Number(maxOutputTokens) || Number(process.env.LOCAL_AI_MAX_OUTPUT_TOKENS) || 900,
           temperature: Number(process.env.LOCAL_AI_TEMPERATURE) || 0.1 },
         stream: false,
       }),
@@ -192,6 +199,51 @@ async function sendOllamaChatRequest({ messages }) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function normalizeToolResult(value) {
+  const normalized = normalizeSchemaValue(value, toolResultSchema);
+  const rawPoints = Array.isArray(value?.puntos_clave) ? value.puntos_clave : [];
+  const points = rawPoints
+    .map((point) => normalizeToolPoint(point))
+    .filter(Boolean)
+    .filter((point, index, items) => items.indexOf(point) === index)
+    .slice(0, 4);
+
+  return {
+    ...normalized,
+    conclusion: limitCompleteSentences(normalized.conclusion, 110),
+    puntos_clave: points,
+  };
+}
+
+function normalizeToolPoint(point) {
+  if (typeof point === "string") return limitWords(point.trim(), 40);
+  if (!isPlainObject(point)) return "";
+  const title = String(point.titulo || point.aspecto || "").trim();
+  const detail = String(point.detalle || point.descripcion || point.texto || point.conclusion || point.evaluacion || "").trim();
+  return limitWords([title, detail].filter(Boolean).join(": "), 40);
+}
+
+function limitWords(value, maximum) {
+  const words = String(value || "").trim().split(/\s+/).filter(Boolean);
+  if (words.length <= maximum) return words.join(" ");
+  return `${words.slice(0, maximum).join(" ")}…`;
+}
+
+function limitCompleteSentences(value, maximumWords) {
+  const text = String(value || "").trim();
+  const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((sentence) => sentence.trim()).filter(Boolean) || [];
+  const selected = [];
+  let words = 0;
+  for (const sentence of sentences) {
+    const sentenceWords = sentence.split(/\s+/).filter(Boolean).length;
+    if (selected.length && words + sentenceWords > maximumWords) break;
+    if (!selected.length && sentenceWords > maximumWords) return limitWords(sentence, maximumWords);
+    selected.push(sentence);
+    words += sentenceWords;
+  }
+  return selected.join(" ");
 }
 
 async function embedTextsWithLocalAI(texts) {

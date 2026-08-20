@@ -321,10 +321,12 @@ async function completeJobAndEnqueueIndex(client, job) {
   await completeJobRow(client, job.id);
   await client.query(
     `INSERT INTO trabajos_documentales (documento_id, causa_id, tipo)
-     SELECT $1, $2, $3
+     SELECT $1::bigint, $2::bigint, $3::varchar(40)
      WHERE NOT EXISTS (
        SELECT 1 FROM trabajos_documentales
-       WHERE documento_id=$1 AND tipo=$3 AND estado IN ($4,$5)
+       WHERE documento_id=$1::bigint
+         AND tipo=$3::varchar(40)
+         AND estado IN ($4::varchar(24),$5::varchar(24))
      )`,
     [job.documento_id, job.causa_id, JOB_TYPES.INDEX_RAG, DOCUMENT_JOB_STATES.PENDING, DOCUMENT_JOB_STATES.PROCESSING]
   );

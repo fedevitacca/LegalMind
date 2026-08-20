@@ -92,7 +92,7 @@ async function saveLegalAnalysis({
   }
 }
 
-async function listDocumentsForCase(causaId) {
+async function listDocumentsForCase(causaId, { includeUnprocessed = false } = {}) {
   ensureDatabaseConfigured();
 
   const result = await pool.query(
@@ -108,10 +108,10 @@ async function listDocumentsForCase(causaId) {
         created_at
       FROM documentos
       WHERE causa_id = $1
-        AND texto_extraido IS NOT NULL
+        AND ($2::boolean OR texto_extraido IS NOT NULL)
       ORDER BY created_at DESC, id DESC
     `,
-    [causaId]
+    [causaId, includeUnprocessed]
   );
 
   return result.rows;
