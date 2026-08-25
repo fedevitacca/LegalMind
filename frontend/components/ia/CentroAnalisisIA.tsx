@@ -6,8 +6,11 @@ import { downloadPlainTextReport, printPlainTextReport } from "../../lib/legalRe
 type Tool = { id: string; label: string; description: string; inputs: number; family?: string; resultView?: string; accent?: string; fields?: string[] };
 type CaseOption = { id: number; name: string; identificador?: string };
 type CaseDocument = { id: number; name: string; extracted_text?: string; status?: string };
-type Result = { titulo: string; conclusion?: string; resumen?: string; puntos_clave?: string[] };
+type ResultSection = { titulo: string; contenido: string };
+type Result = { titulo: string; conclusion?: string; resumen?: string; puntos_clave?: string[]; desarrollo?: ResultSection[]; acciones_sugeridas?: string[]; limitaciones?: string[] };
 type Citation = { citation_id: string; document_id: string; document_name: string; chunk_index: number; page?: number | null; location_label?: string; document_url?: string | null; section?: string | null; text: string; score: number };
+type Evidence = { status?: string; citations_count?: number; usable_citations?: number; average_score?: number };
+type AnalysisMetadata = { source_document_count?: number; source?: string; retrieval?: string; semantic_retrieval?: string };
 
 const apiUrl = process.env.NEXT_PUBLIC_LEGALMIND_API_URL || "http://localhost:5000";
 const fallbackTools: Tool[] = [
@@ -38,6 +41,7 @@ export default function CentroAnalisisIA() {
   const [primary, setPrimary] = useState(""); const [secondary, setSecondary] = useState("");
   const [query, setQuery] = useState(""); const [result, setResult] = useState<Result>();
   const [citations, setCitations] = useState<Citation[]>([]); const [busy, setBusy] = useState(false);
+  const [evidence, setEvidence] = useState<Evidence>(); const [analysisMetadata, setAnalysisMetadata] = useState<AnalysisMetadata>();
   const [error, setError] = useState("");
   const [reportNotice, setReportNotice] = useState("");
   const requestController = useRef<AbortController | null>(null);
@@ -89,13 +93,13 @@ export default function CentroAnalisisIA() {
     return () => controller.abort();
   }, [caseId]);
   async function execute() {
-    setBusy(true); setError(""); setReportNotice(""); setResult(undefined); setCitations([]); setSavedId(undefined);
+    setBusy(true); setError(""); setReportNotice(""); setResult(undefined); setCitations([]); setEvidence(undefined); setAnalysisMetadata(undefined); setSavedId(undefined);
     const controller = new AbortController(); requestController.current = controller;
     try {
       const response = await fetch(`${apiUrl}/api/ia/tools/${toolId}/run`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, signal: controller.signal, body: JSON.stringify({ primary_text: primary, secondary_text: secondary, query, case_id: caseId ? Number(caseId) : null, use_case_documents: usesCaseDocuments }) });
       const body = await response.json();
       if (!response.ok) throw new Error([body.error, body.details].filter(Boolean).join(" "));
-      setResult(body.result); setCitations(body.citations || []); setSavedId(body.saved_query?.id);
+      setResult(body.result); setCitations(body.citations || []); setEvidence(body.evidence); setAnalysisMetadata(body._metadata); setSavedId(body.saved_query?.id);
     } catch (cause) { setError(cause instanceof DOMException && cause.name === "AbortError" ? "Análisis cancelado por el usuario." : cause instanceof Error ? cause.message : "No se pudo completar el análisis."); }
     finally { requestController.current = null; setBusy(false); }
   }
@@ -135,8 +139,8 @@ export default function CentroAnalisisIA() {
           : <div className={`grid gap-4 p-6 ${tool?.inputs === 2 ? "lg:grid-cols-2" : ""}`}><Source label={tool?.inputs === 2 ? "Fuente A" : "Material jurídico"} value={primary} onChange={setPrimary} documents={readyCaseDocuments} />{tool?.inputs === 2 && <Source label="Fuente B" value={secondary} onChange={setSecondary} documents={readyCaseDocuments} />}</div>}
         <div className="border-t border-[#e1e3e0] px-6 py-5"><label className="text-xs font-semibold text-[#59636f]">{usesCaseDocuments ? "Tu pregunta" : "Enfoque (opcional)"}</label><div className="mt-2 flex flex-col gap-3 sm:flex-row"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={usesCaseDocuments ? "Ej.: ¿Qué contradicciones surgen de la prueba incorporada?" : "Ej.: Priorizar los argumentos favorables a la defensa"} className="h-11 flex-1 border border-[#bfc4c1] bg-white px-3 text-sm outline-none focus:border-[#3f6f6b]"/><button disabled={busy || !canExecute} onClick={execute} className="h-11 bg-[#285f5b] px-6 text-sm font-semibold text-white transition hover:bg-[#204e4a] disabled:cursor-not-allowed disabled:opacity-45">{busy ? "Revisando…" : actionLabels[toolId] || "Continuar"}</button>{busy && <button type="button" onClick={() => requestController.current?.abort()} className="h-11 border border-[#c8ccca] bg-white px-4 text-sm font-semibold text-[#5a2630]">Cancelar</button>}</div>{usesCaseDocuments && !query.trim() && !busy && <p className="mt-2 text-xs text-[#687180]">Escribí una pregunta para consultar los documentos.</p>}{error && <p role="alert" className="mt-3 border-l-4 border-red-500 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</p>}</div>
       </section>
-      {savedId && caseId && <a href={`/casos/${caseId}/consultas?consulta=${savedId}`} className="block border border-[#b9ccc8] bg-[#f1f6f4] px-5 py-4 text-sm font-semibold text-[#285f5b]">El análisis fue incorporado al expediente · Abrir registro →</a>}
-      {!result ? <Empty busy={busy} /> : <><ReportActions notice={reportNotice} onCopy={() => void copyReport()} onDownload={downloadReport} onPrint={printReport} /><Results result={result} citations={citations} /></>}
+      {savedId && caseId && <a href={`/casos/${caseId}/consultas?consulta=${savedId}`} className="block border border-[#b9ccc8] bg-[#f1f6f4] px-5 py-4 text-sm font-semibold text-[#285f5b]">El análisis fue guardado en tu historial del expediente · Abrir registro →</a>}
+      {!result ? <Empty busy={busy} /> : <><ReportActions notice={reportNotice} onCopy={() => void copyReport()} onDownload={downloadReport} onPrint={printReport} /><Results result={result} citations={citations} evidence={evidence} metadata={analysisMetadata} documentQuery={toolId === "consulta_rag"} /></>}
     </main>
   </div>;
 }
@@ -162,14 +166,40 @@ function Source({ label, value, onChange, documents }: { label: string; value: s
 }
 function Empty({ busy }: { busy: boolean }) { return <section className="border border-[#d6d8d5] bg-white px-6 py-7"><h3 className="text-base font-semibold text-[#283446]">{busy ? "Revisando el material" : "Listo para empezar"}</h3><p className="mt-2 max-w-3xl text-sm leading-6 text-[#687180]">{busy ? "Esto puede demorar unos segundos. Podés cancelar desde el formulario." : "Elegí una tarea y un expediente, o adjuntá el documento que quieras revisar."}</p></section>; }
 function ReportActions({ notice, onCopy, onDownload, onPrint }: { notice: string; onCopy: () => void; onDownload: () => void; onPrint: () => void }) { return <div className="flex flex-wrap items-center justify-between gap-3 border border-[#d6d8d5] bg-[#fafaf8] px-4 py-3"><p aria-live="polite" className="text-xs text-[#687180]">{notice || "El informe puede incorporarse a un escrito o conservarse fuera del sistema."}</p><div className="flex flex-wrap gap-2"><button type="button" onClick={onCopy} className="border border-[#bfc4c1] bg-white px-3 py-2 text-xs font-semibold text-[#34413f] hover:bg-[#f3f4f2]">Copiar</button><button type="button" onClick={onDownload} className="border border-[#bfc4c1] bg-white px-3 py-2 text-xs font-semibold text-[#34413f] hover:bg-[#f3f4f2]">Descargar .txt</button><button type="button" onClick={onPrint} className="bg-[#34413f] px-3 py-2 text-xs font-semibold text-white hover:bg-[#293432]">Imprimir / PDF</button></div></div>; }
-function Results({ result, citations }: { result: Result; citations: Citation[] }) { const answer = result.conclusion || result.resumen || "No se encontró una respuesta en el material disponible."; return <section className="space-y-3"><div className="border border-[#d6d8d5] bg-white px-6 py-6"><h2 className="text-xl font-semibold text-[#182338]">{result.titulo || "Resultado"}</h2><p className="mt-4 max-w-4xl text-base leading-7 text-[#34413f]">{answer}</p>{result.puntos_clave?.length ? <ul className="mt-5 space-y-3 border-t border-[#e1e3e0] pt-4">{result.puntos_clave.map((point, index) => <li key={index} className="flex gap-3 text-sm leading-6 text-[#596473]"><span className="font-semibold text-[#3f6f6b]">{index + 1}.</span><span>{point}</span></li>)}</ul> : null}</div>{citations.length > 0 && <details className="border border-[#d6d8d5] bg-white px-5 py-4"><summary className="cursor-pointer text-sm font-semibold text-[#285f5b]">Ver fuentes ({citations.length})</summary><div className="mt-4 divide-y divide-[#e1e3e0] border border-[#d6d8d5]">{citations.map((item, index) => <details key={item.citation_id} className="px-4 py-3"><summary className="cursor-pointer text-sm font-semibold">Fuente {index + 1} · {item.document_name}</summary><blockquote className="mt-3 border-l-2 border-[#819d99] pl-3 text-sm leading-6 text-[#606a78]">{item.text}</blockquote>{item.document_url && <a href={item.document_url} className="mt-3 inline-block text-xs font-semibold text-[#285f5b]">Abrir documento →</a>}</details>)}</div></details>}</section>; }
+function Results({ result, citations, evidence, metadata, documentQuery }: { result: Result; citations: Citation[]; evidence?: Evidence; metadata?: AnalysisMetadata; documentQuery: boolean }) {
+  const answer = result.conclusion || result.resumen || "No se encontró una respuesta en el material disponible.";
+  const documentCount = metadata?.source_document_count || new Set(citations.map((item) => item.document_id)).size;
+  return <section className="space-y-3">
+    <article className="border border-[#d6d8d5] bg-white px-6 py-6">
+      <h2 className="text-xl font-semibold text-[#182338]">{result.titulo || "Resultado"}</h2>
+      <div className="mt-5 border-l-4 border-[#3f6f6b] bg-[#f4f7f6] px-5 py-4"><h3 className="text-xs font-semibold uppercase tracking-[.1em] text-[#3f6f6b]">Conclusión</h3><p className="mt-2 max-w-4xl whitespace-pre-line text-base leading-7 text-[#34413f]">{answer}</p></div>
+      {result.desarrollo?.length ? <div className="mt-6"><h3 className="text-sm font-semibold text-[#283446]">Análisis desarrollado</h3><div className="mt-3 grid gap-3 lg:grid-cols-2">{result.desarrollo.map((section, index) => <section key={`${section.titulo}-${index}`} className="border border-[#e1e3e0] bg-[#fafaf8] p-4"><h4 className="text-sm font-semibold text-[#34413f]">{section.titulo}</h4><p className="mt-2 whitespace-pre-line text-sm leading-6 text-[#596473]">{section.contenido}</p></section>)}</div></div> : null}
+      {result.puntos_clave?.length ? <div className="mt-6 border-t border-[#e1e3e0] pt-5"><h3 className="text-sm font-semibold text-[#283446]">Puntos clave</h3><ul className="mt-3 space-y-3">{result.puntos_clave.map((point, index) => <li key={index} className="flex gap-3 text-sm leading-6 text-[#596473]"><span className="font-semibold text-[#3f6f6b]">{index + 1}.</span><span>{point}</span></li>)}</ul></div> : null}
+      {(result.acciones_sugeridas?.length || result.limitaciones?.length) ? <div className="mt-6 grid gap-4 border-t border-[#e1e3e0] pt-5 md:grid-cols-2">{result.acciones_sugeridas?.length ? <ResultList title="Controles sugeridos" items={result.acciones_sugeridas} /> : null}{result.limitaciones?.length ? <ResultList title="Alcance y datos pendientes" items={result.limitaciones} muted /> : null}</div> : null}
+    </article>
+    {documentQuery && citations.length > 0 ? <div className="border border-[#c8d6d3] bg-[#f4f8f7] px-5 py-4"><p className="text-xs font-semibold uppercase tracking-[.08em] text-[#3f6f6b]">Base documental consultada</p><p className="mt-1 text-sm font-semibold text-[#34413f]">{documentCount} documento{documentCount === 1 ? "" : "s"} en la colección · {citations.length} pasaje{citations.length === 1 ? "" : "s"} considerado{citations.length === 1 ? "" : "s"}</p><p className="mt-2 text-xs leading-5 text-[#687180]">Se priorizaron los pasajes con mayor relación textual y temática con la pregunta. {evidence?.status === "parcial" ? "El respaldo encontrado es parcial y conviene revisar las fuentes." : "Podés revisar debajo el contexto exacto utilizado."}</p></div> : null}
+    {citations.length > 0 && <details className="border border-[#d6d8d5] bg-white px-5 py-4"><summary className="cursor-pointer text-sm font-semibold text-[#285f5b]">{documentQuery ? "Pasajes considerados" : "Ver fuentes"} ({citations.length})</summary><div className="mt-4 divide-y divide-[#e1e3e0] border border-[#d6d8d5]">{citations.map((item, index) => <details key={item.citation_id} className="px-4 py-3"><summary className="cursor-pointer text-sm font-semibold">{documentQuery ? `Pasaje ${index + 1}` : `Fuente ${index + 1}`} · {item.document_name}<span className="ml-2 text-xs font-normal text-[#74807e]">{item.location_label ? `· ${item.location_label} ` : ""}· pertinencia {citationRelevance(item.score)}</span></summary><blockquote className="mt-3 border-l-2 border-[#819d99] pl-3 text-sm leading-6 text-[#606a78]">{item.text}</blockquote>{item.document_url && <a href={item.document_url} className="mt-3 inline-block text-xs font-semibold text-[#285f5b]">Abrir documento →</a>}</details>)}</div></details>}
+  </section>;
+}
+
+function ResultList({ title, items, muted = false }: { title: string; items: string[]; muted?: boolean }) {
+  return <section className={muted ? "border border-[#e2ddd2] bg-[#fbfaf6] p-4" : "border border-[#cfdcd9] bg-[#f6f9f8] p-4"}><h3 className="text-sm font-semibold text-[#34413f]">{title}</h3><ul className="mt-3 space-y-2">{items.map((item, index) => <li key={index} className="flex gap-2 text-sm leading-6 text-[#596473]"><span aria-hidden="true" className="text-[#3f6f6b]">•</span><span>{item}</span></li>)}</ul></section>;
+}
+
+function citationRelevance(score: number) { if (score >= 0.65) return "alta"; if (score >= 0.35) return "media"; return "complementaria"; }
 
 function formatReport(result: Result, citations: Citation[]) {
   const lines = [result.titulo || "Resultado", "", result.conclusion || result.resumen || "Sin respuesta.", ""];
+  if (result.desarrollo?.length) {
+    lines.push("ANÁLISIS DESARROLLADO");
+    result.desarrollo.forEach((section) => lines.push(section.titulo, section.contenido, ""));
+  }
   if (result.puntos_clave?.length) lines.push(...result.puntos_clave.map((point, index) => `${index + 1}. ${point}`), "");
+  if (result.acciones_sugeridas?.length) lines.push("CONTROLES SUGERIDOS", ...result.acciones_sugeridas.map((item) => `- ${item}`), "");
+  if (result.limitaciones?.length) lines.push("ALCANCE Y DATOS PENDIENTES", ...result.limitaciones.map((item) => `- ${item}`), "");
   if (citations.length) {
     lines.push("FUENTES");
-    citations.forEach((item, index) => lines.push(`${index + 1}. ${item.document_name}`, item.text, ""));
+    citations.forEach((item, index) => lines.push(`${index + 1}. ${item.document_name}${item.location_label ? ` · ${item.location_label}` : ""}`, item.text, ""));
   }
   lines.push(`LegalMind · ${new Date().toLocaleString("es-AR")}`, "Documento de trabajo sujeto a revisión profesional.");
   return lines.filter((line, index) => line !== "" || lines[index - 1] !== "").join("\n").trim();

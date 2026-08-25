@@ -23,11 +23,11 @@ describe("IA file routes", () => {
     resetRandomForestForTests();
 
     setLocalAIClientFactoryForTests(() => ({
-      chat: async (payload) => JSON.stringify(
-        payload.messages.some((message) => message.content.includes("motor RAG juridico"))
-          ? createSampleRagSearch()
-          : createSampleLawyerBrief()
-      ),
+      chat: async (payload) => JSON.stringify(payload.messages.some((message) => message.content.includes("motor RAG juridico"))
+        ? createSampleRagSearch()
+        : payload.messages.some((message) => message.content.includes("Schema esperado:"))
+          ? createSampleToolResult()
+          : createSampleLawyerBrief()),
     }));
 
     await new Promise((resolve) => {
@@ -139,6 +139,9 @@ describe("IA file routes", () => {
     assert.ok(body.grounding);
     assert.ok(Array.isArray(body.grounding.claims));
     assert.equal(typeof body.result, "object");
+    assert.equal(body.result.desarrollo.length, 2);
+    assert.equal(body.result.acciones_sugeridas.length, 2);
+    assert.equal(body.result.limitaciones.length, 1);
   });
 
   it("extrae archivos para el laboratorio documental", async () => {
@@ -316,5 +319,23 @@ function createSampleRagSearch() {
       ],
       requiere_revision: true,
     },
+  };
+}
+
+function createSampleToolResult() {
+  return {
+    titulo: "Síntesis del expediente 42/2026",
+    conclusion: "La fuente informa una audiencia fijada para el 12/08/2026. Corresponde verificar su objeto y las constancias de notificación antes de definir la preparación necesaria.",
+    puntos_clave: [
+      "El expediente está identificado con el número 42/2026.",
+      "Existe una audiencia prevista para el 12/08/2026.",
+      "La fuente no precisa el objeto de la audiencia.",
+    ],
+    desarrollo: [
+      { titulo: "Estado procesal", contenido: "El documento da cuenta de una audiencia futura, aunque no identifica la etapa procesal ni su finalidad." },
+      { titulo: "Control temporal", contenido: "La fecha debe incorporarse a la agenda y contrastarse con la notificación correspondiente." },
+    ],
+    acciones_sugeridas: ["Verificar el objeto de la audiencia.", "Controlar la constancia de notificación."],
+    limitaciones: ["No se informan tribunal, partes ni naturaleza de la audiencia."],
   };
 }

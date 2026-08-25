@@ -49,6 +49,9 @@ function verifyResultClaims(result, citations) {
     ...(result?.hallazgos || []).map((finding, index) => ({ claim_id: `H-${index + 1}`, type: "hallazgo",
       text: [finding.titulo, finding.detalle, finding.evidencia].filter(Boolean).join(". ") })),
     ...(result?.conclusion ? [{ claim_id: "CONCLUSION", type: "conclusion", text: result.conclusion }] : []),
+    ...(result?.puntos_clave || []).map((point, index) => ({ claim_id: `P-${index + 1}`, type: "punto_clave", text: point })),
+    ...(result?.desarrollo || []).map((section, index) => ({ claim_id: `D-${index + 1}`, type: "desarrollo",
+      text: [section.titulo, section.contenido].filter(Boolean).join(". ") })),
   ];
   const verified = claims.map((claim) => {
     const matches = citations.map((citation) => ({ citation_id: citation.citation_id,

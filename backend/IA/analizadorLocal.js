@@ -119,24 +119,27 @@ async function runLegalToolWithLocalAI({ toolId, primaryText, secondaryText = ""
   if (!tool) throw new Error("La herramienta de IA solicitada no existe.");
   const responseText = await createLocalAIClient().chat({
     format: toolResultSchema,
-    maxOutputTokens: 500,
+    maxOutputTokens: 1000,
     messages: [{
       role: "system",
       content: [LEGALMIND_PROMPT_BASE, tool.instruction,
         "Trabaja exclusivamente con las fuentes entregadas. No inventes citas, hechos ni normas.",
-        "Diferencia evidencia textual de inferencias. Si falta respaldo, aclaralo brevemente en la conclusión.",
-        "Escribí como un profesional que deja una nota de trabajo breve para otro abogado.",
+        "Diferencia evidencia textual de inferencias. Si falta respaldo, aclaralo en la conclusión y en limitaciones.",
+        "Escribí como un profesional que deja un informe de trabajo sustantivo para otro abogado.",
         "Usá español claro y directo. No menciones inteligencia artificial, modelos, prompts, RAG ni procesos automáticos.",
         "Evitá introducciones genéricas, repeticiones, adjetivos innecesarios y conclusiones ceremoniales.",
-        "Respondé en conclusion con 2 a 4 oraciones y un máximo de 110 palabras.",
-        "Agregá entre 2 y 4 puntos_clave distintos, de hasta 40 palabras cada uno. puntos_clave debe ser un array de strings simples, nunca objetos.",
+        "La conclusión debe responder el objetivo en 1 o 2 párrafos y un máximo de 180 palabras.",
+        "Agregá entre 3 y 6 puntos_clave distintos, concretos y de hasta 60 palabras cada uno.",
+        "Incluí entre 2 y 5 apartados en desarrollo. Cada apartado debe tener un título informativo y explicar el análisis, no repetir la conclusión.",
+        "En acciones_sugeridas indicá controles o pasos útiles derivados de la fuente. En limitaciones registrá vacíos, ambigüedades o datos pendientes.",
+        "puntos_clave, acciones_sugeridas y limitaciones deben ser arrays de strings simples, nunca objetos.",
         "Devuelve exclusivamente JSON valido, sin markdown.",
         `Schema esperado: ${JSON.stringify(toolResultSchema)}`].join("\n\n"),
     }, {
       role: "user",
       content: [`Herramienta: ${tool.label}`, `Parametros profesionales: ${JSON.stringify(parameters)}`, query ? `Consulta: ${query}` : "",
         "FUENTE A:", primaryText, secondaryText ? "FUENTE B:" : "", secondaryText,
-        context.length ? "FRAGMENTOS RAG RECUPERADOS:" : "", ...context].filter(Boolean).join("\n\n"),
+        context.length ? "PASAJES DOCUMENTALES SELECCIONADOS POR PERTINENCIA:" : "", ...context].filter(Boolean).join("\n\n"),
     }],
   });
   return normalizeToolResult(parseJsonObject(responseText));
@@ -208,21 +211,48 @@ function normalizeToolResult(value) {
     .map((point) => normalizeToolPoint(point))
     .filter(Boolean)
     .filter((point, index, items) => items.indexOf(point) === index)
-    .slice(0, 4);
+    .slice(0, 6);
+  const sections = (Array.isArray(value?.desarrollo) ? value.desarrollo : [])
+    .map((section, index) => normalizeToolSection(section, index))
+    .filter((section) => section.contenido)
+    .slice(0, 5);
 
   return {
     ...normalized,
-    conclusion: limitCompleteSentences(normalized.conclusion, 110),
+    conclusion: limitCompleteSentences(normalized.conclusion, 180),
     puntos_clave: points,
+    desarrollo: sections,
+    acciones_sugeridas: normalizeToolList(value?.acciones_sugeridas, 4, 55),
+    limitaciones: normalizeToolList(value?.limitaciones, 3, 55),
   };
 }
 
+function normalizeToolSection(section, index) {
+  if (typeof section === "string") {
+    return { titulo: `Análisis ${index + 1}`, contenido: limitCompleteSentences(section, 150) };
+  }
+  if (!isPlainObject(section)) return { titulo: "", contenido: "" };
+  return {
+    titulo: limitWords(String(section.titulo || section.aspecto || `Análisis ${index + 1}`).trim(), 14),
+    contenido: limitCompleteSentences(section.contenido || section.detalle || section.descripcion || "", 150),
+  };
+}
+
+function normalizeToolList(value, maximumItems, maximumWords) {
+  return (Array.isArray(value) ? value : [])
+    .map((item) => normalizeToolPoint(item))
+    .map((item) => limitWords(item, maximumWords))
+    .filter(Boolean)
+    .filter((item, index, items) => items.indexOf(item) === index)
+    .slice(0, maximumItems);
+}
+
 function normalizeToolPoint(point) {
-  if (typeof point === "string") return limitWords(point.trim(), 40);
+  if (typeof point === "string") return limitWords(point.trim(), 60);
   if (!isPlainObject(point)) return "";
   const title = String(point.titulo || point.aspecto || "").trim();
   const detail = String(point.detalle || point.descripcion || point.texto || point.conclusion || point.evaluacion || "").trim();
-  return limitWords([title, detail].filter(Boolean).join(": "), 40);
+  return limitWords([title, detail].filter(Boolean).join(": "), 60);
 }
 
 function limitWords(value, maximum) {

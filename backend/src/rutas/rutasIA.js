@@ -81,16 +81,16 @@ router.post("/extract-file", requireSession, attachSecurityContext, (req, res) =
 router.use(requireSession, attachSecurityContext);
 
 router.get("/cases/:caseId/queries", requireCaseAccess, async (req, res, next) => {
-  try { return res.json({ queries: await listAIQueries(parseRequiredNumericId(req.params.caseId)) }); }
+  try { return res.json({ queries: await listAIQueries(parseRequiredNumericId(req.params.caseId), req.user.id) }); }
   catch (error) { return next(error); }
 });
 router.get("/cases/:caseId/queries/:queryId", requireCaseAccess, async (req, res, next) => {
-  try { const item = await getAIQuery(parseRequiredNumericId(req.params.caseId), parseRequiredNumericId(req.params.queryId));
+  try { const item = await getAIQuery(parseRequiredNumericId(req.params.caseId), parseRequiredNumericId(req.params.queryId), req.user.id);
     return item ? res.json({ query: item }) : res.status(404).json({ error: "Consulta no encontrada." }); }
   catch (error) { return next(error); }
 });
 router.delete("/cases/:caseId/queries/:queryId", requireCaseAccess, requireRole("abogado"), async (req, res, next) => {
-  try { const deleted = await deleteAIQuery(parseRequiredNumericId(req.params.caseId), parseRequiredNumericId(req.params.queryId));
+  try { const deleted = await deleteAIQuery(parseRequiredNumericId(req.params.caseId), parseRequiredNumericId(req.params.queryId), req.user.id);
     return deleted ? res.status(204).send() : res.status(404).json({ error: "Consulta no encontrada." }); }
   catch (error) { return next(error); }
 });
@@ -170,7 +170,7 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
           details: "Pruebe reformulando la pregunta o verifique que los documentos tengan texto extraído.",
         });
       }
-      primaryText = "Consulta sobre el corpus documental del expediente seleccionado. Use únicamente los fragmentos RAG recuperados.";
+      primaryText = "Consulta sobre el corpus documental del expediente seleccionado. Use únicamente los pasajes seleccionados por pertinencia.";
     } else {
       const documents = [
         { id: "fuente-a", nombre_archivo: "Fuente A", texto_extraido: primaryText },
@@ -197,7 +197,7 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
       duration_ms: Date.now() - startedAt, evidence, grounding, generated_at: new Date().toISOString(),
     };
     let savedQuery = null;
-    if (caseId) savedQuery = await createAIQuery({ caseId, toolId: req.params.toolId,
+    if (caseId) savedQuery = await createAIQuery({ caseId, userId: req.user.id, toolId: req.params.toolId,
       title: result.titulo || tool.label, query, input: { primary_text: primaryText, secondary_text: secondaryText, parameters: req.body?.parameters || {} },
       result, citations, metadata });
     if (savedQuery) await recordAudit(req, { action: "ia.consulta_creada", resourceType: "consulta_ia", resourceId: savedQuery.id, metadata: { herramienta: req.params.toolId, causa_id: caseId } });
