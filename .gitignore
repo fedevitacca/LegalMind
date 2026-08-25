@@ -37,6 +37,7 @@ dev-server*.log
 .npm-cache/
 backend/uploads/
 backend/IA/dataset/dataset_multieurlex_*.csv
+backend/IA/dataset/ecthr_a/
 
 # env files (can opt-in for committing if needed)
 .env*
