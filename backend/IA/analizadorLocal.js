@@ -117,9 +117,22 @@ async function searchLegalTextWithLocalAI({ text, query, limit = 5 }) {
 async function runLegalToolWithLocalAI({ toolId, primaryText, secondaryText = "", query = "", context = [], parameters = {} }) {
   const tool = getTool(toolId);
   if (!tool) throw new Error("La herramienta de IA solicitada no existe.");
+  const outputGuidance = toolId === "consulta_rag"
+    ? [
+      "La conclusión debe responder en un máximo de 70 palabras.",
+      "Incluí exactamente 3 puntos_clave de hasta 25 palabras cada uno.",
+      "Incluí exactamente 2 apartados en desarrollo, de hasta 60 palabras cada uno.",
+      "Incluí como máximo 1 acción sugerida y 1 limitación, de hasta 25 palabras cada una.",
+    ]
+    : [
+      "La conclusión debe responder el objetivo en 1 o 2 párrafos y un máximo de 120 palabras.",
+      "Agregá entre 3 y 5 puntos_clave distintos, concretos y de hasta 45 palabras cada uno.",
+      "Incluí entre 2 y 4 apartados en desarrollo. Cada apartado debe explicar el análisis en hasta 100 palabras.",
+      "Incluí como máximo 3 acciones sugeridas y 2 limitaciones.",
+    ];
   const responseText = await createLocalAIClient().chat({
     format: toolResultSchema,
-    maxOutputTokens: 1000,
+    maxOutputTokens: tool.maxOutputTokens || 720,
     messages: [{
       role: "system",
       content: [LEGALMIND_PROMPT_BASE, tool.instruction,
@@ -128,10 +141,8 @@ async function runLegalToolWithLocalAI({ toolId, primaryText, secondaryText = ""
         "Escribí como un profesional que deja un informe de trabajo sustantivo para otro abogado.",
         "Usá español claro y directo. No menciones inteligencia artificial, modelos, prompts, RAG ni procesos automáticos.",
         "Evitá introducciones genéricas, repeticiones, adjetivos innecesarios y conclusiones ceremoniales.",
-        "La conclusión debe responder el objetivo en 1 o 2 párrafos y un máximo de 180 palabras.",
-        "Agregá entre 3 y 6 puntos_clave distintos, concretos y de hasta 60 palabras cada uno.",
-        "Incluí entre 2 y 5 apartados en desarrollo. Cada apartado debe tener un título informativo y explicar el análisis, no repetir la conclusión.",
-        "En acciones_sugeridas indicá controles o pasos útiles derivados de la fuente. En limitaciones registrá vacíos, ambigüedades o datos pendientes.",
+        ...outputGuidance,
+        "En acciones_sugeridas indicá controles útiles derivados de la fuente. En limitaciones registrá vacíos, ambigüedades o datos pendientes.",
         "puntos_clave, acciones_sugeridas y limitaciones deben ser arrays de strings simples, nunca objetos.",
         "Devuelve exclusivamente JSON valido, sin markdown.",
         `Schema esperado: ${JSON.stringify(toolResultSchema)}`].join("\n\n"),
@@ -153,6 +164,8 @@ async function sendOllamaChatRequest({ messages, format = "json", maxOutputToken
     () => controller.abort(),
     Number(process.env.LOCAL_AI_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS
   );
+  const configuredMaxOutputTokens = Number(process.env.LOCAL_AI_MAX_OUTPUT_TOKENS) || 900;
+  const requestedMaxOutputTokens = Number(maxOutputTokens) || configuredMaxOutputTokens;
 
   try {
     const response = await fetch(`${baseUrl}/api/chat`, {
@@ -162,7 +175,7 @@ async function sendOllamaChatRequest({ messages, format = "json", maxOutputToken
         messages,
         model,
         options: { num_ctx: Number(process.env.LOCAL_AI_CONTEXT_SIZE) || 8192,
-          num_predict: Number(maxOutputTokens) || Number(process.env.LOCAL_AI_MAX_OUTPUT_TOKENS) || 900,
+          num_predict: Math.min(requestedMaxOutputTokens, configuredMaxOutputTokens),
           temperature: Number(process.env.LOCAL_AI_TEMPERATURE) || 0.1 },
         stream: false,
       }),

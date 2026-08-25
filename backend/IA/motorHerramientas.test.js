@@ -36,7 +36,7 @@ describe("motorHerramientas", () => {
 
     assert.equal(payloads.length, listTools().length);
     payloads.forEach((payload, index) => {
-      assert.equal(payload.maxOutputTokens, 1000);
+      assert.equal(payload.maxOutputTokens, listTools()[index].maxOutputTokens);
       assert.match(payload.messages[0].content, new RegExp(escapeRegExp(listTools()[index].instruction.slice(0, 35)), "i"));
       assert.match(payload.messages[1].content, /PASAJES DOCUMENTALES SELECCIONADOS POR PERTINENCIA/);
     });

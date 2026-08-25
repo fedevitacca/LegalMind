@@ -5,6 +5,8 @@ const TOOL_DEFINITIONS = {
     inputs: 1,
     family: "extraccion", resultView: "dossier", accent: "teal",
     fields: ["expediente", "jurisdiccion", "objetivo"],
+    maxOutputTokens: 720,
+    maxContextChunks: 6,
     instruction: [
       "Prepará un informe ejecutivo del expediente, con suficiente desarrollo para que otro abogado comprenda el asunto sin releer toda la fuente.",
       "Organizá el desarrollo en: identificación y objeto; partes y roles; hechos relevantes; estado procesal; fechas o plazos; y lectura práctica.",
@@ -17,6 +19,8 @@ const TOOL_DEFINITIONS = {
     inputs: 2,
     family: "comparacion", resultView: "diff", accent: "blue",
     fields: ["tipo_documento_a", "tipo_documento_b", "criterio_comparacion"],
+    maxOutputTokens: 780,
+    maxContextChunks: 6,
     instruction: [
       "Prepará una comparación jurídica razonada de ambas fuentes.",
       "Desarrollá: objeto y alcance de cada documento; coincidencias; diferencias relevantes; contradicciones u omisiones; y posible impacto procesal o probatorio.",
@@ -29,6 +33,8 @@ const TOOL_DEFINITIONS = {
     inputs: 2,
     family: "jurisprudencia", resultView: "precedents", accent: "violet",
     fields: ["problema_juridico", "jurisdiccion", "posicion_procesal"],
+    maxOutputTokens: 780,
+    maxContextChunks: 6,
     instruction: [
       "Compará los fallos con enfoque práctico y argumentativo.",
       "Desarrollá: hechos jurídicamente relevantes; cuestión debatida; criterio o regla aplicada; semejanzas y diferencias determinantes; aplicabilidad al caso; y límites del paralelo.",
@@ -41,6 +47,8 @@ const TOOL_DEFINITIONS = {
     inputs: 1,
     family: "temporal", resultView: "timeline", accent: "amber",
     fields: ["fecha_corte", "incluir_inferidas"],
+    maxOutputTokens: 680,
+    maxContextChunks: 6,
     instruction: [
       "Reconstruí la secuencia temporal y explicá por qué importa cada hito.",
       "Desarrollá: antecedentes; actuaciones cumplidas; situación actual; próximos hitos; y plazos o dependencias que requieren control.",
@@ -53,10 +61,13 @@ const TOOL_DEFINITIONS = {
     inputs: 1,
     family: "busqueda", resultView: "answer", accent: "slate",
     fields: ["modo_citas"],
+    maxOutputTokens: 600,
+    maxContextChunks: 5,
     instruction: [
       "Respondé la pregunta de manera directa y luego desarrollá el razonamiento documental.",
       "Organizá el desarrollo en: respuesta encontrada; elementos que la sostienen; relación entre documentos o pasajes; y vacíos o aspectos no acreditados.",
       "Usá exclusivamente los pasajes seleccionados, identificá el documento que respalda cada punto y explicá con claridad cuando el corpus no permita responder.",
+      "Priorizá una respuesta breve: conclusión de hasta 90 palabras, 3 o 4 puntos clave, 2 apartados de desarrollo y no más de 2 acciones o limitaciones.",
     ].join(" "),
   },
   teoria_del_caso: {
@@ -64,6 +75,8 @@ const TOOL_DEFINITIONS = {
     description: "Ordena la postura, la prueba disponible y sus puntos débiles.",
     inputs: 1, family: "estrategia", resultView: "theory", accent: "indigo",
     fields: ["parte_representada", "hipotesis_central", "etapa_procesal"],
+    maxOutputTokens: 780,
+    maxContextChunks: 6,
     instruction: [
       "Prepará una teoría del caso provisional, concreta y contrastable.",
       "Desarrollá: hipótesis central; proposiciones fácticas; evidencia favorable; evidencia adversa o explicaciones alternativas; debilidades; y comprobaciones pendientes.",

@@ -118,6 +118,7 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
     let retrieval = "bm25_trigram_mmr_embeddings";
     let semanticRetrieval = "lexical_fallback";
     let sourceDocumentCount = secondaryText ? 2 : 1;
+    const maxContextChunks = tool.maxContextChunks || 6;
 
     if (useCaseDocuments) {
       const documents = await listDocumentsForCase(caseId);
@@ -136,7 +137,7 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
           caseId,
           query: retrievalQuery,
           queryEmbedding,
-          limit: 8,
+          limit: maxContextChunks,
         });
         if (stored.length) {
           chunks = stored.map((item) => ({
@@ -159,8 +160,8 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
       }
 
       if (!chunks?.length) {
-        chunks = retrieveRelevantChunks(documents, retrievalQuery, 12);
-        ({ chunks, semanticRetrieval } = await rerankChunksWithEmbeddings(chunks, retrievalQuery));
+        chunks = retrieveRelevantChunks(documents, retrievalQuery, maxContextChunks * 2);
+        ({ chunks, semanticRetrieval } = await rerankChunksWithEmbeddings(chunks, retrievalQuery, maxContextChunks));
         retrieval = "case_documents_bm25_trigram_mmr_embeddings";
       }
 
@@ -176,14 +177,18 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
         { id: "fuente-a", nombre_archivo: "Fuente A", texto_extraido: primaryText },
         ...(secondaryText ? [{ id: "fuente-b", nombre_archivo: "Fuente B", texto_extraido: secondaryText }] : []),
       ];
-      chunks = retrieveRelevantChunks(documents, retrievalQuery, 12);
-      ({ chunks, semanticRetrieval } = await rerankChunksWithEmbeddings(chunks, retrievalQuery));
+      chunks = retrieveRelevantChunks(documents, retrievalQuery, maxContextChunks * 2);
+      ({ chunks, semanticRetrieval } = await rerankChunksWithEmbeddings(chunks, retrievalQuery, maxContextChunks));
     }
 
     const result = await runLegalToolWithLocalAI({
       toolId: req.params.toolId, primaryText, secondaryText, query,
       parameters: req.body?.parameters || {},
-      context: chunks.map((chunk) => `[${chunk.document_id}:${chunk.chunk_index}] ${chunk.text}`),
+      // El texto completo ya está en el prompt para las fuentes pegadas. Repetir sus
+      // fragmentos aumenta el tiempo de prefill sin aportar evidencia nueva.
+      context: useCaseDocuments
+        ? chunks.map((chunk) => `[${chunk.document_id}:${chunk.chunk_index ?? chunk.orden}] ${chunk.text}`)
+        : [],
     });
     const citations = buildLegalCitations(chunks, { caseId });
     const evidence = assessEvidence(citations);
@@ -194,6 +199,8 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
       retrieval, semantic_retrieval: semanticRetrieval,
       source: useCaseDocuments ? "case_documents" : "ad_hoc_text",
       source_document_count: sourceDocumentCount,
+      context_chunk_count: useCaseDocuments ? chunks.length : 0,
+      max_output_tokens: tool.maxOutputTokens || 720,
       duration_ms: Date.now() - startedAt, evidence, grounding, generated_at: new Date().toISOString(),
     };
     let savedQuery = null;
@@ -207,7 +214,7 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
   }
 });
 
-async function rerankChunksWithEmbeddings(chunks, retrievalQuery) {
+async function rerankChunksWithEmbeddings(chunks, retrievalQuery, limit = 6) {
   try {
     if (!chunks.length) return { chunks: [], semanticRetrieval: "lexical_fallback" };
     const embeddings = await embedTextsWithLocalAI([retrievalQuery, ...chunks.map((chunk) => chunk.text)]);
@@ -219,11 +226,11 @@ async function rerankChunksWithEmbeddings(chunks, retrievalQuery) {
       }))
         .map((chunk) => ({ ...chunk, score: 0.45 * chunk.score + 0.55 * Math.max(0, chunk.embedding_score) }))
         .sort((a, b) => b.score - a.score)
-        .slice(0, 8),
+        .slice(0, limit),
       semanticRetrieval: "ollama_embeddings",
     };
   } catch {
-    return { chunks: chunks.slice(0, 8), semanticRetrieval: "lexical_fallback" };
+    return { chunks: chunks.slice(0, limit), semanticRetrieval: "lexical_fallback" };
   }
 }
 
