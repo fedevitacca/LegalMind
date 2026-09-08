@@ -11,6 +11,16 @@ const userRoutes = require("./rutas/rutasUsuarios");
 const organizationRoutes = require("./rutas/rutasOrganizaciones");
 
 const app = express();
+if (process.env.TRUST_PROXY) {
+  app.set(
+    "trust proxy",
+    /^\d+$/.test(process.env.TRUST_PROXY)
+      ? Number(process.env.TRUST_PROXY)
+      : process.env.TRUST_PROXY === "true"
+        ? true
+        : process.env.TRUST_PROXY,
+  );
+}
 app.disable("x-powered-by");
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use((req, res, next) => {

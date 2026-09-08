@@ -63,6 +63,10 @@ npm run dev:frontend
 
 PostgreSQL es necesario para persistencia de usuarios y causas, pero no para ejecutar herramientas sobre texto pegado.
 
+Para instalar el sistema completo en un servidor del colegio mediante Docker,
+incluidos PostgreSQL, Ollama, los modelos y el proxy de acceso, consultar
+[`deploy/README.md`](deploy/README.md).
+
 ## Verificación
 
 ```bash
