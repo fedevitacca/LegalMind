@@ -27,28 +27,46 @@ export default function FormularioNuevoCaso() {
       return;
     }
 
+    if (!identificador.trim()) {
+      setError("Ingresa el numero de expediente.");
+      return;
+    }
+
+    if (!descripcion.trim()) {
+      setError("Ingresa una descripcion del caso.");
+      return;
+    }
+
+    if (!fechaCreacion.trim()) {
+      setError("Ingresa la fecha de creacion del caso.");
+      return;
+    }
+
+    if (!archivosOficiales.length) {
+      setError("Carga al menos un archivo oficial.");
+      return;
+    }
+
     setIsSaving(true);
 
     try {
       const legalCase = await createCase({
-        caratula,
-        descripcion,
+        caratula: caratula.trim(),
+        descripcion: descripcion.trim(),
         estado,
-        identificador,
+        identificador: identificador.trim(),
       });
 
       for (const file of archivosOficiales) {
         await uploadCaseDocument(legalCase.id || legalCase.slug, file);
       }
 
-      if (fechaCreacion.trim()) {
-        await createCaseDate(legalCase.id || legalCase.slug, {
-          ...buildDatePayload(fechaCreacion),
-          evento: "Fecha de creacion del caso",
-          prioridad: "media",
-          tipo: "agenda",
-        });
-      }
+      await createCaseDate(legalCase.id || legalCase.slug, {
+        ...buildDatePayload(fechaCreacion),
+        evento: "Fecha de creacion del caso",
+        prioridad: "media",
+        tipo: "agenda",
+      });
 
       router.push(`/casos/${legalCase.slug}`);
       router.refresh();
@@ -76,6 +94,7 @@ export default function FormularioNuevoCaso() {
           label="N° de expediente"
           onChange={setIdentificador}
           placeholder="Ej. EXP-2026-001908"
+          required
           value={identificador}
         />
         <label className="block">
@@ -101,6 +120,7 @@ export default function FormularioNuevoCaso() {
           className="mt-2 h-[114px] w-full resize-none rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 py-5 text-[18px] outline-none placeholder:text-[#64708B]/75"
           onChange={(event) => setDescripcion(event.target.value)}
           placeholder="Describir brevemente el caso, hechos relevantes, contexto, etc."
+          required
           value={descripcion}
         />
       </label>
@@ -113,6 +133,7 @@ export default function FormularioNuevoCaso() {
               className="min-w-0 flex-1 bg-transparent text-[23px] outline-none placeholder:text-[#64708B]"
               onChange={(event) => setFechaCreacion(event.target.value)}
               placeholder="26/6/2011"
+              required
               type="text"
               value={fechaCreacion}
             />
@@ -139,6 +160,7 @@ export default function FormularioNuevoCaso() {
             onChange={(event) =>
               setArchivosOficiales(Array.from(event.target.files || []))
             }
+            required
             type="file"
           />
         </label>

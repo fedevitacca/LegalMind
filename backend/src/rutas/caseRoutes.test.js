@@ -56,6 +56,34 @@ describe("case routes", () => {
     assert.match(body.error, /caratula/);
   });
 
+  it("valida el expediente al crear un caso", async () => {
+    const response = await fetch(`${baseUrl}/api/casos`, {
+      body: JSON.stringify({ caratula: "Caso prueba", descripcion: "Descripcion de prueba" }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.match(body.error, /identificador/);
+  });
+
+  it("valida la descripcion al crear un caso", async () => {
+    const response = await fetch(`${baseUrl}/api/casos`, {
+      body: JSON.stringify({ caratula: "Caso prueba", identificador: "EXP-1" }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.match(body.error, /descripcion/);
+  });
+
   it("informa cuando PostgreSQL no esta configurado", async () => {
     const previousDatabaseUrl = process.env.DATABASE_URL;
     delete process.env.DATABASE_URL;

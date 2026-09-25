@@ -94,10 +94,10 @@ function CaseRow({
   const expediente = legalCase.identificador || `Expediente N° ${legalCase.id || legalCase.slug}`;
   const meta = showRichMeta
     ? [
-        `${legalCase.imputados_count || 0} imputados`,
-        "28 documentos",
+        formatCount(legalCase.imputados_count, "imputado", "imputados"),
+        formatCount(legalCase.documentos_count, "documento", "documentos"),
         legalCase.proxima_alerta ? `Presentacion ${formatShortDay(legalCase.proxima_alerta)}` : "Sin vencimiento",
-        "4 precedentes",
+        formatCount(legalCase.jurisprudencia_count, "precedente", "precedentes"),
       ]
     : [expediente];
 
@@ -192,6 +192,11 @@ function formatShortDay(value: string) {
     .format(date)
     .replace(".", "");
   return `${capitalize(weekday)} ${date.getDate()}`;
+}
+
+function formatCount(value: number | null | undefined, singular: string, plural: string) {
+  const count = value || 0;
+  return `${count} ${count === 1 ? singular : plural}`;
 }
 
 function capitalize(value: string) {

@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/authClient";
 
@@ -18,8 +19,6 @@ const initialState: FormState = {
   password: "",
 };
 
-const authApiUrl =
-  process.env.NEXT_PUBLIC_AUTH_API_URL || "http://localhost:5000";
 function getErrorMessage(error: unknown) {
   if (!error) return "No se pudo completar la operacion.";
   if (typeof error === "string") return error;
@@ -40,7 +39,6 @@ function getErrorMessage(error: unknown) {
 
 export default function FormularioInicio() {
   const router = useRouter();
-  const authRef = useRef<HTMLDivElement>(null);
   const { data: session, isPending } = authClient.useSession();
   const [mode, setMode] = useState<AuthMode>("login");
   const [form, setForm] = useState<FormState>(initialState);
@@ -48,7 +46,7 @@ export default function FormularioInicio() {
   const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
-  const [isGoogleAvailable, setIsGoogleAvailable] = useState(false);
+  const [showAuthScreen, setShowAuthScreen] = useState(false);
 
   const isRegisterMode = mode === "registro";
   const isLoggedIn = Boolean(session?.user);
@@ -61,31 +59,18 @@ export default function FormularioInicio() {
 
   useEffect(() => {
     const syncModeFromHash = () => {
+      const isAuthHash = window.location.hash === "#login" || window.location.hash === "#registro";
       const nextMode = window.location.hash === "#registro" ? "registro" : "login";
       setMode(nextMode);
+      setShowAuthScreen(isAuthHash);
       setError("");
       setStatus("");
 
-      if (window.location.hash === "#login" || window.location.hash === "#registro") {
-        window.setTimeout(() => {
-          authRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-        }, 50);
-      }
     };
 
     syncModeFromHash();
     window.addEventListener("hashchange", syncModeFromHash);
     return () => window.removeEventListener("hashchange", syncModeFromHash);
-  }, []);
-
-  useEffect(() => {
-    fetch(`${authApiUrl}/api/health/auth`, { credentials: "include" })
-      .then((response) => {
-        if (!response.ok) throw new Error("No se pudo consultar autenticacion.");
-        return response.json() as Promise<{ providers?: { google?: boolean } }>;
-      })
-      .then((data) => setIsGoogleAvailable(Boolean(data.providers?.google)))
-      .catch(() => setIsGoogleAvailable(false));
   }, []);
 
   const updateField = (field: keyof FormState, value: string) => {
@@ -94,10 +79,17 @@ export default function FormularioInicio() {
 
   const focusAuth = (nextMode: AuthMode) => {
     setMode(nextMode);
+    setShowAuthScreen(true);
     setError("");
     setStatus("");
     window.history.replaceState(null, "", `#${nextMode}`);
-    authRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const closeAuthScreen = () => {
+    setShowAuthScreen(false);
+    setError("");
+    setStatus("");
+    window.history.replaceState(null, "", window.location.pathname || "/");
   };
 
   const goToDashboard = () => {
@@ -171,6 +163,27 @@ export default function FormularioInicio() {
     }
   };
 
+  if (showAuthScreen) {
+    return (
+      <LoginScreen
+        closeAuthScreen={closeAuthScreen}
+        error={error}
+        form={form}
+        handleGoogleSignIn={handleGoogleSignIn}
+        handleSubmit={handleSubmit}
+        isGoogleSubmitting={isGoogleSubmitting}
+        isLoggedIn={isLoggedIn}
+        isRegisterMode={isRegisterMode}
+        isSubmitting={isSubmitting}
+        setAuthStatus={setStatus}
+        setMode={focusAuth}
+        status={status}
+        updateField={updateField}
+        goToDashboard={goToDashboard}
+      />
+    );
+  }
+
   return (
     <main className="h-full min-h-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
       <header className="sticky top-0 z-30 border-b-4 border-[#88A9C8] bg-[#F4F7F5]/95 backdrop-blur">
@@ -194,7 +207,7 @@ export default function FormularioInicio() {
             </a>
             {isLoggedIn ? (
               <button
-                className="flex h-[42px] min-w-[238px] items-center justify-between rounded-[4px] border-2 border-[#88A9C8] bg-white px-5 text-[22px] transition hover:bg-white/70"
+                className="flex h-[42px] min-w-[238px] items-center justify-between rounded-[4px] border-2 border-[#88A9C8] bg-white px-5 text-[0px] transition before:text-[22px] before:content-['Loguearse'] hover:bg-white/70 [&>span]:text-[31px]"
                 onClick={goToDashboard}
                 type="button"
               >
@@ -203,7 +216,7 @@ export default function FormularioInicio() {
             ) : (
               <button
                 className="flex h-[42px] min-w-[238px] items-center justify-between rounded-[4px] border-2 border-[#88A9C8] bg-white px-5 text-[22px] transition hover:bg-white/70"
-                onClick={() => focusAuth("registro")}
+                onClick={() => focusAuth("login")}
                 type="button"
               >
                 Registrarse <span className="text-[31px] leading-none">→</span>
@@ -231,7 +244,7 @@ export default function FormularioInicio() {
             onClick={() => focusAuth("login")}
             type="button"
           >
-            Comenzar
+            Loguearse
           </button>
           <ul className="mt-7 list-disc pl-7 text-[19px] leading-6">
             <li>Analisis con IA</li>
@@ -332,54 +345,6 @@ export default function FormularioInicio() {
         <DashboardPreview />
       </section>
 
-      <section ref={authRef} className="mx-auto max-w-[1226px] px-8 py-20">
-        <div className="grid grid-cols-[minmax(0,1fr)_420px] gap-12 rounded-[23px] border-2 border-[#88A9C8] bg-white p-10">
-          <div>
-            <p className="text-[19px] font-semibold text-[#88A9C8]">
-              Acceso seguro
-            </p>
-            <h2 className="brand-font mt-3 text-[44px] font-semibold leading-tight">
-              Ingresa y continua en tu dashboard
-            </h2>
-            <p className="mt-4 max-w-xl text-[20px] leading-8">
-              Tu sesion conecta la landing con el panel principal, casos,
-              documentos, agenda y jurisprudencia guardados en tu cuenta.
-            </p>
-          </div>
-
-          {isLoggedIn ? (
-            <div className="flex flex-col justify-center rounded-[14px] border-2 border-[#88A9C8] p-6">
-              <p className="text-[19px] font-semibold">Sesion activa</p>
-              <p className="mt-2 text-[17px] text-[#355070]">
-                Ya estas logueado. Podes entrar al dashboard principal.
-              </p>
-              <button
-                className="mt-6 h-12 rounded-[4px] bg-[#0F2044] px-4 text-[18px] font-semibold text-white transition hover:bg-[#355070]"
-                onClick={goToDashboard}
-                type="button"
-              >
-                Ir al dashboard
-              </button>
-            </div>
-          ) : (
-            <AuthCard
-              error={error}
-              form={form}
-              handleGoogleSignIn={handleGoogleSignIn}
-              handleSubmit={handleSubmit}
-              isGoogleAvailable={isGoogleAvailable}
-              isGoogleSubmitting={isGoogleSubmitting}
-              isRegisterMode={isRegisterMode}
-              isSubmitting={isSubmitting}
-              mode={mode}
-              setMode={focusAuth}
-              status={status}
-              updateField={updateField}
-            />
-          )}
-        </div>
-      </section>
-
       <footer className="border-t-4 border-[#88A9C8] bg-[#0F2044] px-8 py-8 text-center text-white">
         <h2 className="brand-font text-[31px] font-semibold">LegalMind</h2>
         <div className="mt-6 flex justify-center gap-14 text-[22px]">
@@ -392,171 +357,334 @@ export default function FormularioInicio() {
   );
 }
 
-function AuthCard({
+function LoginScreen({
+  closeAuthScreen,
   error,
   form,
+  goToDashboard,
   handleGoogleSignIn,
   handleSubmit,
-  isGoogleAvailable,
   isGoogleSubmitting,
+  isLoggedIn,
   isRegisterMode,
   isSubmitting,
-  mode,
+  setAuthStatus,
   setMode,
   status,
   updateField,
 }: {
+  closeAuthScreen: () => void;
   error: string;
   form: FormState;
+  goToDashboard: () => void;
   handleGoogleSignIn: () => void;
   handleSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  isGoogleAvailable: boolean;
   isGoogleSubmitting: boolean;
+  isLoggedIn: boolean;
   isRegisterMode: boolean;
   isSubmitting: boolean;
-  mode: AuthMode;
+  setAuthStatus: (message: string) => void;
   setMode: (mode: AuthMode) => void;
   status: string;
   updateField: (field: keyof FormState, value: string) => void;
 }) {
-  return (
-    <div>
-      <div className="mb-6 grid grid-cols-2 rounded-[8px] bg-[#EAF0F4] p-1 text-sm font-semibold">
-        <button
-          className={`rounded-[6px] px-4 py-2 transition ${
-            mode === "login"
-              ? "bg-white text-[#0F2044] shadow-sm"
-              : "text-[#355070] hover:text-[#0F2044]"
-          }`}
-          onClick={() => setMode("login")}
-          type="button"
-        >
-          Iniciar sesion
-        </button>
-        <button
-          className={`rounded-[6px] px-4 py-2 transition ${
-            mode === "registro"
-              ? "bg-white text-[#0F2044] shadow-sm"
-              : "text-[#355070] hover:text-[#0F2044]"
-          }`}
-          onClick={() => setMode("registro")}
-          type="button"
-        >
-          Registrarse
-        </button>
-      </div>
+  const [showPassword, setShowPassword] = useState(false);
 
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        {isRegisterMode ? (
-          <TextInput
-            autoComplete="name"
-            label="Nombre"
-            onChange={(value) => updateField("name", value)}
-            required
-            type="text"
-            value={form.name}
-          />
-        ) : null}
-        <TextInput
-          autoComplete="email"
-          label="Email"
-          onChange={(value) => updateField("email", value)}
-          required
-          type="email"
-          value={form.email}
-        />
-        <TextInput
-          autoComplete={isRegisterMode ? "new-password" : "current-password"}
-          label="Contrasena"
-          maxLength={128}
-          minLength={8}
-          onChange={(value) => updateField("password", value)}
-          required
-          type="password"
-          value={form.password}
-        />
-
-        {error ? (
-          <p className="border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
-            {error}
+  if (isLoggedIn) {
+    return (
+      <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#0F2044] px-6 py-10 text-[#0F2044]">
+        <AuthBackground />
+        <section className="relative z-10 w-full max-w-[520px] rounded-[22px] border-2 border-[#88A9C8] bg-white/90 px-8 py-8 text-center">
+          <BrandMark />
+          <h1 className="mt-8 text-[34px] font-semibold leading-tight">Sesion activa</h1>
+          <p className="mt-3 text-[18px] leading-6">
+            Ya estas dentro de LegalMind. Podes volver al dashboard o regresar a la landing.
           </p>
-        ) : null}
-        {status ? (
-          <p className="border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-            {status}
-          </p>
-        ) : null}
-
-        <button
-          className="h-11 w-full rounded-[6px] bg-[#0F2044] px-4 font-semibold text-white transition hover:bg-[#355070] disabled:cursor-not-allowed disabled:bg-[#88A9C8]"
-          disabled={isSubmitting || isGoogleSubmitting}
-          type="submit"
-        >
-          {isSubmitting
-            ? "Procesando..."
-            : isRegisterMode
-              ? "Crear cuenta"
-              : "Ingresar"}
-        </button>
-      </form>
-
-      {isGoogleAvailable ? (
-        <>
-          <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#88A9C8]">
-            <span className="h-px flex-1 bg-[#EAF0F4]" />
-            <span>o</span>
-            <span className="h-px flex-1 bg-[#EAF0F4]" />
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <button
+              className="h-11 flex-1 rounded-[8px] border-2 border-[#88A9C8] bg-white text-[18px] transition hover:bg-[#F4F7F5]"
+              onClick={goToDashboard}
+              type="button"
+            >
+              Ir al dashboard
+            </button>
+            <button
+              className="h-11 flex-1 rounded-[8px] border-2 border-[#88A9C8] bg-white text-[18px] transition hover:bg-[#F4F7F5]"
+              onClick={closeAuthScreen}
+              type="button"
+            >
+              Volver
+            </button>
           </div>
-          <button
-            className="flex h-11 w-full items-center justify-center gap-3 rounded-[6px] border border-[#88A9C8] bg-white px-4 font-semibold text-[#0F2044] transition hover:bg-[#F4F7F5] disabled:cursor-not-allowed disabled:bg-[#EAF0F4]"
-            disabled={isSubmitting || isGoogleSubmitting}
-            onClick={handleGoogleSignIn}
-            type="button"
-          >
-            <span className="grid h-5 w-5 place-items-center rounded-full border border-[#88A9C8] text-xs font-bold">
-              G
-            </span>
-            {isGoogleSubmitting ? "Conectando..." : "Continuar con Google"}
-          </button>
-        </>
-      ) : null}
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="relative h-screen overflow-hidden bg-[#0F2044] text-[#0F2044]">
+      <AuthBackground />
+
+      <button
+        className="absolute right-5 top-4 z-20 rounded-[6px] border-2 border-[#88A9C8] bg-white/90 px-4 py-1.5 text-[14px] font-semibold transition hover:bg-white"
+        onClick={closeAuthScreen}
+        type="button"
+      >
+        Volver
+      </button>
+
+      <section className="relative z-10 mx-auto flex h-screen w-full max-w-[980px] flex-col items-center px-6 py-[clamp(12px,2vh,28px)]">
+        <BrandMark />
+
+        <div className="mt-[clamp(14px,2.2vh,28px)] text-center">
+          <h1 className="text-[clamp(36px,5vh,58px)] font-bold leading-none">
+            {isRegisterMode ? "Crea tu cuenta en " : "Bienvenido a "}
+            <span className="text-[#88A9C8]">LegalMind</span>
+          </h1>
+          <p className="mx-auto mt-[clamp(8px,1.2vh,14px)] max-w-[460px] text-[clamp(15px,1.9vh,20px)] leading-[1.25]">
+            {isRegisterMode
+              ? "Registrate para empezar a gestionar tus casos con Inteligencia Artificial"
+              : "Inicia sesion para continuar gestionando tus casos con Inteligencia Artificial"}
+          </p>
+        </div>
+
+        <form className="mt-[clamp(16px,2.8vh,34px)] w-full max-w-[560px]" onSubmit={handleSubmit}>
+          <h2 className="text-[clamp(21px,2.6vh,27px)] font-semibold leading-none">
+            {isRegisterMode ? "Registrarse" : "Iniciar sesion"}
+          </h2>
+
+          {isRegisterMode ? (
+            <AuthField
+              autoComplete="name"
+              icon={<UserLineIcon />}
+              label="Nombre"
+              onChange={(value) => updateField("name", value)}
+              placeholder="Tu nombre"
+              required
+              type="text"
+              value={form.name}
+            />
+          ) : null}
+
+          <AuthField
+            autoComplete="email"
+            icon={<MailIcon />}
+            label="Correo electronico"
+            onChange={(value) => updateField("email", value)}
+            placeholder="ejemplo@ejemplo.com"
+            required
+            type="email"
+            value={form.email}
+          />
+
+          <AuthField
+            action={
+              <button
+                aria-label={showPassword ? "Ocultar contrasena" : "Mostrar contrasena"}
+                className="grid h-8 w-8 place-items-center rounded-[6px] transition hover:bg-[#EAF0F4]"
+                onClick={() => setShowPassword((current) => !current)}
+                type="button"
+              >
+                <EyeIcon />
+              </button>
+            }
+            autoComplete={isRegisterMode ? "new-password" : "current-password"}
+            icon={<LockIcon />}
+            label="Contrasena"
+            maxLength={128}
+            minLength={8}
+            onChange={(value) => updateField("password", value)}
+            placeholder={isRegisterMode ? "Crea una contrasena" : "Ingresa tu contrasena"}
+            required
+            type={showPassword ? "text" : "password"}
+            value={form.password}
+          />
+
+          {!isRegisterMode ? (
+            <button
+              className="mt-2 text-left text-[clamp(14px,1.7vh,17px)] leading-none transition hover:text-[#88A9C8]"
+              onClick={() => setAuthStatus("La recuperacion de contrasena todavia no esta configurada.")}
+              type="button"
+            >
+              ¿Olvidaste tu contrasena?
+            </button>
+          ) : null}
+
+          {error ? (
+            <p className="mt-3 rounded-[8px] border border-red-200 bg-red-50 px-4 py-2 text-[14px] font-medium text-red-700">
+              {error}
+            </p>
+          ) : null}
+          {status ? (
+            <p className="mt-3 rounded-[8px] border border-[#88A9C8] bg-white/75 px-4 py-2 text-[14px] font-medium text-[#0F2044]">
+              {status}
+            </p>
+          ) : null}
+
+          <div className="mt-[clamp(14px,2.3vh,26px)] flex flex-col items-center">
+            <button
+              className="h-[clamp(36px,4.5vh,43px)] w-full max-w-[252px] rounded-[8px] border-2 border-[#88A9C8] bg-white text-[clamp(17px,2vh,20px)] transition hover:bg-[#F4F7F5] disabled:cursor-not-allowed disabled:text-[#0F2044]/50"
+              disabled={isSubmitting || isGoogleSubmitting}
+              type="submit"
+            >
+              {isSubmitting
+                ? "Procesando..."
+                : isRegisterMode
+                  ? "Crear cuenta"
+                  : "Iniciar sesion"}
+            </button>
+
+            <button
+              className="mt-[clamp(10px,1.8vh,16px)] flex h-[clamp(46px,5.8vh,60px)] w-full max-w-[276px] items-center justify-center gap-3 rounded-[8px] border-2 border-[#88A9C8] bg-white px-4 text-[clamp(17px,2.1vh,21px)] transition hover:bg-[#F4F7F5] disabled:cursor-not-allowed disabled:text-[#0F2044]/45"
+              disabled={isSubmitting || isGoogleSubmitting}
+              onClick={handleGoogleSignIn}
+              type="button"
+            >
+              <GoogleIcon />
+              {isGoogleSubmitting ? "Conectando..." : "Continuar con Google"}
+            </button>
+
+            <button
+              className="mt-[clamp(8px,1.4vh,14px)] text-[clamp(14px,1.7vh,16px)] font-semibold transition hover:text-[#88A9C8]"
+              onClick={() => setMode(isRegisterMode ? "login" : "registro")}
+              type="button"
+            >
+              {isRegisterMode ? "Ya tengo cuenta" : "Crear una cuenta"}
+            </button>
+          </div>
+        </form>
+      </section>
+    </main>
+  );
+}
+
+function AuthBackground() {
+  return (
+    <div aria-hidden="true" className="absolute inset-0 overflow-hidden">
+      <div className="absolute left-1/2 top-0 h-full w-[min(1040px,86vw)] -translate-x-1/2 bg-[#F4F7F5]" />
+      <div className="absolute left-[calc(50%-330px)] top-0 h-full w-[170px] bg-[#DCE7EA]/72" />
+      <div className="absolute left-[calc(50%-160px)] top-0 h-full w-[195px] bg-[#DCE7EA]/86" />
+      <div className="absolute left-[calc(50%-52px)] top-[15%] h-[66%] w-[470px] -skew-x-[36deg] bg-[#DCE7EA]/62" />
+      <div className="absolute left-[calc(50%+72px)] top-[14%] h-[62%] w-[238px] -skew-x-[36deg] bg-white/55" />
+      <div className="absolute left-[50%] top-[12%] -translate-x-1/2 select-none font-serif text-[min(46vw,560px)] font-bold leading-none text-[#0F2044]/[0.055]">
+        LM
+      </div>
+      <div className="absolute left-[calc(50%-710px)] top-[-9%] h-[118%] w-[360px] rounded-[50%] bg-[#0F2044]" />
+      <div className="absolute right-[calc(50%-710px)] top-[-9%] h-[118%] w-[360px] rounded-[50%] bg-[#0F2044]" />
     </div>
   );
 }
 
-function TextInput({
+function BrandMark() {
+  return (
+    <div className="flex items-center justify-center gap-3">
+      <Image
+        alt=""
+        className="h-[clamp(78px,12vh,132px)] w-[clamp(78px,12vh,132px)] rounded-[8px]"
+        height={132}
+        src="/legalmind-logo.png"
+        priority
+        width={132}
+      />
+      <span className="brand-font text-[clamp(30px,4vh,40px)] font-bold leading-none">
+        LegalMind
+      </span>
+    </div>
+  );
+}
+
+function AuthField({
+  action,
   autoComplete,
+  icon,
   label,
   maxLength,
   minLength,
   onChange,
+  placeholder,
   required,
   type,
   value,
 }: {
+  action?: ReactNode;
   autoComplete: string;
+  icon: ReactNode;
   label: string;
   maxLength?: number;
   minLength?: number;
   onChange: (value: string) => void;
+  placeholder: string;
   required?: boolean;
   type: string;
   value: string;
 }) {
   return (
-    <label className="block text-sm font-semibold text-[#0F2044]">
+    <label className="mt-[clamp(12px,2vh,20px)] block text-[clamp(18px,2.2vh,23px)] font-medium leading-none">
       {label}
-      <input
-        autoComplete={autoComplete}
-        className="mt-2 h-11 w-full rounded-[6px] border border-[#88A9C8] px-3 text-base font-normal outline-none transition focus:border-[#0F2044] focus:ring-2 focus:ring-[#88A9C8]/35"
-        maxLength={maxLength}
-        minLength={minLength}
-        onChange={(event) => onChange(event.target.value)}
-        required={required}
-        type={type}
-        value={value}
-      />
+      <span className="mt-2 flex h-[clamp(34px,4.3vh,41px)] items-center rounded-[5px] border-2 border-[#88A9C8] bg-white px-4">
+        <span className="mr-4 grid h-7 w-7 place-items-center text-[#0F2044]">{icon}</span>
+        <input
+          autoComplete={autoComplete}
+          className="min-w-0 flex-1 bg-transparent text-[clamp(18px,2.2vh,23px)] font-normal leading-none outline-none placeholder:text-[#0F2044]/50"
+          maxLength={maxLength}
+          minLength={minLength}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          required={required}
+          type={type}
+          value={value}
+        />
+        {action}
+      </span>
     </label>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg aria-hidden="true" className="h-6 w-6" viewBox="0 0 24 24" fill="none">
+      <path d="M4 6.5h16v11H4v-11Z" stroke="currentColor" strokeWidth="2" />
+      <path d="m5 7.5 7 5 7-5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg aria-hidden="true" className="h-6 w-6" viewBox="0 0 24 24" fill="none">
+      <path d="M7 10V7a5 5 0 0 1 10 0v3" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+      <path d="M6 10h12v10H6V10Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="2" />
+      <path d="M12 14v2" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg aria-hidden="true" className="h-6 w-6" viewBox="0 0 24 24" fill="none">
+      <path d="M3 12s3.2-5.5 9-5.5S21 12 21 12s-3.2 5.5-9 5.5S3 12 3 12Z" stroke="currentColor" strokeWidth="2" />
+      <circle cx="12" cy="12" r="2.5" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function UserLineIcon() {
+  return (
+    <svg aria-hidden="true" className="h-6 w-6" viewBox="0 0 24 24" fill="none">
+      <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" stroke="currentColor" strokeWidth="2" />
+      <path d="M4.5 20c.9-4 3.5-6 7.5-6s6.6 2 7.5 6" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg aria-hidden="true" className="h-7 w-7" viewBox="0 0 24 24">
+      <path d="M21.6 12.2c0-.7-.1-1.3-.2-1.9H12v3.6h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.2 3-7.2Z" fill="#4285F4" />
+      <path d="M12 22c2.7 0 5-0.9 6.6-2.5l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22Z" fill="#34A853" />
+      <path d="M6.4 13.9a6 6 0 0 1 0-3.8V7.5H3.1a10 10 0 0 0 0 9l3.3-2.6Z" fill="#FBBC05" />
+      <path d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A9.8 9.8 0 0 0 12 2a10 10 0 0 0-8.9 5.5l3.3 2.6C7.2 7.8 9.4 6 12 6Z" fill="#EA4335" />
+    </svg>
   );
 }
 

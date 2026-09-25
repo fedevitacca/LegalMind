@@ -110,6 +110,34 @@ async function updateMyAccount(req, res, next) {
       throw error;
     }
 
+    if (!currentPassword) {
+      const error = new Error("Ingresa tu contrasena actual para guardar cambios de perfil.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const profileCredentialAccount = await getCredentialAccount(req.user.id);
+
+    if (!profileCredentialAccount?.password) {
+      const error = new Error(
+        "Esta cuenta no tiene contrasena local configurada. Actualiza el perfil desde el proveedor de acceso.",
+      );
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const verifyProfilePassword = await getPasswordVerifier();
+    const isProfilePasswordValid = await verifyProfilePassword({
+      hash: profileCredentialAccount.password,
+      password: currentPassword,
+    });
+
+    if (!isProfilePasswordValid) {
+      const error = new Error("La contrasena actual no es correcta.");
+      error.statusCode = 403;
+      throw error;
+    }
+
     if (email !== currentEmail) {
       if (emailConfirmation !== email) {
         const error = new Error("Confirmá el nuevo email para cambiarlo.");
