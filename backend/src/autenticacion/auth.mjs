@@ -1,6 +1,9 @@
 import { betterAuth } from "better-auth";
+import { createRequire } from "node:module";
 import pg from "pg";
 
+const require = createRequire(import.meta.url);
+const { getFrontendOrigins } = require("../configuracion/origenesPermitidos");
 const { Pool } = pg;
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -19,15 +22,7 @@ const authDatabase = connectionString
     })
   : undefined;
 
-const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-const frontendUrls = [
-  ...(process.env.FRONTEND_URLS || "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean),
-  frontendUrl,
-  "http://localhost:3000",
-];
+const frontendUrls = getFrontendOrigins();
 const backendUrl = process.env.BETTER_AUTH_URL || "http://localhost:5000";
 const useSecureCookies = backendUrl.startsWith("https://");
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
