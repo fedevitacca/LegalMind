@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createCaseDate } from "@/lib/legalmindApi";
@@ -14,6 +14,7 @@ export default function FormularioNuevoEvento({
 }) {
   const router = useRouter();
   const targetHref = returnTo || `/casos/${caseId}/agenda`;
+  const datePickerRef = useRef<HTMLInputElement>(null);
   const [titulo, setTitulo] = useState("");
   const [hora, setHora] = useState("");
   const [duracion, setDuracion] = useState("");
@@ -71,6 +72,24 @@ export default function FormularioNuevoEvento({
     }
   }
 
+  function handleDatePickerOpen() {
+    const input = datePickerRef.current;
+    if (!input) return;
+
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+      return;
+    }
+
+    input.click();
+  }
+
+  function handleDatePickerChange(value: string) {
+    if (!value) return;
+    const [year, month, day] = value.split("-");
+    setFecha(`${day}/${month}/${year}`);
+  }
+
   return (
     <form className="max-w-[920px] rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 py-4" onSubmit={handleSubmit}>
       <div className="grid grid-cols-3 gap-4">
@@ -106,14 +125,29 @@ export default function FormularioNuevoEvento({
         <label className="block">
           <span className="text-[15px] leading-none">Fecha</span>
           <span className="mt-1.5 flex h-10 items-center rounded-[8px] border-2 border-[#88A9C8] bg-[#F4F7F5] px-4">
-          <input
-            className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-[#64708B]"
-            onChange={(event) => setFecha(event.target.value)}
-            placeholder="dd/mm/aaaa"
-            type="text"
-            value={fecha}
-          />
-          <CalendarIcon />
+            <input
+              className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-[#64708B]"
+              onChange={(event) => setFecha(event.target.value)}
+              placeholder="dd/mm/aaaa"
+              type="text"
+              value={fecha}
+            />
+            <input
+              aria-hidden="true"
+              className="sr-only"
+              onChange={(event) => handleDatePickerChange(event.target.value)}
+              ref={datePickerRef}
+              tabIndex={-1}
+              type="date"
+            />
+            <button
+              aria-label="Seleccionar fecha"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-[6px] transition hover:bg-white"
+              onClick={handleDatePickerOpen}
+              type="button"
+            >
+              <CalendarIcon />
+            </button>
           </span>
         </label>
 
