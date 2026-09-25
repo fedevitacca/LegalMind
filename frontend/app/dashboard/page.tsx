@@ -45,47 +45,47 @@ export default async function Home() {
 
   return (
     <MarcoAplicacion activeSection="Dashboard">
-      <section className="h-full min-h-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
-        <header className="grid min-h-[48px] grid-cols-[minmax(170px,1fr)_minmax(280px,464px)_minmax(286px,auto)] items-center gap-6 border-b-4 border-[#88A9C8] bg-white px-8">
-          <h1 className="brand-font text-[29px] font-semibold leading-none">
+      <section className="h-full min-h-0 overflow-hidden bg-[#F4F7F5] text-[#0F2044]">
+        <header className="grid h-11 grid-cols-[minmax(150px,1fr)_minmax(240px,420px)_minmax(220px,auto)] items-center gap-4 border-b-[3px] border-[#88A9C8] bg-white px-6">
+          <h1 className="brand-font text-[25px] font-semibold leading-none">
             Dashboard
           </h1>
           <label className="relative block">
-            <span className="absolute left-5 top-1/2 -translate-y-1/2">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2">
               <SearchIcon />
             </span>
             <input
-              className="h-[31px] w-full rounded-full border-2 border-[#88A9C8] bg-white pl-[52px] pr-5 text-[23px] leading-none outline-none placeholder:text-[#0F2044]"
+              className="h-8 w-full rounded-full border-2 border-[#88A9C8] bg-white pl-11 pr-4 text-[18px] leading-none outline-none placeholder:text-[#0F2044]"
               placeholder="Buscar..."
               type="search"
             />
           </label>
-          <div className="flex items-center justify-end gap-5">
+          <div className="flex items-center justify-end gap-3">
             <Link
               aria-label="Configuracion"
-              className="grid h-9 w-9 place-items-center rounded-md"
+              className="grid h-8 w-8 place-items-center rounded-md"
               href="/configuracion"
             >
-              <CogIcon className="h-9 w-9" />
+              <CogIcon className="h-7 w-7" />
             </Link>
             <BotonSesion className="h-8 w-8" />
           </div>
         </header>
 
-        <main className="grid min-h-[calc(100vh-48px)] grid-cols-[minmax(0,1fr)_192px] gap-4 px-9 py-6">
-          <section className="flex min-w-0 flex-col gap-4">
+        <main className="grid h-[calc(100vh-44px)] min-h-0 grid-cols-[minmax(0,1fr)_210px] gap-3 px-5 py-4">
+          <section className="grid min-h-0 min-w-0 grid-rows-[84px_116px_minmax(0,1fr)_34px_112px] gap-3">
             <TodayCard today={today} />
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <MetricCard
                 detail={`${Math.min(cases.length, 3)} actualizados hoy`}
-                icon={<UserIcon className="h-9 w-9" />}
+                icon={<UserIcon className="h-7 w-7" />}
                 label="Casos activos"
                 value={String(activeCases.length).padStart(2, "0")}
               />
               <MetricCard
                 detail={`${urgentDeadlines.length} vencimientos urgentes`}
-                icon={<ClockIcon className="h-9 w-9" />}
+                icon={<ClockIcon className="h-7 w-7" />}
                 label="Vencimientos hoy"
                 value={String(todayDeadlines.length).padStart(2, "0")}
               />
@@ -96,25 +96,25 @@ export default async function Home() {
               />
             </div>
 
-            <div className="grid grid-cols-[minmax(0,1.16fr)_minmax(0,0.92fr)] gap-4">
+            <div className="grid min-h-0 grid-cols-[minmax(0,1.16fr)_minmax(0,0.92fr)] gap-3">
               <DashboardPanel icon={<HistoryIcon />} title="Actividad reciente">
                 {buildActivity(cases).length ? (
-                  <div className="mt-6 grid gap-5">
+                  <div className="mt-3 grid gap-3">
                     {buildActivity(cases).map((item) => (
                     <div
-                      className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3"
+                      className="grid grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-2"
                       key={`${item.title}-${item.detail}`}
                     >
                       <span className="text-[#0F2044]">{item.icon}</span>
                       <div className="min-w-0">
-                        <h3 className="truncate text-[22px] font-semibold leading-none">
+                        <h3 className="truncate text-[17px] font-semibold leading-none">
                           {item.title}
                         </h3>
-                        <p className="text-[17px] leading-tight text-[#0F2044]/85">
+                        <p className="truncate text-[14px] leading-tight text-[#0F2044]/85">
                           {item.detail}
                         </p>
                       </div>
-                      <span className="text-[17px] text-[#0F2044]/85">
+                      <span className="text-[14px] text-[#0F2044]/85">
                         {item.time}
                       </span>
                     </div>
@@ -125,15 +125,15 @@ export default async function Home() {
                 )}
               </DashboardPanel>
 
-              <DashboardPanel icon={<ClockIcon className="h-9 w-9" />} title="Vencimientos esta semana">
+              <DashboardPanel icon={<ClockIcon className="h-7 w-7" />} title="Vencimientos esta semana">
                 {buildWeekDeadlines(deadlines).length ? (
-                  <div className="mt-6 grid gap-5">
+                  <div className="mt-3 grid gap-3">
                     {buildWeekDeadlines(deadlines).map((deadline) => (
                     <Link href={deadline.href} key={deadline.title}>
-                      <h3 className="text-[22px] font-semibold leading-none">
+                      <h3 className="truncate text-[17px] font-semibold leading-none">
                         {deadline.title}
                       </h3>
-                      <p className="text-[17px] leading-tight text-[#0F2044]/85">
+                      <p className="truncate text-[14px] leading-tight text-[#0F2044]/85">
                         {deadline.detail}
                       </p>
                     </Link>
@@ -145,39 +145,38 @@ export default async function Home() {
               </DashboardPanel>
             </div>
 
-            <div className="grid grid-cols-[minmax(0,1.16fr)_minmax(0,0.92fr)] gap-4">
+            <div className="grid grid-cols-[minmax(0,1.16fr)_minmax(0,0.92fr)_330px] gap-3">
               <LineLink href="/casos" label="Ver historial completo" />
               <LineLink href="/agenda" label="Ver todos los vencimientos" />
+              <div className="flex h-[34px] items-center gap-2 rounded-[10px] border-2 border-[#88A9C8] bg-white px-4 text-[15px]">
+                <BoltIcon />
+                Accesos rapidos
+              </div>
             </div>
 
-            <div className="flex h-[42px] w-[330px] items-center gap-2 rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 text-[18px]">
-              <BoltIcon />
-              Accesos rapidos
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               {dashboardQuickActions.map((action) => (
                 <QuickAction key={action.title} {...action} />
               ))}
             </div>
           </section>
 
-          <aside className="flex min-w-0 flex-col gap-3">
+          <aside className="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_34px] gap-3">
             <DashboardPanel compact icon={<AlertIcon />} title="Eventos">
               {buildEvents(deadlines).length ? (
-                <div className="mt-3">
+                <div className="mt-2 overflow-hidden">
                   {buildEvents(deadlines).map((event, index) => (
                   <div
-                    className={`py-4 ${index ? "border-t border-[#88A9C8]" : ""}`}
+                    className={`py-3 ${index ? "border-t border-[#88A9C8]" : ""}`}
                     key={`${event.time}-${event.title}`}
                   >
-                    <p className="text-[40px] font-semibold leading-none">
+                    <p className="text-[25px] font-semibold leading-none">
                       {event.time}
                     </p>
-                    <h3 className="mt-2 text-[22px] font-semibold leading-none">
+                    <h3 className="mt-1 truncate text-[16px] font-semibold leading-none">
                       {event.title}
                     </h3>
-                    <p className="text-[18px] leading-tight text-[#0F2044]/85">
+                    <p className="line-clamp-2 text-[13px] leading-tight text-[#0F2044]/85">
                       {event.detail}
                     </p>
                   </div>
@@ -197,15 +196,15 @@ export default async function Home() {
 
 function TodayCard({ today }: { today: Date }) {
   return (
-    <section className="w-[310px] rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5">
-      <p className="flex items-center gap-2 text-[27px] leading-none">
+    <section className="flex h-full w-[280px] flex-col justify-center rounded-[14px] border-2 border-[#88A9C8] bg-white px-4 py-3">
+      <p className="flex items-center gap-2 text-[20px] leading-none">
         <CalendarSmallIcon />
         Hoy:
       </p>
-      <h2 className="mt-4 text-[31px] font-semibold leading-none">
+      <h2 className="mt-2 text-[25px] font-semibold leading-none">
         {formatShortDate(today)}
       </h2>
-      <p className="mt-1 text-[18px] leading-none">{formatLongDate(today)}</p>
+      <p className="mt-1 text-[15px] leading-none">{formatLongDate(today)}</p>
     </section>
   );
 }
@@ -222,13 +221,13 @@ function MetricCard({
   value: string;
 }) {
   return (
-    <section className="min-h-[142px] rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5">
-      <p className="text-[27px] leading-tight">
+    <section className="min-h-0 rounded-[14px] border-2 border-[#88A9C8] bg-white px-4 py-3">
+      <p className="truncate text-[19px] leading-tight">
         {icon ? <span className="mr-2 inline-flex align-middle">{icon}</span> : null}
         {label}
       </p>
-      <p className="mt-4 text-[38px] font-semibold leading-none">{value}</p>
-      <p className="mt-1 truncate text-[18px] leading-none">{detail}</p>
+      <p className="mt-2 text-[31px] font-semibold leading-none">{value}</p>
+      <p className="mt-1 truncate text-[14px] leading-none">{detail}</p>
     </section>
   );
 }
@@ -246,11 +245,11 @@ function DashboardPanel({
 }) {
   return (
     <section
-      className={`rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-6 ${
-        compact ? "min-h-[452px]" : "min-h-[254px]"
+      className={`min-h-0 overflow-hidden rounded-[14px] border-2 border-[#88A9C8] bg-white px-4 py-3 ${
+        compact ? "" : ""
       }`}
     >
-      <h2 className="flex items-center text-[29px] font-medium leading-tight">
+      <h2 className="flex items-center truncate text-[21px] font-medium leading-tight">
         <span className="mr-2 inline-flex align-middle text-[#0F2044]">{icon}</span>
         {title}
       </h2>
@@ -261,7 +260,7 @@ function DashboardPanel({
 
 function EmptyPanelMessage({ text }: { text: string }) {
   return (
-    <p className="mt-6 rounded-[14px] border-2 border-dashed border-[#88A9C8] bg-white px-4 py-5 text-[18px] leading-6 text-[#0F2044]/70">
+    <p className="mt-3 rounded-[10px] border-2 border-dashed border-[#88A9C8] bg-white px-3 py-3 text-[14px] leading-5 text-[#0F2044]/70">
       {text}
     </p>
   );
@@ -270,11 +269,11 @@ function EmptyPanelMessage({ text }: { text: string }) {
 function LineLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
-      className="flex h-[42px] items-center justify-between rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 text-[18px] leading-none"
+      className="flex h-[34px] items-center justify-between rounded-[10px] border-2 border-[#88A9C8] bg-white px-4 text-[15px] leading-none"
       href={href}
     >
       <span>{label}</span>
-      <span className="text-[38px] font-semibold leading-none">&gt;</span>
+      <span className="text-[26px] font-semibold leading-none">&gt;</span>
     </Link>
   );
 }
@@ -292,15 +291,15 @@ function QuickAction({
 }) {
   return (
     <Link
-      className="grid min-h-[150px] grid-cols-[minmax(0,1fr)_32px] items-center rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5"
+      className="grid min-h-0 grid-cols-[minmax(0,1fr)_26px] items-center rounded-[14px] border-2 border-[#88A9C8] bg-white px-4 py-3"
       href={href}
     >
       <span>
-        <span className="block text-[44px] font-light leading-none">{renderQuickIcon(icon)}</span>
-        <span className="mt-4 block text-[23px] leading-none">{title}</span>
-        <span className="mt-2 block text-[17px] leading-none">{detail}</span>
+        <span className="block text-[30px] font-light leading-none">{renderQuickIcon(icon)}</span>
+        <span className="mt-2 block truncate text-[18px] leading-none">{title}</span>
+        <span className="mt-1 block truncate text-[13px] leading-none">{detail}</span>
       </span>
-      <span className="text-[38px] font-semibold leading-none">&gt;</span>
+      <span className="text-[26px] font-semibold leading-none">&gt;</span>
     </Link>
   );
 }

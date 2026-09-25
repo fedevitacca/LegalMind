@@ -15,7 +15,7 @@ export default function BarraLateral({
   activeSection: string;
 }) {
   return (
-    <aside className="h-full overflow-y-auto bg-[#0F2044] px-6 py-8 text-white">
+    <aside className="h-full overflow-y-auto bg-[#0F2044] px-5 py-5 text-white">
       <Link
         className="block w-fit rounded-[6px]"
         href="/dashboard"
@@ -23,22 +23,22 @@ export default function BarraLateral({
       >
         <Image
           alt="LegalMind"
-          className="h-[118px] w-[118px]"
-          height={118}
+          className="h-[82px] w-[82px]"
+          height={82}
           priority
           src="/legalmind-logo.png"
-          width={118}
+          width={82}
         />
       </Link>
 
-      <nav className="mt-[42px] space-y-[30px]">
+      <nav className="mt-8 space-y-5">
         {sideItems.map((item) => {
           const isActive = item.label === activeSection;
           const Icon = item.icon;
 
           return (
             <Link
-              className={`flex h-10 items-center gap-[14px] rounded-[6px] px-0 text-[28px] font-normal leading-none transition ${
+              className={`flex h-8 items-center gap-3 rounded-[6px] px-0 text-[21px] font-normal leading-none transition ${
                 isActive
                   ? "text-white"
                   : "text-white/88 hover:text-white"
@@ -46,7 +46,7 @@ export default function BarraLateral({
               href={item.href}
               key={item.label}
             >
-              <span className="grid h-10 w-10 shrink-0 place-items-center text-white">
+              <span className="grid h-8 w-8 shrink-0 place-items-center text-white">
                 <Icon />
               </span>
               {item.label}

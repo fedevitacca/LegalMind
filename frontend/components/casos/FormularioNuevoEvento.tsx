@@ -7,10 +7,13 @@ import { createCaseDate } from "@/lib/legalmindApi";
 
 export default function FormularioNuevoEvento({
   caseId,
+  returnTo,
 }: {
   caseId: string;
+  returnTo?: string;
 }) {
   const router = useRouter();
+  const targetHref = returnTo || `/casos/${caseId}/agenda`;
   const [titulo, setTitulo] = useState("");
   const [hora, setHora] = useState("");
   const [duracion, setDuracion] = useState("");
@@ -56,7 +59,7 @@ export default function FormularioNuevoEvento({
         tipo: "agenda",
       });
 
-      router.push(`/casos/${caseId}/agenda`);
+      router.push(targetHref);
       router.refresh();
     } catch (requestError) {
       setError(
@@ -69,8 +72,8 @@ export default function FormularioNuevoEvento({
   }
 
   return (
-    <form className="max-w-[988px]" onSubmit={handleSubmit}>
-      <div className="grid grid-cols-3 gap-8">
+    <form className="max-w-[920px] rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 py-4" onSubmit={handleSubmit}>
+      <div className="grid grid-cols-3 gap-4">
         <TextField
           label="Titulo del evento"
           onChange={setTitulo}
@@ -79,10 +82,10 @@ export default function FormularioNuevoEvento({
           value={titulo}
         />
         <label className="block">
-          <span className="text-[19px] leading-none">Hora</span>
-          <span className="mt-2 flex h-[70px] items-center rounded-[14px] border-2 border-[#88A9C8] bg-white px-5">
+          <span className="text-[15px] leading-none">Hora</span>
+          <span className="mt-1.5 flex h-10 items-center rounded-[8px] border-2 border-[#88A9C8] bg-[#F4F7F5] px-4">
             <input
-              className="min-w-0 flex-1 bg-transparent text-[18px] outline-none placeholder:text-[#64708B]/75"
+              className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-[#64708B]/75"
               onChange={(event) => setHora(event.target.value)}
               placeholder="--:--"
               type="time"
@@ -99,58 +102,59 @@ export default function FormularioNuevoEvento({
         />
       </div>
 
-      <label className="mt-9 block w-[308px]">
-        <span className="text-[19px] leading-none">Fecha</span>
-        <span className="mt-2 flex h-[74px] items-center rounded-[8px] border-2 border-[#88A9C8] bg-white px-3">
+      <div className="mt-4 grid grid-cols-[270px_minmax(0,520px)] gap-4">
+        <label className="block">
+          <span className="text-[15px] leading-none">Fecha</span>
+          <span className="mt-1.5 flex h-10 items-center rounded-[8px] border-2 border-[#88A9C8] bg-[#F4F7F5] px-4">
           <input
-            className="min-w-0 flex-1 bg-transparent text-[23px] outline-none placeholder:text-[#64708B]"
+            className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-[#64708B]"
             onChange={(event) => setFecha(event.target.value)}
             placeholder="dd/mm/aaaa"
             type="text"
             value={fecha}
           />
           <CalendarIcon />
-        </span>
-      </label>
+          </span>
+        </label>
 
-      <label className="mt-8 block">
-        <span className="text-[19px] leading-none">Descripciones</span>
+        <TextField
+          label="Lugar"
+          onChange={setLugar}
+          placeholder="Ej. Juzgado Nacional"
+          value={lugar}
+        />
+      </div>
+
+      <label className="mt-4 block">
+        <span className="text-[15px] leading-none">Descripciones</span>
         <textarea
-          className="mt-2 h-[114px] w-full resize-none rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 py-5 text-[18px] outline-none placeholder:text-[#64708B]/75"
+          className="mt-1.5 h-[72px] w-full resize-none rounded-[8px] border-2 border-[#88A9C8] bg-[#F4F7F5] px-4 py-3 text-[15px] outline-none placeholder:text-[#64708B]/75"
           onChange={(event) => setDescripcion(event.target.value)}
           placeholder="Detalles del evento, temas a tratar, notas importantes, etc."
           value={descripcion}
         />
       </label>
 
-      <TextField
-        className="mt-8"
-        label="Lugar"
-        onChange={setLugar}
-        placeholder="Ej. Juzgado Nacional"
-        value={lugar}
-      />
-
       {error ? (
         <p
-          className="mt-6 max-w-[988px] rounded-[8px] border-2 border-[#A68147]/55 bg-[#A68147]/10 px-5 py-3 text-[17px] font-semibold"
+          className="mt-4 rounded-[8px] border-2 border-[#A68147]/55 bg-[#A68147]/10 px-4 py-3 text-[15px] font-semibold"
           role="alert"
         >
           {error}
         </p>
       ) : null}
 
-      <div className="mt-8 flex gap-5">
+      <div className="mt-4 flex gap-4">
         <button
-          className="h-[61px] rounded-[4px] border-2 border-[#88A9C8] bg-white px-5 text-[19px] transition hover:bg-white/80 disabled:cursor-wait disabled:text-[#0F2044]/50"
+          className="h-10 rounded-[4px] border-2 border-[#88A9C8] bg-white px-5 text-[15px] transition hover:bg-[#F4F7F5] disabled:cursor-wait disabled:text-[#0F2044]/50"
           disabled={isSaving}
           type="submit"
         >
           {isSaving ? "Cargando..." : "Cargar evento"}
         </button>
         <Link
-          className="grid h-[61px] place-items-center rounded-[4px] border-2 border-[#88A9C8] bg-white px-7 text-[19px] transition hover:bg-white/80"
-          href={`/casos/${caseId}/agenda`}
+          className="grid h-10 place-items-center rounded-[4px] border-2 border-[#88A9C8] bg-white px-6 text-[15px] transition hover:bg-[#F4F7F5]"
+          href={targetHref}
         >
           Cancelar
         </Link>
@@ -176,9 +180,9 @@ function TextField({
 }) {
   return (
     <label className={`block ${className}`}>
-      <span className="text-[19px] leading-none">{label}</span>
+      <span className="text-[15px] leading-none">{label}</span>
       <input
-        className="mt-2 h-[70px] w-full rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 text-[18px] outline-none placeholder:text-[#64708B]/75"
+        className="mt-1.5 h-10 w-full rounded-[8px] border-2 border-[#88A9C8] bg-[#F4F7F5] px-4 text-[15px] outline-none placeholder:text-[#64708B]/75"
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={required}
@@ -205,7 +209,7 @@ function normalizeDate(value: string) {
 
 function ClockIcon() {
   return (
-    <svg aria-hidden="true" className="h-9 w-9 shrink-0" viewBox="0 0 24 24" fill="none">
+    <svg aria-hidden="true" className="h-7 w-7 shrink-0" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.1" />
       <path d="M12 7v5l3 3" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.1" />
     </svg>
@@ -214,7 +218,7 @@ function ClockIcon() {
 
 function CalendarIcon() {
   return (
-    <svg aria-hidden="true" className="h-9 w-9 shrink-0" viewBox="0 0 24 24" fill="none">
+    <svg aria-hidden="true" className="h-7 w-7 shrink-0" viewBox="0 0 24 24" fill="none">
       <path d="M7 3.5v3M17 3.5v3M5 8.5h14M6 5.5h12A1.5 1.5 0 0 1 19.5 7v12A1.5 1.5 0 0 1 18 20.5H6A1.5 1.5 0 0 1 4.5 19V7A1.5 1.5 0 0 1 6 5.5Z" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
       <path d="M9 12h6v5H9z" fill="currentColor" />
     </svg>
