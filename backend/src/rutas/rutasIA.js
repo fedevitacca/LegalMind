@@ -26,11 +26,13 @@ const {
   extractSimpleCaseData,
   retrieveRelevantChunks,
 } = require("../../IA/ragLocal");
+const { buildFastToolResult } = require("../../IA/respuestaRapida");
 const {
   listDocumentsForCase,
   saveLegalAnalysis,
 } = require("../modelos/repositorioIA");
 const { hybridSearch } = require("../modelos/repositorioRagVectorial");
+const { listDefendantsByCase } = require("../modelos/repositorioCasos");
 const { assessEvidence, buildLegalCitations, verifyResultClaims } = require("../servicios/citasJuridicas");
 
 const router = express.Router();
@@ -97,127 +99,166 @@ router.delete("/cases/:caseId/queries/:queryId", requireCaseAccess, requireRole(
 
 router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asistente"), async (req, res) => {
   const startedAt = Date.now();
+  const deadline = startedAt + getResponseBudgetMs();
   const tool = getTool(req.params.toolId);
   if (!tool) return res.status(404).json({ error: "Herramienta de IA inexistente." });
   let primaryText = String(req.body?.primary_text || req.body?.text || "").trim();
   const secondaryText = String(req.body?.secondary_text || "").trim();
   const query = String(req.body?.query || req.body?.parameters?.pregunta || "").trim();
   const caseId = parseOptionalNumericId(req.body?.case_id);
-  const useCaseDocuments = req.params.toolId === "consulta_rag"
-    && Boolean(caseId)
-    && parseBoolean(req.body?.use_case_documents);
-  if (useCaseDocuments && !query) {
-    return res.status(400).json({ error: "Escriba una pregunta para consultar los documentos del expediente." });
+  const scope = normalizeToolScope(req.body?.scope);
+  const useCaseContext = Boolean(caseId)
+    && tool.inputs === 1
+    && (parseBoolean(req.body?.use_case_context) || parseBoolean(req.body?.use_case_documents));
+  const defendantId = parseOptionalNumericId(req.body?.defendant_id);
+
+  if (req.params.toolId === "consulta_rag" && !query) {
+    return res.status(400).json({ error: "Escriba una pregunta para realizar la consulta." });
   }
-  if (!primaryText && !useCaseDocuments) return res.status(400).json({ error: "La fuente principal es obligatoria." });
+  if (scope === "defendant" && useCaseContext && !defendantId) {
+    return res.status(400).json({ error: "Seleccione el imputado sobre el que quiere consultar." });
+  }
+  if (!primaryText && !useCaseContext) return res.status(400).json({ error: "La fuente principal es obligatoria." });
   if (tool.inputs === 2 && !secondaryText) return res.status(400).json({ error: "Esta herramienta requiere dos fuentes." });
 
   try {
-    const retrievalQuery = query || `${tool.label} ${primaryText.slice(0, 400)}`;
-    let chunks;
-    let retrieval = "bm25_trigram_mmr_embeddings";
-    let semanticRetrieval = "lexical_fallback";
+    let selectedDefendant = null;
+    let documents;
     let sourceDocumentCount = secondaryText ? 2 : 1;
-    const maxContextChunks = tool.maxContextChunks || 6;
+    const scopeLabel = getScopeLabel(scope, useCaseContext);
 
-    if (useCaseDocuments) {
-      const documents = await listDocumentsForCase(caseId);
+    if (useCaseContext) {
+      documents = await withTimeout(
+        listDocumentsForCase(caseId),
+        availableMs(deadline, 1100),
+        "La lectura de los documentos excedió el tiempo disponible."
+      );
       sourceDocumentCount = documents.length;
+
+      if (scope === "case" || scope === "defendant") {
+        const defendants = await withTimeout(
+          listDefendantsByCase(caseId),
+          availableMs(deadline, 800),
+          "La lectura de los imputados excedió el tiempo disponible."
+        );
+        if (scope === "defendant") {
+          selectedDefendant = defendants.find((item) => Number(item.id) === defendantId);
+          if (!selectedDefendant) {
+            return res.status(400).json({ error: "El imputado seleccionado no pertenece al expediente." });
+          }
+          documents = [buildDefendantDocument(selectedDefendant), ...documents];
+        } else {
+          documents = [buildCaseOverviewDocument(caseId, defendants), ...documents];
+        }
+      }
+
       if (!documents.length) {
         return res.status(409).json({
-          error: "El expediente no tiene documentos procesados para consultar.",
+          error: "El expediente no tiene información procesada para consultar.",
           details: "Cargue un documento y espere a que finalice la extracción de texto.",
         });
       }
-
-      try {
-        const [queryEmbedding] = await embedTextsWithLocalAI([retrievalQuery]);
-        const stored = await hybridSearch({
-          organizationId: req.security.organizationId,
-          caseId,
-          query: retrievalQuery,
-          queryEmbedding,
-          limit: maxContextChunks,
-        });
-        if (stored.length) {
-          chunks = stored.map((item) => ({
-            id: item.id,
-            document_id: item.documento_id,
-            document_name: item.nombre_archivo,
-            chunk_index: item.orden,
-            page: item.pagina,
-            text: item.texto,
-            score: Number(item.score),
-            lexical_score: Number(item.lexical_score),
-            semantic_score: Number(item.semantic_score),
-            metadata: item.metadata_json,
-          }));
-          retrieval = "pgvector_hybrid_hnsw_fts";
-          semanticRetrieval = "ollama_embeddings_pgvector";
-        }
-      } catch (error) {
-        console.warn("RAG vectorial del expediente no disponible; se usa recuperación en memoria:", error.message);
-      }
-
-      if (!chunks?.length) {
-        chunks = retrieveRelevantChunks(documents, retrievalQuery, maxContextChunks * 2);
-        ({ chunks, semanticRetrieval } = await rerankChunksWithEmbeddings(chunks, retrievalQuery, maxContextChunks));
-        retrieval = "case_documents_bm25_trigram_mmr_embeddings";
-      }
-
-      if (!chunks.length) {
-        return res.status(422).json({
-          error: "No se encontraron fragmentos relevantes en los documentos del expediente.",
-          details: "Pruebe reformulando la pregunta o verifique que los documentos tengan texto extraído.",
-        });
-      }
-      primaryText = "Consulta sobre el corpus documental del expediente seleccionado. Use únicamente los pasajes seleccionados por pertinencia.";
     } else {
-      const documents = [
+      documents = [
         { id: "fuente-a", nombre_archivo: "Fuente A", texto_extraido: primaryText },
         ...(secondaryText ? [{ id: "fuente-b", nombre_archivo: "Fuente B", texto_extraido: secondaryText }] : []),
       ];
-      chunks = retrieveRelevantChunks(documents, retrievalQuery, maxContextChunks * 2);
-      ({ chunks, semanticRetrieval } = await rerankChunksWithEmbeddings(chunks, retrievalQuery, maxContextChunks));
     }
 
-    const result = await runLegalToolWithLocalAI({
-      toolId: req.params.toolId, primaryText, secondaryText, query,
-      parameters: req.body?.parameters || {},
-      // El texto completo ya está en el prompt para las fuentes pegadas. Repetir sus
-      // fragmentos aumenta el tiempo de prefill sin aportar evidencia nueva.
-      context: useCaseDocuments
-        ? chunks.map((chunk) => `[${chunk.document_id}:${chunk.chunk_index ?? chunk.orden}] ${chunk.text}`)
-        : [],
-    });
+    const retrievalQuery = [query, selectedDefendant?.nombre, tool.label, primaryText.slice(0, 300)]
+      .filter(Boolean)
+      .join(" ");
+    let chunks;
+    let retrieval = "bm25_trigram_mmr";
+    let semanticRetrieval = "lexical_fallback";
+    const maxContextChunks = tool.maxContextChunks || 6;
+    chunks = retrieveRelevantChunks(documents, retrievalQuery, maxContextChunks * 2);
+    ({ chunks, semanticRetrieval } = await rerankChunksWithEmbeddings(
+      chunks,
+      retrievalQuery,
+      maxContextChunks,
+      Math.min(700, availableMs(deadline, 1000))
+    ));
+    retrieval = useCaseContext ? "case_documents_bm25_trigram_mmr" : "bm25_trigram_mmr";
+
+    if (!chunks.length) {
+      return res.status(422).json({
+        error: "No se encontraron fragmentos relevantes en el material seleccionado.",
+        details: "Pruebe reformulando la pregunta o verifique que los documentos tengan texto extraído.",
+      });
+    }
+
+    const modelPrimaryText = useCaseContext
+      ? `Consulta sobre ${scopeLabel}. Use únicamente los pasajes seleccionados por pertinencia.`
+      : primaryText.slice(0, 18000);
+    let result;
+    let engine = "ollama_local_timeboxed_rag";
+    let fallbackReason = null;
+    try {
+      result = await runLegalToolWithLocalAI({
+        toolId: req.params.toolId,
+        primaryText: modelPrimaryText,
+        secondaryText: secondaryText.slice(0, 18000),
+        query,
+        parameters: { ...(req.body?.parameters || {}), scope, defendant: selectedDefendant?.nombre || null },
+        context: chunks.map((chunk) => `[${chunk.document_id}:${chunk.chunk_index ?? chunk.orden}] ${chunk.text}`),
+        timeoutMs: Math.min(5000, availableMs(deadline, 900)),
+        maxOutputTokens: 360,
+      });
+    } catch (error) {
+      fallbackReason = error.message;
+      engine = "fast_extractive_rag";
+      result = buildFastToolResult({ toolId: req.params.toolId, chunks, query, scopeLabel });
+    }
+
     const citations = buildLegalCitations(chunks, { caseId });
     const evidence = assessEvidence(citations);
     const grounding = verifyResultClaims(result, citations);
     const metadata = {
-      engine: "ollama_local_hybrid_rag", model: getLocalAIConfig().model,
+      engine, model: getLocalAIConfig().model,
       embedding_model: getLocalAIConfig().embeddingModel, tool_id: req.params.toolId,
       retrieval, semantic_retrieval: semanticRetrieval,
-      source: useCaseDocuments ? "case_documents" : "ad_hoc_text",
+      source: useCaseContext ? `case_${scope}` : "ad_hoc_text",
+      scope,
+      defendant_id: selectedDefendant?.id || null,
+      defendant_name: selectedDefendant?.nombre || null,
       source_document_count: sourceDocumentCount,
-      context_chunk_count: useCaseDocuments ? chunks.length : 0,
-      max_output_tokens: tool.maxOutputTokens || 720,
+      context_chunk_count: chunks.length,
+      max_output_tokens: 360,
+      response_budget_ms: getResponseBudgetMs(),
+      fallback_reason: fallbackReason,
       duration_ms: Date.now() - startedAt, evidence, grounding, generated_at: new Date().toISOString(),
     };
     let savedQuery = null;
-    if (caseId) savedQuery = await createAIQuery({ caseId, userId: req.user.id, toolId: req.params.toolId,
-      title: result.titulo || tool.label, query, input: { primary_text: primaryText, secondary_text: secondaryText, parameters: req.body?.parameters || {} },
-      result, citations, metadata });
-    if (savedQuery) await recordAudit(req, { action: "ia.consulta_creada", resourceType: "consulta_ia", resourceId: savedQuery.id, metadata: { herramienta: req.params.toolId, causa_id: caseId } });
+    if (caseId && availableMs(deadline, 150) >= 250) {
+      try {
+        savedQuery = await withTimeout(createAIQuery({ caseId, userId: req.user.id, toolId: req.params.toolId,
+          title: result.titulo || tool.label, query, input: { scope, defendant_id: defendantId, parameters: req.body?.parameters || {} },
+          result, citations, metadata }), Math.min(550, availableMs(deadline, 150)), "No se alcanzó a guardar la consulta dentro del límite de respuesta.");
+      } catch (error) {
+        metadata.persistence_warning = error.message;
+      }
+    }
+    if (savedQuery && availableMs(deadline, 80) >= 100) {
+      try {
+        await withTimeout(recordAudit(req, { action: "ia.consulta_creada", resourceType: "consulta_ia", resourceId: savedQuery.id,
+          metadata: { herramienta: req.params.toolId, causa_id: caseId, scope, defendant_id: defendantId } }),
+        Math.min(250, availableMs(deadline, 80)), "No se alcanzó a registrar la auditoría dentro del límite de respuesta.");
+      } catch (error) {
+        metadata.audit_warning = error.message;
+      }
+    }
+    metadata.duration_ms = Date.now() - startedAt;
     return res.json({ result, citations, evidence, grounding, saved_query: savedQuery, _metadata: metadata });
   } catch (error) {
     return res.status(getLocalAIErrorStatus(error)).json({ error: "No se pudo ejecutar la herramienta.", details: error.message });
   }
 });
 
-async function rerankChunksWithEmbeddings(chunks, retrievalQuery, limit = 6) {
+async function rerankChunksWithEmbeddings(chunks, retrievalQuery, limit = 6, timeoutMs = 700) {
   try {
     if (!chunks.length) return { chunks: [], semanticRetrieval: "lexical_fallback" };
-    const embeddings = await embedTextsWithLocalAI([retrievalQuery, ...chunks.map((chunk) => chunk.text)]);
+    const embeddings = await embedTextsWithLocalAI([retrievalQuery, ...chunks.map((chunk) => chunk.text)], { timeoutMs });
     const queryEmbedding = embeddings[0];
     return {
       chunks: chunks.map((chunk, index) => ({
@@ -232,6 +273,65 @@ async function rerankChunksWithEmbeddings(chunks, retrievalQuery, limit = 6) {
   } catch {
     return { chunks: chunks.slice(0, limit), semanticRetrieval: "lexical_fallback" };
   }
+}
+
+function normalizeToolScope(value) {
+  return ["documents", "case", "defendant"].includes(value) ? value : "documents";
+}
+
+function getScopeLabel(scope, useCaseContext) {
+  if (!useCaseContext) return "las fuentes seleccionadas";
+  if (scope === "case") return "el expediente completo";
+  if (scope === "defendant") return "el imputado seleccionado y los documentos del expediente";
+  return "los documentos del expediente";
+}
+
+function buildDefendantDocument(defendant) {
+  const context = typeof defendant.datos_contexto === "string"
+    ? defendant.datos_contexto
+    : JSON.stringify(defendant.datos_contexto || {});
+  return {
+    id: `imputado-${defendant.id}`,
+    nombre_archivo: `Ficha de ${defendant.nombre}`,
+    texto_extraido: [
+      `Imputado: ${defendant.nombre}.`,
+      defendant.documento_identidad ? `Documento de identidad: ${defendant.documento_identidad}.` : "",
+      defendant.rol ? `Rol en el expediente: ${defendant.rol}.` : "",
+      defendant.notas ? `Notas: ${defendant.notas}.` : "",
+      context && context !== "{}" ? `Contexto registrado: ${context}.` : "",
+    ].filter(Boolean).join(" "),
+  };
+}
+
+function buildCaseOverviewDocument(caseId, defendants) {
+  return {
+    id: `expediente-${caseId}`,
+    nombre_archivo: "Datos generales del expediente",
+    texto_extraido: [
+      `Expediente interno ${caseId}.`,
+      defendants.length
+        ? `Imputados registrados: ${defendants.map((item) => `${item.nombre}${item.rol ? ` (${item.rol})` : ""}`).join(", ")}.`
+        : "No hay imputados registrados en el expediente.",
+    ].join(" "),
+  };
+}
+
+function getResponseBudgetMs() {
+  return Math.min(9000, Math.max(3000, Number(process.env.AI_RESPONSE_BUDGET_MS) || 8500));
+}
+
+function availableMs(deadline, reserve = 0) {
+  return Math.max(100, deadline - Date.now() - reserve);
+}
+
+function withTimeout(promise, timeoutMs, message) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), Math.max(100, timeoutMs));
+    }),
+  ]).finally(() => clearTimeout(timer));
 }
 
 router.post("/analyze", requireOptionalCaseAccess, async (req, res) => {

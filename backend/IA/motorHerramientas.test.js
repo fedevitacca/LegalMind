@@ -44,6 +44,22 @@ describe("motorHerramientas", () => {
     assert.ok(toolResultSchema.required.includes("acciones_sugeridas"));
     assert.ok(toolResultSchema.required.includes("limitaciones"));
   });
+
+  it("respeta el límite de tiempo indicado aunque el cliente no responda", async () => {
+    setLocalAIClientFactoryForTests(() => ({ chat: () => new Promise(() => undefined) }));
+    const startedAt = Date.now();
+
+    await assert.rejects(
+      runLegalToolWithLocalAI({
+        toolId: "consulta_rag",
+        primaryText: "Fuente de prueba.",
+        query: "¿Qué informa?",
+        timeoutMs: 40,
+      }),
+      /excedio el tiempo de espera/i
+    );
+    assert.ok(Date.now() - startedAt < 500);
+  });
 });
 
 function sampleExpandedResult() {

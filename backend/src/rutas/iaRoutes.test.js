@@ -125,15 +125,17 @@ describe("IA file routes", () => {
     assert.ok(body.tools.every((tool) => !removedTools.includes(tool.id)));
   });
 
-  it("ejecuta una herramienta sobre RAG hibrido y Ollama local", async () => {
+  it("ejecuta una herramienta con presupuesto de tiempo y Ollama local", async () => {
     const response = await fetch(`${baseUrl}/api/ia/tools/resumen_expediente/run`, {
       body: JSON.stringify({ primary_text: "Expediente 42/2026. Audiencia el 12/08/2026.", query: "fecha importante" }),
       headers: { "Content-Type": "application/json" }, method: "POST",
     });
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(body._metadata.engine, "ollama_local_hybrid_rag");
-    assert.equal(body._metadata.retrieval, "bm25_trigram_mmr_embeddings");
+    assert.equal(body._metadata.engine, "ollama_local_timeboxed_rag");
+    assert.equal(body._metadata.retrieval, "bm25_trigram_mmr");
+    assert.ok(body._metadata.response_budget_ms < 10000);
+    assert.ok(body._metadata.duration_ms < 10000);
     assert.ok(Array.isArray(body.citations));
     assert.ok(body.evidence);
     assert.ok(body.grounding);

@@ -58,7 +58,7 @@ Antes de indexar por primera vez ejecutá `ollama pull nomic-embed-text`.
 
 Para enviar a la cola los documentos anteriores a esta implementación ejecutá `npm run rag:reindex` dentro de `backend`.
 
-La inferencia local usa contexto y salida acotados, temperatura baja y `keep_alive` para evitar recargar el modelo en cada herramienta. Estos valores se ajustan con `LOCAL_AI_CONTEXT_SIZE`, `LOCAL_AI_MAX_OUTPUT_TOKENS`, `LOCAL_AI_TEMPERATURE` y `LOCAL_AI_KEEP_ALIVE`. El endpoint `GET /api/ia/health/live` comprueba Ollama y confirma que los modelos generativo y de embeddings estén instalados.
+La inferencia local usa contexto y salida acotados, temperatura baja y `keep_alive` para evitar recargar el modelo en cada herramienta. Estos valores se ajustan con `LOCAL_AI_CONTEXT_SIZE`, `LOCAL_AI_MAX_OUTPUT_TOKENS`, `LOCAL_AI_TEMPERATURE` y `LOCAL_AI_KEEP_ALIVE`. Las herramientas interactivas usan `AI_RESPONSE_BUDGET_MS` (8500 ms por defecto y 9000 ms como máximo); si Ollama no termina dentro de ese presupuesto, se entrega una respuesta extractiva con citas. El endpoint `GET /api/ia/health/live` comprueba Ollama y confirma que los modelos generativo y de embeddings estén instalados.
 
 ## Seguridad profesional
 

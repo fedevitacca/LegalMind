@@ -114,7 +114,16 @@ async function searchLegalTextWithLocalAI({ text, query, limit = 5 }) {
   );
 }
 
-async function runLegalToolWithLocalAI({ toolId, primaryText, secondaryText = "", query = "", context = [], parameters = {} }) {
+async function runLegalToolWithLocalAI({
+  toolId,
+  primaryText,
+  secondaryText = "",
+  query = "",
+  context = [],
+  parameters = {},
+  timeoutMs,
+  maxOutputTokens,
+}) {
   const tool = getTool(toolId);
   if (!tool) throw new Error("La herramienta de IA solicitada no existe.");
   const outputGuidance = toolId === "consulta_rag"
@@ -130,9 +139,10 @@ async function runLegalToolWithLocalAI({ toolId, primaryText, secondaryText = ""
       "Incluí entre 2 y 4 apartados en desarrollo. Cada apartado debe explicar el análisis en hasta 100 palabras.",
       "Incluí como máximo 3 acciones sugeridas y 2 limitaciones.",
     ];
-  const responseText = await createLocalAIClient().chat({
+  const responseText = await enforceRequestTimeout(createLocalAIClient().chat({
     format: toolResultSchema,
-    maxOutputTokens: tool.maxOutputTokens || 720,
+    maxOutputTokens: Math.min(Number(maxOutputTokens) || tool.maxOutputTokens || 720, tool.maxOutputTokens || 720),
+    timeoutMs,
     messages: [{
       role: "system",
       content: [LEGALMIND_PROMPT_BASE, tool.instruction,
@@ -152,18 +162,29 @@ async function runLegalToolWithLocalAI({ toolId, primaryText, secondaryText = ""
         "FUENTE A:", primaryText, secondaryText ? "FUENTE B:" : "", secondaryText,
         context.length ? "PASAJES DOCUMENTALES SELECCIONADOS POR PERTINENCIA:" : "", ...context].filter(Boolean).join("\n\n"),
     }],
-  });
+  }), timeoutMs);
   return normalizeToolResult(parseJsonObject(responseText));
 }
 
-async function sendOllamaChatRequest({ messages, format = "json", maxOutputTokens }) {
+function enforceRequestTimeout(promise, timeoutMs) {
+  const limit = Number(timeoutMs);
+  if (!Number.isFinite(limit) || limit <= 0) return promise;
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error("La API local excedio el tiempo de espera.")), limit);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+async function sendOllamaChatRequest({ messages, format = "json", maxOutputTokens, timeoutMs }) {
   const baseUrl = (process.env.LOCAL_AI_BASE_URL || DEFAULT_LOCAL_AI_BASE_URL).replace(/\/$/, "");
   const model = process.env.LOCAL_AI_MODEL || DEFAULT_LOCAL_AI_MODEL;
   const controller = new AbortController();
-  const timeout = setTimeout(
-    () => controller.abort(),
-    Number(process.env.LOCAL_AI_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS
-  );
+  const configuredTimeout = Number(process.env.LOCAL_AI_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS;
+  const requestTimeout = Math.max(250, Math.min(Number(timeoutMs) || configuredTimeout, configuredTimeout));
+  const timeout = setTimeout(() => controller.abort(), requestTimeout);
   const configuredMaxOutputTokens = Number(process.env.LOCAL_AI_MAX_OUTPUT_TOKENS) || 900;
   const requestedMaxOutputTokens = Number(maxOutputTokens) || configuredMaxOutputTokens;
 
@@ -289,12 +310,14 @@ function limitCompleteSentences(value, maximumWords) {
   return selected.join(" ");
 }
 
-async function embedTextsWithLocalAI(texts) {
+async function embedTextsWithLocalAI(texts, { timeoutMs } = {}) {
   if (localAIClientFactoryForTests) throw new Error("Embeddings omitidos durante pruebas aisladas.");
   const baseUrl = (process.env.LOCAL_AI_BASE_URL || DEFAULT_LOCAL_AI_BASE_URL).replace(/\/$/, "");
   const model = process.env.LOCAL_AI_EMBEDDING_MODEL || "nomic-embed-text";
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), Number(process.env.LOCAL_AI_EMBEDDING_TIMEOUT_MS) || 30000);
+  const configuredTimeout = Number(process.env.LOCAL_AI_EMBEDDING_TIMEOUT_MS) || 30000;
+  const requestTimeout = Math.max(250, Math.min(Number(timeoutMs) || configuredTimeout, configuredTimeout));
+  const timeout = setTimeout(() => controller.abort(), requestTimeout);
   try {
     const response = await fetch(`${baseUrl}/api/embed`, { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model, input: texts, keep_alive: process.env.LOCAL_AI_KEEP_ALIVE || "15m" }), signal: controller.signal });

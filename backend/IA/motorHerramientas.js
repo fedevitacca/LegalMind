@@ -56,11 +56,12 @@ const TOOL_DEFINITIONS = {
     ].join(" "),
   },
   consulta_rag: {
-    label: "Preguntar sobre documentos",
-    description: "Responde con información del expediente y muestra las fuentes utilizadas.",
+    label: "Preguntar al expediente",
+    description: "Consulta documentos, la visión general del expediente o un imputado individual y muestra las fuentes utilizadas.",
     inputs: 1,
     family: "busqueda", resultView: "answer", accent: "slate",
-    fields: ["modo_citas"],
+    fields: ["alcance", "imputado", "modo_citas"],
+    scopes: ["documents", "case", "defendant"],
     maxOutputTokens: 600,
     maxContextChunks: 5,
     instruction: [
