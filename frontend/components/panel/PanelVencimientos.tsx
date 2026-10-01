@@ -6,7 +6,7 @@ export default function PanelVencimientos({
   title: string;
 }) {
   return (
-    <article className="min-h-[210px] rounded-lg border border-[#84A2BD]/35 bg-white p-5 shadow-[0_10px_28px_rgba(15,32,68,0.06)]">
+    <article className="surface-card surface-card-interactive min-h-[210px] rounded-xl border border-[#84A2BD]/35 bg-white p-5">
       <div className="flex items-start justify-between gap-4">
         <h2 className="text-2xl font-semibold">{title}</h2>
         <span className="rounded-full bg-[#A68147] px-3 py-1 text-sm font-semibold text-white">

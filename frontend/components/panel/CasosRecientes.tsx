@@ -17,7 +17,7 @@ export default function CasosRecientes({ cases }: { cases: RecentCase[] }) {
           </p>
           <h1 className="text-3xl font-semibold">Casos recientes</h1>
         </div>
-        <Link className="text-sm font-medium text-[#546FC0]" href="/casos">
+        <Link className="rounded-lg px-2 py-1 text-sm font-semibold text-[#546FC0] transition hover:bg-[#546FC0]/10" href="/casos">
           Ver todos
         </Link>
       </div>
@@ -34,7 +34,7 @@ export default function CasosRecientes({ cases }: { cases: RecentCase[] }) {
 
         {cases.map((legalCase) => (
           <Link
-            className="grid grid-cols-[4px_1fr_auto] items-center gap-4 rounded-lg border border-[#84A2BD]/35 bg-white px-5 py-4 shadow-[0_10px_28px_rgba(15,32,68,0.06)] transition hover:border-[#546FC0]/55 hover:shadow-[0_14px_34px_rgba(15,32,68,0.1)] focus-visible:border-[#546FC0] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#84A2BD]/25"
+            className="surface-card surface-card-interactive grid grid-cols-[4px_1fr_auto] items-center gap-4 rounded-xl border border-[#84A2BD]/35 bg-white px-5 py-4 focus-visible:border-[#546FC0] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#84A2BD]/25"
             href={legalCase.href}
             key={legalCase.name}
           >

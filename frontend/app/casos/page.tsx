@@ -16,11 +16,11 @@ export default async function CasesPage() {
 
   return (
     <MarcoAplicacion activeSection="Casos">
-      <section className="h-full min-h-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
+      <section className="app-page h-full min-h-0 overflow-y-auto text-[#0F2044]">
         <PageHeader />
 
-        <main className="px-9 py-9">
-          <section className="w-[288px] rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5">
+        <main className="mx-auto max-w-[1540px] px-9 py-9">
+          <section className="surface-card w-[288px] rounded-[23px] border border-[#88A9C8] bg-white px-5 py-5">
             <p className="flex items-center gap-2 text-[28px] leading-none">
               <FolderIcon className="h-9 w-9" />
               Casos activos
@@ -56,7 +56,7 @@ export default async function CasesPage() {
 
 function PageHeader() {
   return (
-    <header className="grid min-h-[58px] grid-cols-[minmax(180px,1fr)_minmax(300px,464px)_minmax(286px,auto)] items-center gap-6 border-b-4 border-[#88A9C8] bg-white px-20">
+    <header className="app-header sticky top-0 z-30 grid min-h-[64px] grid-cols-[minmax(180px,1fr)_minmax(300px,464px)_minmax(286px,auto)] items-center gap-6 px-12">
       <h1 className="brand-font text-[34px] font-semibold leading-none">
         Casos
       </h1>
@@ -65,7 +65,7 @@ function PageHeader() {
           <SearchIcon />
         </span>
         <input
-          className="h-[35px] w-full rounded-full border-2 border-[#88A9C8] bg-white pl-[60px] pr-5 text-[28px] leading-none outline-none placeholder:text-[#0F2044]"
+          className="h-10 w-full rounded-full border border-[#88A9C8]/60 bg-white/90 pl-[52px] pr-5 text-[18px] leading-none shadow-[0_5px_16px_rgba(15,32,68,0.05)] outline-none placeholder:text-[#0F2044]/45"
           placeholder="Buscar..."
           type="search"
         />
@@ -73,7 +73,7 @@ function PageHeader() {
       <div className="flex items-center justify-end gap-6">
         <Link
           aria-label="Configuracion"
-          className="grid h-10 w-10 place-items-center rounded-md"
+          className="icon-action grid h-10 w-10 place-items-center rounded-xl"
           href="/configuracion"
         >
           <CogIcon className="h-10 w-10" />
@@ -104,7 +104,7 @@ function CaseRow({
   return (
     <article>
       <Link
-        className="block rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-4 transition hover:bg-white/80"
+        className="surface-card surface-card-interactive block rounded-[23px] border border-[#88A9C8] bg-white px-5 py-4"
         href={`/casos/${legalCase.slug}`}
       >
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
@@ -139,7 +139,7 @@ function CaseRow({
 function SectionLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
-      className="flex h-[43px] items-center justify-between rounded-[14px] border-2 border-[#88A9C8] bg-white px-[18px] text-[18px] leading-none transition hover:bg-white/80"
+      className="soft-action flex h-[43px] items-center justify-between rounded-[14px] border border-[#88A9C8] bg-white px-[18px] text-[18px] leading-none"
       href={href}
     >
       <span>{label}</span>
@@ -151,7 +151,7 @@ function SectionLink({ href, label }: { href: string; label: string }) {
 function NewCaseCard() {
   return (
     <Link
-      className="mt-1 grid min-h-[140px] w-[288px] grid-cols-[minmax(0,1fr)_28px] items-center rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5 transition hover:bg-white/80"
+      className="surface-card surface-card-interactive mt-1 grid min-h-[140px] w-[288px] grid-cols-[minmax(0,1fr)_28px] items-center rounded-[23px] border border-[#88A9C8] bg-white px-5 py-5"
       href="/nuevo"
     >
       <span>

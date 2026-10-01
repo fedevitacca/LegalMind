@@ -7,7 +7,7 @@ type WorkItem = {
 
 export default function MesaTrabajo({ items }: { items: WorkItem[] }) {
   return (
-    <section className="rounded-lg border border-[#84A2BD]/35 bg-white p-5 shadow-[0_10px_28px_rgba(15,32,68,0.06)]">
+    <section className="surface-card rounded-xl border border-[#84A2BD]/35 bg-white p-5">
       <div className="border-b border-[#84A2BD]/30 pb-4">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#546FC0]">
           Mesa de trabajo
@@ -18,7 +18,7 @@ export default function MesaTrabajo({ items }: { items: WorkItem[] }) {
       <div className="mt-4 grid gap-3">
         {items.map((item) => (
           <a
-            className="rounded-lg bg-[#F4F7F5] px-4 py-3 transition hover:bg-[#84A2BD]/18"
+            className="rounded-xl border border-transparent bg-[#F4F7F5] px-4 py-3 transition duration-200 hover:-translate-y-0.5 hover:border-[#84A2BD]/35 hover:bg-white hover:shadow-[0_8px_20px_rgba(15,32,68,0.07)]"
             href={item.href}
             key={item.title}
           >

@@ -125,13 +125,13 @@ export default function CentroAnalisisIA() {
   }
 
   return <div className="grid gap-6 xl:grid-cols-[270px_minmax(0,1fr)]">
-    <aside className="self-start border border-[#d6d8d5] bg-white">
+    <aside className="surface-card self-start overflow-hidden rounded-xl border border-[#d6d8d5] bg-white">
       <div className="border-b border-[#e1e3e0] px-5 py-4"><h2 className="text-sm font-semibold text-[#44504f]">¿Qué necesitás hacer?</h2><p className="mt-1 text-xs leading-5 text-[#747d7b]">Elegí una tarea para empezar.</p></div>
       <nav>{tools.map((item) => <button key={item.id} onClick={() => { setToolId(item.id); setResult(undefined); setError(""); }} className={`block w-full border-b border-[#eceeeb] px-5 py-4 text-left transition last:border-b-0 ${toolId === item.id ? "border-l-[3px] border-l-[#3f6f6b] bg-[#f1f5f3] pl-[17px]" : "hover:bg-[#f8f8f6]"}`}><span className={`block text-sm font-semibold ${toolId === item.id ? "text-[#285f5b]" : "text-[#283446]"}`}>{item.label}</span><span className="mt-1 block text-xs leading-5 text-[#737c89]">{item.description}</span></button>)}</nav>
     </aside>
 
     <main className="min-w-0 space-y-5">
-      <section className="overflow-hidden border border-[#d6d8d5] bg-white">
+      <section className="surface-card overflow-hidden rounded-xl border border-[#d6d8d5] bg-white">
         <header className="border-b border-[#e1e3e0] px-6 py-5"><h2 className="text-xl font-semibold text-[#182338]">{tool?.label}</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-[#687180]">{tool?.description}</p></header>
         <div className="border-b border-[#e1e3e0] bg-[#fafaf8] px-6 py-5"><div className="max-w-md"><label><span className="text-xs font-semibold text-[#59636f]">Expediente</span><select value={caseId} onChange={(e) => { setCaseId(e.target.value); setResult(undefined); setError(""); }} className="mt-2 h-11 w-full border border-[#bfc4c1] bg-white px-3 text-sm"><option value="">Trabajar sin expediente</option>{cases.map((item) => <option key={item.id} value={item.id}>{item.identificador ? `${item.identificador} · ` : ""}{item.name}</option>)}</select></label>{casesLoading && <p className="mt-2 text-xs text-[#687180]">Cargando expedientes…</p>}{casesError && <div className="mt-2 space-y-2"><div className="flex items-center justify-between gap-3 text-xs text-[#8a4d30]"><span>{casesError}</span><button type="button" onClick={() => void loadCases()} className="font-semibold underline">Reintentar</button></div><label className="block"><span className="text-xs text-[#687180]">También puede indicar el número interno:</span><input type="number" min="1" value={caseId} onChange={(e) => setCaseId(e.target.value)} placeholder="Número interno" className="mt-1 h-10 w-full border border-[#bfc4c1] bg-white px-3 text-sm" /></label></div>}</div></div>
         {usesCaseDocuments

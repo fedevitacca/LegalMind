@@ -6,8 +6,8 @@ import FormularioNuevoCaso from "../../components/nuevo/FormularioNuevoCaso";
 export default function NewCasePage() {
   return (
     <MarcoAplicacion activeSection="Casos">
-      <section className="h-full min-h-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
-        <header className="grid min-h-[58px] grid-cols-[minmax(180px,1fr)_minmax(300px,464px)_minmax(286px,auto)] items-center gap-6 border-b-4 border-[#88A9C8] bg-white px-20">
+      <section className="app-page h-full min-h-0 overflow-y-auto text-[#0F2044]">
+        <header className="app-header sticky top-0 z-30 grid min-h-[64px] grid-cols-[minmax(180px,1fr)_minmax(300px,464px)_minmax(286px,auto)] items-center gap-6 px-12">
           <h1 className="brand-font text-[34px] font-semibold leading-none">
             Casos
           </h1>
@@ -16,7 +16,7 @@ export default function NewCasePage() {
               <SearchIcon />
             </span>
             <input
-              className="h-[35px] w-full rounded-full border-2 border-[#88A9C8] bg-white pl-[60px] pr-5 text-[28px] leading-none outline-none placeholder:text-[#0F2044]"
+              className="h-10 w-full rounded-full border border-[#88A9C8]/60 bg-white/90 pl-[52px] pr-5 text-[18px] leading-none shadow-[0_5px_16px_rgba(15,32,68,0.05)] outline-none placeholder:text-[#0F2044]/45"
               placeholder="Buscar..."
               type="search"
             />
@@ -24,7 +24,7 @@ export default function NewCasePage() {
           <div className="flex items-center justify-end gap-6">
             <Link
               aria-label="Configuracion"
-              className="grid h-10 w-10 place-items-center rounded-md"
+              className="icon-action grid h-10 w-10 place-items-center rounded-xl"
               href="/configuracion"
             >
               <CogIcon className="h-10 w-10" />
@@ -33,8 +33,8 @@ export default function NewCasePage() {
           </div>
         </header>
 
-        <main className="px-9 py-9">
-          <section className="mb-[50px] flex h-[90px] w-[288px] items-center gap-2 rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 text-[28px] leading-none">
+        <main className="mx-auto max-w-[1540px] px-9 py-9">
+          <section className="surface-card mb-[50px] flex h-[90px] w-[288px] items-center gap-2 rounded-[23px] border border-[#88A9C8] bg-white px-5 text-[28px] leading-none">
             <FolderIcon className="h-9 w-9" />
             Nuevo caso
           </section>

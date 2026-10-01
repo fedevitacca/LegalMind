@@ -28,10 +28,10 @@ export default function PanelLateralInicio({ alerts }: { alerts: Alert[] }) {
   }
 
   return (
-    <aside className="h-full overflow-y-auto border-l border-[#84A2BD]/45 bg-white/90 px-5 py-6">
+    <aside className="h-full overflow-y-auto border-l border-[#84A2BD]/35 bg-white/75 px-5 py-6 shadow-[-8px_0_28px_rgba(15,32,68,0.05)] backdrop-blur-xl">
       <div className="space-y-4">
         {alerts.length === 0 ? (
-          <section className="rounded-lg border border-[#84A2BD]/35 bg-[#F4F7F5] p-4 shadow-[0_8px_22px_rgba(15,32,68,0.05)]">
+          <section className="surface-card rounded-xl border border-[#84A2BD]/35 bg-[#F4F7F5] p-4">
             <h2 className="text-2xl font-semibold">Sin alertas</h2>
             <p className="mt-3 text-base font-medium text-[#0F2044]/60">
               Los vencimientos apareceran cuando cargues fechas importantes.
@@ -41,7 +41,7 @@ export default function PanelLateralInicio({ alerts }: { alerts: Alert[] }) {
 
         {activeAlert ? (
           <a
-            className="block rounded-lg border border-[#84A2BD]/35 bg-[#F4F7F5] p-4 shadow-[0_8px_22px_rgba(15,32,68,0.05)] transition hover:border-[#546FC0]/55"
+            className="surface-card surface-card-interactive block rounded-xl border border-[#84A2BD]/35 bg-[#F4F7F5] p-4"
             href={activeAlert.href}
           >
             <div className="flex items-start justify-between gap-3">
@@ -63,7 +63,7 @@ export default function PanelLateralInicio({ alerts }: { alerts: Alert[] }) {
           <div className="flex justify-end gap-2">
             <button
               aria-label="Alerta anterior"
-              className="grid h-9 w-9 place-items-center rounded-full border border-[#84A2BD]/45 bg-[#F4F7F5] text-base font-bold transition hover:bg-white"
+              className="soft-action grid h-9 w-9 place-items-center rounded-full border border-[#84A2BD]/45 bg-[#F4F7F5] text-base font-bold"
               onClick={goToPreviousAlert}
               type="button"
             >
@@ -71,7 +71,7 @@ export default function PanelLateralInicio({ alerts }: { alerts: Alert[] }) {
             </button>
             <button
               aria-label="Alerta siguiente"
-              className="grid h-9 w-9 place-items-center rounded-full border border-[#84A2BD]/45 bg-[#F4F7F5] text-base font-bold transition hover:bg-white"
+              className="soft-action grid h-9 w-9 place-items-center rounded-full border border-[#84A2BD]/45 bg-[#F4F7F5] text-base font-bold"
               onClick={goToNextAlert}
               type="button"
             >
@@ -80,7 +80,7 @@ export default function PanelLateralInicio({ alerts }: { alerts: Alert[] }) {
           </div>
         ) : null}
 
-        <section className="rounded-lg bg-[#0F2044] p-4 text-white shadow-[0_10px_26px_rgba(15,32,68,0.18)]">
+        <section className="rounded-xl bg-[linear-gradient(145deg,#173463,#0F2044)] p-4 text-white shadow-[0_16px_34px_rgba(15,32,68,0.24)]">
           <h2 className="text-xl font-semibold">Atajos</h2>
           <div className="mt-4 grid gap-2">
             {shortcuts.map((shortcut) => (

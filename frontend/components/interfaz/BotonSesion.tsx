@@ -28,7 +28,7 @@ export default function BotonSesion({
   return (
     <Link
       aria-label="Iniciar sesion"
-      className="grid h-10 w-10 place-items-center rounded-md transition hover:bg-[#88A9C8]/20"
+      className="icon-action grid h-10 w-10 place-items-center rounded-xl"
       href="/#login"
     >
       <UserIcon className={className} />

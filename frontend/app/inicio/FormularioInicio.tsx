@@ -172,29 +172,29 @@ export default function FormularioInicio() {
   };
 
   return (
-    <main className="h-full min-h-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
-      <header className="sticky top-0 z-30 border-b-4 border-[#88A9C8] bg-[#F4F7F5]/95 backdrop-blur">
-        <nav className="mx-auto grid h-[58px] max-w-[1226px] grid-cols-[1fr_auto] items-center gap-6 px-8">
+    <main className="app-page h-full min-h-0 overflow-y-auto text-[#0F2044]">
+      <header className="app-header sticky top-0 z-30">
+        <nav className="mx-auto grid h-[68px] max-w-[1226px] grid-cols-[1fr_auto] items-center gap-6 px-8">
           <button
-            className="brand-font justify-self-start text-[31px] font-semibold leading-none"
+            className="brand-font justify-self-start rounded-lg text-[31px] font-semibold leading-none transition hover:text-[#546FC0]"
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
             type="button"
           >
             LegalMind
           </button>
-          <div className="flex items-center gap-12 text-[22px] leading-none">
-            <a className="transition hover:text-[#88A9C8]" href="#inicio">
+          <div className="flex items-center gap-10 text-[18px] font-medium leading-none">
+            <a className="rounded-lg px-2 py-2 transition hover:bg-[#88A9C8]/12 hover:text-[#546FC0]" href="#inicio">
               Inicio
             </a>
-            <a className="transition hover:text-[#88A9C8]" href="#funciones">
+            <a className="rounded-lg px-2 py-2 transition hover:bg-[#88A9C8]/12 hover:text-[#546FC0]" href="#funciones">
               Funciones
             </a>
-            <a className="transition hover:text-[#88A9C8]" href="#equipo">
+            <a className="rounded-lg px-2 py-2 transition hover:bg-[#88A9C8]/12 hover:text-[#546FC0]" href="#equipo">
               Equipo
             </a>
             {isLoggedIn ? (
               <button
-                className="flex h-[42px] min-w-[238px] items-center justify-between rounded-[4px] border-2 border-[#88A9C8] bg-white px-5 text-[22px] transition hover:bg-white/70"
+                className="primary-action flex h-[44px] min-w-[210px] items-center justify-between rounded-xl bg-[#0F2044] px-5 text-[17px] font-semibold text-white"
                 onClick={goToDashboard}
                 type="button"
               >
@@ -202,7 +202,7 @@ export default function FormularioInicio() {
               </button>
             ) : (
               <button
-                className="flex h-[42px] min-w-[238px] items-center justify-between rounded-[4px] border-2 border-[#88A9C8] bg-white px-5 text-[22px] transition hover:bg-white/70"
+                className="primary-action flex h-[44px] min-w-[210px] items-center justify-between rounded-xl bg-[#0F2044] px-5 text-[17px] font-semibold text-white"
                 onClick={() => focusAuth("registro")}
                 type="button"
               >
@@ -227,7 +227,7 @@ export default function FormularioInicio() {
             plataforma disenada para estudios juridicos.
           </p>
           <button
-            className="mt-7 h-[60px] rounded-[4px] border-2 border-[#88A9C8] bg-white px-6 text-[19px] transition hover:bg-white/70"
+            className="primary-action mt-7 h-[56px] rounded-xl bg-[#0F2044] px-7 text-[18px] font-semibold text-white"
             onClick={() => focusAuth("login")}
             type="button"
           >
@@ -241,7 +241,7 @@ export default function FormularioInicio() {
         </div>
 
         <div className="flex items-center justify-center gap-4">
-          <div className="grid h-[206px] w-[206px] place-items-center rounded-[6px] border-4 border-[#88A9C8] bg-[#0F2044] text-white shadow-[0_12px_28px_rgba(15,32,68,0.16)]">
+          <div className="grid h-[206px] w-[206px] place-items-center rounded-[28px] border border-white/20 bg-[linear-gradient(145deg,#173463,#0F2044)] text-white shadow-[0_28px_60px_rgba(15,32,68,0.28)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_34px_70px_rgba(15,32,68,0.34)]">
             <span className="font-serif text-[130px] leading-none">LM</span>
           </div>
           <span className="brand-font text-[42px] font-semibold">LegalMind</span>
@@ -322,7 +322,7 @@ export default function FormularioInicio() {
             <li>Acceso seguro y en la nube</li>
           </ul>
           <button
-            className="mt-8 h-[60px] rounded-[4px] border-2 border-[#88A9C8] bg-white px-5 text-[19px] transition hover:bg-white/70"
+            className="soft-action mt-8 h-[56px] rounded-xl border border-[#88A9C8] bg-white px-6 text-[18px] font-semibold"
             onClick={() => focusAuth("login")}
             type="button"
           >
@@ -333,7 +333,7 @@ export default function FormularioInicio() {
       </section>
 
       <section ref={authRef} className="mx-auto max-w-[1226px] px-8 py-20">
-        <div className="grid grid-cols-[minmax(0,1fr)_420px] gap-12 rounded-[23px] border-2 border-[#88A9C8] bg-white p-10">
+        <div className="surface-card grid grid-cols-[minmax(0,1fr)_420px] gap-12 rounded-[28px] border border-[#88A9C8] bg-white p-10">
           <div>
             <p className="text-[19px] font-semibold text-[#88A9C8]">
               Acceso seguro
@@ -570,7 +570,7 @@ function FeatureCard({
   title: string;
 }) {
   return (
-    <article className="min-h-[220px] rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-6">
+    <article className="surface-card surface-card-interactive min-h-[220px] rounded-[23px] border border-[#88A9C8] bg-white px-5 py-6">
       {icon}
       <h3 className="mt-4 text-[30px] leading-none">{title}</h3>
       <p className="mt-2 text-[18px] leading-6">{detail}</p>
@@ -591,11 +591,11 @@ function StepCard({
   title: string;
 }) {
   return (
-    <article className="text-center">
-      <span className="mx-auto grid h-[41px] w-[41px] place-items-center rounded-full border border-[#88A9C8] text-[19px]">
+    <article className="group rounded-2xl px-3 py-4 text-center transition duration-200 hover:bg-white/65 hover:shadow-[0_12px_30px_rgba(15,32,68,0.07)]">
+      <span className="mx-auto grid h-[41px] w-[41px] place-items-center rounded-full border border-[#88A9C8] bg-white text-[19px] shadow-sm transition group-hover:border-[#546FC0] group-hover:text-[#546FC0]">
         {number}
       </span>
-      <div className="mx-auto mt-4 grid h-[118px] w-[118px] place-items-center rounded-full border border-[#0F2044] bg-white">
+      <div className="mx-auto mt-4 grid h-[118px] w-[118px] place-items-center rounded-full border border-[#0F2044]/70 bg-white shadow-[0_10px_24px_rgba(15,32,68,0.08)] transition duration-200 group-hover:-translate-y-1 group-hover:shadow-[0_16px_32px_rgba(15,32,68,0.14)]">
         {icon}
       </div>
       <h3 className="mt-4 text-[26px] font-semibold leading-none">{title}</h3>
@@ -606,7 +606,7 @@ function StepCard({
 
 function DashboardPreview() {
   return (
-    <div className="overflow-hidden rounded-[23px] border-2 border-[#88A9C8] bg-white shadow-[0_14px_35px_rgba(15,32,68,0.12)]">
+    <div className="surface-card overflow-hidden rounded-[23px] border border-[#88A9C8] bg-white shadow-[0_22px_52px_rgba(15,32,68,0.16)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_30px_64px_rgba(15,32,68,0.22)]">
       <div className="grid grid-cols-[155px_minmax(0,1fr)]">
         <aside className="bg-[#0F2044] p-5 text-white">
           <h3 className="brand-font text-[20px] font-semibold">LegalMind</h3>

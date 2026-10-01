@@ -36,12 +36,12 @@ export default async function AgendaPage() {
 
   return (
     <MarcoAplicacion activeSection="Agenda">
-      <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_285px] bg-[#F4F7F5] text-[#0F2044]">
+      <div className="app-page grid h-full min-h-0 grid-cols-[minmax(0,1fr)_285px] text-[#0F2044]">
         <section className="h-full overflow-y-auto px-8 py-5">
           <div className="mx-auto flex max-w-6xl flex-col gap-5">
             <BarraBusqueda placeholder="Buscar eventos, casos o vencimientos" />
 
-            <header className="rounded-lg border border-[#84A2BD]/35 bg-white px-5 py-4 shadow-[0_10px_28px_rgba(15,32,68,0.06)]">
+            <header className="surface-card rounded-xl border border-[#84A2BD]/35 bg-white px-5 py-4">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#546FC0]">
                 Agenda general
               </p>
@@ -63,12 +63,12 @@ export default async function AgendaPage() {
           </div>
         </section>
 
-        <aside className="h-full overflow-y-auto border-l border-[#84A2BD]/45 bg-white/90 px-5 py-6">
+        <aside className="h-full overflow-y-auto border-l border-[#84A2BD]/35 bg-white/75 px-5 py-6 shadow-[-8px_0_28px_rgba(15,32,68,0.05)] backdrop-blur-xl">
           <h2 className="text-2xl font-semibold">Analisis IA</h2>
           <div className="mt-4 grid gap-3">
             {analisisAgenda.map((item) => (
               <section
-                className="rounded-lg border border-[#84A2BD]/35 bg-[#F4F7F5] p-4 shadow-[0_8px_22px_rgba(15,32,68,0.05)]"
+                className="surface-card surface-card-interactive rounded-xl border border-[#84A2BD]/35 bg-[#F4F7F5] p-4"
                 key={item.title}
               >
                 <h3 className="text-lg font-semibold">{item.title}</h3>

@@ -78,7 +78,7 @@ export default function ConfiguracionUsuario() {
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <section className="rounded-lg border border-[#84A2BD]/35 bg-white p-5 shadow-[0_10px_28px_rgba(15,32,68,0.06)]">
+      <section className="surface-card rounded-xl border border-[#84A2BD]/35 bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold">Usuario</h2>
@@ -168,7 +168,7 @@ export default function ConfiguracionUsuario() {
         </div>
       </section>
 
-      <aside className="rounded-lg border border-[#84A2BD]/35 bg-white p-5 shadow-[0_10px_28px_rgba(15,32,68,0.06)]">
+      <aside className="surface-card rounded-xl border border-[#84A2BD]/35 bg-white p-5">
         <h2 className="text-xl font-semibold">Cuenta</h2>
         <div className="mt-4 grid gap-3 text-sm font-medium leading-5 text-[#0F2044]/68">
           <p>

@@ -63,7 +63,7 @@ export default function FormularioNuevoCaso() {
   }
 
   return (
-    <form className="max-w-[988px]" onSubmit={handleSubmit}>
+    <form className="surface-card max-w-[1040px] rounded-[24px] border border-[#84A2BD]/35 bg-white/75 p-7 backdrop-blur-sm" onSubmit={handleSubmit}>
       <div className="grid grid-cols-3 gap-8">
         <TextField
           label="Nombre del caso"
@@ -80,7 +80,7 @@ export default function FormularioNuevoCaso() {
         />
         <label className="block">
           <span className="text-[19px] leading-none">Estado</span>
-          <span className="mt-2 flex h-[70px] items-center rounded-[8px] border-2 border-[#88A9C8] bg-white px-5">
+          <span className="mt-2 flex h-[70px] items-center rounded-[12px] border border-[#88A9C8]/70 bg-white px-5 shadow-sm transition focus-within:border-[#546FC0] focus-within:ring-4 focus-within:ring-[#546FC0]/10">
             <span className="mr-3 h-[17px] w-[17px] rounded-full bg-[#6AD233]" />
             <select
               className="h-full min-w-0 flex-1 bg-transparent text-[19px] outline-none"
@@ -98,7 +98,7 @@ export default function FormularioNuevoCaso() {
       <label className="mt-9 block">
         <span className="text-[19px] leading-none">Descripcion</span>
         <textarea
-          className="mt-2 h-[114px] w-full resize-none rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 py-5 text-[18px] outline-none placeholder:text-[#64708B]/75"
+          className="mt-2 h-[114px] w-full resize-none rounded-[14px] border border-[#88A9C8]/70 bg-white px-5 py-5 text-[18px] shadow-sm outline-none placeholder:text-[#64708B]/75"
           onChange={(event) => setDescripcion(event.target.value)}
           placeholder="Describir brevemente el caso, hechos relevantes, contexto, etc."
           value={descripcion}
@@ -108,7 +108,7 @@ export default function FormularioNuevoCaso() {
       <div className="mt-9 grid grid-cols-[308px_minmax(0,1fr)] items-end gap-8">
         <label className="block">
           <span className="text-[19px] leading-none">Fecha de creacion del caso</span>
-          <span className="mt-2 flex h-[74px] items-center rounded-[8px] border-2 border-[#88A9C8] bg-white px-3">
+          <span className="mt-2 flex h-[74px] items-center rounded-[12px] border border-[#88A9C8]/70 bg-white px-3 shadow-sm transition focus-within:border-[#546FC0] focus-within:ring-4 focus-within:ring-[#546FC0]/10">
             <input
               className="min-w-0 flex-1 bg-transparent text-[23px] outline-none placeholder:text-[#64708B]"
               onChange={(event) => setFechaCreacion(event.target.value)}
@@ -122,8 +122,8 @@ export default function FormularioNuevoCaso() {
 
         <label className="block">
           <span className="text-[19px] leading-none">Archivos oficiales</span>
-          <span className="mt-2 grid h-[74px] grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-[8px] border-2 border-[#88A9C8] bg-white px-4">
-            <span className="grid h-[43px] place-items-center rounded-[4px] border-2 border-[#88A9C8] px-4 text-[18px]">
+          <span className="mt-2 grid h-[74px] grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-[12px] border border-[#88A9C8]/70 bg-white px-4 shadow-sm transition hover:border-[#546FC0] hover:shadow-md">
+            <span className="soft-action grid h-[43px] place-items-center rounded-lg border border-[#88A9C8] px-4 text-[18px]">
               Agregar archivos
             </span>
             <span className="truncate text-[18px] text-[#64708B]">
@@ -155,14 +155,14 @@ export default function FormularioNuevoCaso() {
 
       <div className="mt-8 flex gap-5">
         <button
-          className="h-[61px] rounded-[4px] border-2 border-[#88A9C8] bg-white px-5 text-[19px] transition hover:bg-white/80 disabled:cursor-wait disabled:text-[#0F2044]/50"
+          className="primary-action h-[54px] rounded-xl bg-[#0F2044] px-7 text-[18px] font-semibold text-white disabled:cursor-wait disabled:opacity-50"
           disabled={isSaving}
           type="submit"
         >
           {isSaving ? "Creando..." : "Crear caso"}
         </button>
         <Link
-          className="grid h-[61px] place-items-center rounded-[4px] border-2 border-[#88A9C8] bg-white px-7 text-[19px] transition hover:bg-white/80"
+          className="soft-action grid h-[54px] place-items-center rounded-xl border border-[#88A9C8] bg-white px-7 text-[18px] font-semibold"
           href="/casos"
         >
           Cancelar
@@ -189,7 +189,7 @@ function TextField({
     <label className="block">
       <span className="text-[19px] leading-none">{label}</span>
       <input
-        className="mt-2 h-[70px] w-full rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 text-[18px] outline-none placeholder:text-[#64708B]/75"
+        className="mt-2 h-[70px] w-full rounded-[14px] border border-[#88A9C8]/70 bg-white px-5 text-[18px] shadow-sm outline-none placeholder:text-[#64708B]/75"
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={required}

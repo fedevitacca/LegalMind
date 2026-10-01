@@ -45,8 +45,8 @@ export default async function Home() {
 
   return (
     <MarcoAplicacion activeSection="Dashboard">
-      <section className="h-full min-h-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
-        <header className="grid min-h-[48px] grid-cols-[minmax(170px,1fr)_minmax(280px,464px)_minmax(286px,auto)] items-center gap-6 border-b-4 border-[#88A9C8] bg-white px-8">
+      <section className="app-page h-full min-h-0 overflow-y-auto text-[#0F2044]">
+        <header className="app-header sticky top-0 z-30 grid min-h-[64px] grid-cols-[minmax(170px,1fr)_minmax(280px,464px)_minmax(286px,auto)] items-center gap-6 px-8">
           <h1 className="brand-font text-[29px] font-semibold leading-none">
             Dashboard
           </h1>
@@ -55,7 +55,7 @@ export default async function Home() {
               <SearchIcon />
             </span>
             <input
-              className="h-[31px] w-full rounded-full border-2 border-[#88A9C8] bg-white pl-[52px] pr-5 text-[23px] leading-none outline-none placeholder:text-[#0F2044]"
+              className="h-10 w-full rounded-full border border-[#88A9C8]/60 bg-white/90 pl-[52px] pr-5 text-[18px] leading-none shadow-[0_5px_16px_rgba(15,32,68,0.05)] outline-none placeholder:text-[#0F2044]/45"
               placeholder="Buscar..."
               type="search"
             />
@@ -63,7 +63,7 @@ export default async function Home() {
           <div className="flex items-center justify-end gap-5">
             <Link
               aria-label="Configuracion"
-              className="grid h-9 w-9 place-items-center rounded-md"
+              className="icon-action grid h-10 w-10 place-items-center rounded-xl"
               href="/configuracion"
             >
               <CogIcon className="h-9 w-9" />
@@ -72,7 +72,7 @@ export default async function Home() {
           </div>
         </header>
 
-        <main className="grid min-h-[calc(100vh-48px)] grid-cols-[minmax(0,1fr)_192px] gap-4 px-9 py-6">
+        <main className="mx-auto grid min-h-[calc(100vh-64px)] max-w-[1540px] grid-cols-[minmax(0,1fr)_210px] gap-5 px-9 py-7">
           <section className="flex min-w-0 flex-col gap-4">
             <TodayCard today={today} />
 
@@ -102,7 +102,7 @@ export default async function Home() {
                   <div className="mt-6 grid gap-5">
                     {buildActivity(cases).map((item) => (
                     <div
-                      className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3"
+                      className="-mx-2 grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-2 py-1.5 transition hover:bg-[#F4F7F5]"
                       key={`${item.title}-${item.detail}`}
                     >
                       <span className="text-[#0F2044]">{item.icon}</span>
@@ -129,7 +129,7 @@ export default async function Home() {
                 {buildWeekDeadlines(deadlines).length ? (
                   <div className="mt-6 grid gap-5">
                     {buildWeekDeadlines(deadlines).map((deadline) => (
-                    <Link href={deadline.href} key={deadline.title}>
+                    <Link className="-mx-2 block rounded-xl px-2 py-1.5 transition hover:bg-[#F4F7F5]" href={deadline.href} key={deadline.title}>
                       <h3 className="text-[22px] font-semibold leading-none">
                         {deadline.title}
                       </h3>
@@ -150,7 +150,7 @@ export default async function Home() {
               <LineLink href="/agenda" label="Ver todos los vencimientos" />
             </div>
 
-            <div className="flex h-[42px] w-[330px] items-center gap-2 rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 text-[18px]">
+            <div className="surface-card flex h-[42px] w-[330px] items-center gap-2 rounded-[14px] border border-[#88A9C8] bg-white px-5 text-[18px]">
               <BoltIcon />
               Accesos rapidos
             </div>
@@ -168,7 +168,7 @@ export default async function Home() {
                 <div className="mt-3">
                   {buildEvents(deadlines).map((event, index) => (
                   <div
-                    className={`py-4 ${index ? "border-t border-[#88A9C8]" : ""}`}
+                    className={`rounded-xl px-1 py-4 transition hover:bg-[#F4F7F5] ${index ? "border-t border-[#88A9C8]/60" : ""}`}
                     key={`${event.time}-${event.title}`}
                   >
                     <p className="text-[40px] font-semibold leading-none">
@@ -197,7 +197,7 @@ export default async function Home() {
 
 function TodayCard({ today }: { today: Date }) {
   return (
-    <section className="w-[310px] rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5">
+    <section className="surface-card w-[310px] rounded-[23px] border border-[#88A9C8] bg-white px-5 py-5">
       <p className="flex items-center gap-2 text-[27px] leading-none">
         <CalendarSmallIcon />
         Hoy:
@@ -222,7 +222,7 @@ function MetricCard({
   value: string;
 }) {
   return (
-    <section className="min-h-[142px] rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5">
+    <section className="surface-card surface-card-interactive min-h-[142px] rounded-[23px] border border-[#88A9C8] bg-white px-5 py-5">
       <p className="text-[27px] leading-tight">
         {icon ? <span className="mr-2 inline-flex align-middle">{icon}</span> : null}
         {label}
@@ -246,7 +246,7 @@ function DashboardPanel({
 }) {
   return (
     <section
-      className={`rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-6 ${
+      className={`surface-card rounded-[23px] border border-[#88A9C8] bg-white px-5 py-6 ${
         compact ? "min-h-[452px]" : "min-h-[254px]"
       }`}
     >
@@ -270,7 +270,7 @@ function EmptyPanelMessage({ text }: { text: string }) {
 function LineLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
-      className="flex h-[42px] items-center justify-between rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 text-[18px] leading-none"
+      className="soft-action flex h-[42px] items-center justify-between rounded-[14px] border border-[#88A9C8] bg-white px-5 text-[18px] leading-none"
       href={href}
     >
       <span>{label}</span>
@@ -292,7 +292,7 @@ function QuickAction({
 }) {
   return (
     <Link
-      className="grid min-h-[150px] grid-cols-[minmax(0,1fr)_32px] items-center rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5"
+      className="surface-card surface-card-interactive group grid min-h-[150px] grid-cols-[minmax(0,1fr)_32px] items-center rounded-[23px] border border-[#88A9C8] bg-white px-5 py-5"
       href={href}
     >
       <span>
@@ -300,7 +300,7 @@ function QuickAction({
         <span className="mt-4 block text-[23px] leading-none">{title}</span>
         <span className="mt-2 block text-[17px] leading-none">{detail}</span>
       </span>
-      <span className="text-[38px] font-semibold leading-none">&gt;</span>
+      <span className="text-[38px] font-semibold leading-none transition group-hover:translate-x-1 group-hover:text-[#546FC0]">&gt;</span>
     </Link>
   );
 }

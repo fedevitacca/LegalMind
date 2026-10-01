@@ -15,15 +15,15 @@ export default function BarraLateral({
   activeSection: string;
 }) {
   return (
-    <aside className="h-full overflow-y-auto bg-[#0F2044] px-6 py-8 text-white">
+    <aside className="relative z-20 h-full overflow-y-auto border-r border-white/10 bg-[linear-gradient(180deg,#10254d_0%,#0b1935_100%)] px-5 py-7 text-white shadow-[10px_0_35px_rgba(15,32,68,0.16)]">
       <Link
-        className="block w-fit rounded-[6px]"
+        className="group block w-fit rounded-xl outline-none transition duration-300 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white/70"
         href="/dashboard"
         aria-label="Ir al dashboard de LegalMind"
       >
         <Image
           alt="LegalMind"
-          className="h-[118px] w-[118px]"
+          className="h-[104px] w-[104px] rounded-2xl drop-shadow-[0_10px_18px_rgba(0,0,0,0.22)] transition duration-300 group-hover:drop-shadow-[0_14px_24px_rgba(0,0,0,0.3)]"
           height={118}
           priority
           src="/legalmind-logo.png"
@@ -31,22 +31,25 @@ export default function BarraLateral({
         />
       </Link>
 
-      <nav className="mt-[42px] space-y-[30px]">
+      <nav className="mt-10 space-y-2" aria-label="Navegacion principal">
         {sideItems.map((item) => {
           const isActive = item.label === activeSection;
           const Icon = item.icon;
 
           return (
             <Link
-              className={`flex h-10 items-center gap-[14px] rounded-[6px] px-0 text-[28px] font-normal leading-none transition ${
+              className={`group relative flex min-h-12 items-center gap-3 overflow-hidden rounded-xl px-3 text-[19px] font-medium leading-none transition duration-200 ${
                 isActive
-                  ? "text-white"
-                  : "text-white/88 hover:text-white"
+                  ? "bg-white/14 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.12)]"
+                  : "text-white/75 hover:translate-x-1 hover:bg-white/8 hover:text-white"
               }`}
               href={item.href}
               key={item.label}
             >
-              <span className="grid h-10 w-10 shrink-0 place-items-center text-white">
+              {isActive ? (
+                <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[#88A9C8] shadow-[0_0_12px_rgba(136,169,200,0.8)]" />
+              ) : null}
+              <span className={`grid h-9 w-9 shrink-0 place-items-center transition duration-200 ${isActive ? "text-[#B9D2EA]" : "text-white/70 group-hover:text-white"}`}>
                 <Icon />
               </span>
               {item.label}
