@@ -165,6 +165,12 @@ export default function MenuUsuario({
   };
 
   const handleSaveAccount = async () => {
+    if (!emailVerification.currentPassword.trim()) {
+      setStatus("error");
+      setMessage("Ingresa tu contrasena actual para guardar el perfil.");
+      return;
+    }
+
     if (hasEmailChanged && !isEmailVerificationOpen) {
       setIsEmailVerificationOpen(true);
       setStatus("idle");
@@ -178,9 +184,7 @@ export default function MenuUsuario({
     try {
       await saveUserAccount({
         ...accountForm,
-        currentPassword: hasEmailChanged
-          ? emailVerification.currentPassword
-          : undefined,
+        currentPassword: emailVerification.currentPassword,
         emailConfirmation: hasEmailChanged
           ? emailVerification.emailConfirmation
           : undefined,
@@ -238,7 +242,7 @@ export default function MenuUsuario({
       <button
         aria-expanded={isOpen}
         aria-haspopup="menu"
-        className="flex max-w-[286px] items-center gap-3 rounded-full border border-[#84A2BD]/40 bg-[#F4F7F5] py-1 pl-1 pr-2 shadow-[0_1px_10px_rgba(15,32,68,0.06)] transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#546FC0]/30"
+        className="flex h-[38px] max-w-[184px] items-center gap-2 rounded-full border border-[#E4D7BE] bg-[#FCF7E8] py-1 pl-1 pr-2 shadow-[0_1px_8px_rgba(15,32,68,0.06)] transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#546FC0]/30"
         type="button"
         onClick={() => {
           const next = !isOpen;
@@ -263,14 +267,14 @@ export default function MenuUsuario({
           }
         }}
       >
-        <span className="grid h-9 w-9 place-items-center rounded-full bg-[#0F2044] text-sm font-semibold text-white">
+        <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full bg-[#191547] text-[13px] font-semibold text-white">
           {getInitials(user.name, user.email)}
         </span>
-        <span className="hidden max-w-[190px] leading-tight text-left sm:block">
-          <span className="block truncate text-sm font-semibold text-[#0F2044]">
+        <span className="hidden max-w-[120px] leading-tight text-left sm:block">
+          <span className="block truncate text-[14px] font-semibold leading-tight text-[#0F2044]">
             {user.name || "Usuario LegalMind"}
           </span>
-          <span className="block truncate text-xs font-normal text-[#355070]">
+          <span className="block truncate text-[12px] font-normal leading-tight text-[#355070]">
             {user.email}
           </span>
         </span>
@@ -291,36 +295,36 @@ export default function MenuUsuario({
       </button>
 
       <div
-        className={`absolute right-0 top-12 z-50 w-[min(420px,calc(100vw-32px))] overflow-hidden rounded-lg border border-[#84A2BD]/35 bg-white shadow-[0_18px_45px_rgba(15,32,68,0.18)] transition ${
+        className={`absolute right-0 top-[42px] z-50 w-[min(360px,calc(100vw-32px))] overflow-hidden rounded-[10px] border border-[#E4D7BE] bg-[#FCF7E8] shadow-[0_18px_36px_rgba(15,32,68,0.16)] transition ${
           isOpen
             ? "translate-y-0 opacity-100"
             : "pointer-events-none -translate-y-1 opacity-0"
         }`}
         role="menu"
       >
-        <section className="border-b border-[#84A2BD]/25 bg-[#F4F7F5] p-4">
+        <section className="border-b border-[#E4D7BE] bg-[#FCF7E8] p-4">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-full bg-[#0F2044] text-base font-semibold text-white">
+            <div className="grid h-[46px] w-[46px] place-items-center rounded-full bg-[#191547] text-[16px] font-semibold text-white">
               {getInitials(user.name, user.email)}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-[#0F2044]">
+              <p className="truncate text-[16px] font-semibold leading-none text-[#0F2044]">
                 {user.name || "Usuario LegalMind"}
               </p>
-              <p className="truncate text-xs font-medium text-[#355070]">
+              <p className="mt-1 truncate text-[13px] font-medium leading-none text-[#355070]">
                 {user.email}
               </p>
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-1 rounded-lg border border-[#84A2BD]/30 bg-white p-1">
+          <div className="mt-3 grid grid-cols-3 gap-1 rounded-[10px] border border-[#D7D2BC] bg-[#FFFFEF] p-1.5">
             {[
               ["perfil", "Perfil"],
               ["preferencias", "Prefs."],
               ["seguridad", "Clave"],
             ].map(([value, label]) => (
               <button
-                className={`rounded-md px-2 py-2 text-xs font-semibold transition ${
+                className={`rounded-[7px] px-2 py-2 text-[13px] font-semibold transition ${
                   panel === value
                     ? "bg-[#0F2044] text-white"
                     : "text-[#355070] hover:bg-[#F4F7F5]"
@@ -339,13 +343,13 @@ export default function MenuUsuario({
           </div>
         </section>
 
-        <div className="max-h-[min(620px,calc(100vh-120px))] overflow-y-auto p-3">
+        <div className="max-h-[min(430px,calc(100vh-96px))] overflow-y-auto border-b border-[#E4D7BE] p-3">
           {panel === "perfil" ? (
             <div className="grid gap-3">
-              <label className="grid gap-1.5 text-sm font-semibold">
+              <label className="grid gap-1.5 text-[14px] font-semibold">
                 Nombre
                 <input
-                  className="h-10 rounded-md border border-[#84A2BD]/40 bg-[#F4F7F5] px-3 outline-none focus:border-[#546FC0]"
+                  className="h-[40px] rounded-[7px] border border-[#D7D2BC] bg-[#FFF8EA] px-3 text-[14px] outline-none focus:border-[#88A9C8]"
                   disabled={isBusy}
                   value={accountForm.name}
                   onChange={(event) =>
@@ -356,10 +360,10 @@ export default function MenuUsuario({
                   }
                 />
               </label>
-              <label className="grid gap-1.5 text-sm font-semibold">
+              <label className="grid gap-1.5 text-[14px] font-semibold">
                 Email
                 <input
-                  className="h-10 rounded-md border border-[#84A2BD]/40 bg-[#F4F7F5] px-3 outline-none focus:border-[#546FC0]"
+                  className="h-[40px] rounded-[7px] border border-[#D7D2BC] bg-[#FFF8EA] px-3 text-[14px] outline-none focus:border-[#88A9C8]"
                   disabled={isBusy}
                   type="email"
                   value={accountForm.email}
@@ -367,6 +371,22 @@ export default function MenuUsuario({
                     setAccountForm((current) => ({
                       ...current,
                       email: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+
+              <label className="grid gap-1.5 text-[14px] font-semibold">
+                Contrasena actual
+                <input
+                  className="h-[40px] rounded-[7px] border border-[#D7D2BC] bg-[#FFF8EA] px-3 text-[14px] outline-none focus:border-[#88A9C8]"
+                  disabled={isBusy}
+                  type="password"
+                  value={emailVerification.currentPassword}
+                  onChange={(event) =>
+                    setEmailVerification((current) => ({
+                      ...current,
+                      currentPassword: event.target.value,
                     }))
                   }
                 />
@@ -412,28 +432,13 @@ export default function MenuUsuario({
                           }
                         />
                       </label>
-                      <label className="grid gap-1.5 text-sm font-semibold">
-                        Contrasena actual
-                        <input
-                          className="h-10 rounded-md border border-[#84A2BD]/40 bg-white px-3 outline-none focus:border-[#546FC0]"
-                          disabled={isBusy}
-                          type="password"
-                          value={emailVerification.currentPassword}
-                          onChange={(event) =>
-                            setEmailVerification((current) => ({
-                              ...current,
-                              currentPassword: event.target.value,
-                            }))
-                          }
-                        />
-                      </label>
                     </div>
                   ) : null}
                 </div>
               ) : null}
 
               <button
-                className="rounded-md bg-[#A68147] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#8F6F3B] disabled:opacity-60"
+                className="h-[40px] rounded-[7px] bg-[#B69042] px-3 text-[14px] font-semibold text-white transition hover:bg-[#8F6F3B] disabled:opacity-60"
                 disabled={isBusy}
                 type="button"
                 onClick={handleSaveAccount}
@@ -581,7 +586,7 @@ export default function MenuUsuario({
           ) : null}
         </div>
 
-        <div className="border-t border-[#84A2BD]/25 p-3">
+        <div className="border-t border-[#E4D7BE] p-3">
           {isSignOutArmed ? (
             <div className="rounded-lg border border-[#A68147]/35 bg-[#A68147]/10 p-3">
               <p className="text-sm font-semibold text-[#0F2044]">

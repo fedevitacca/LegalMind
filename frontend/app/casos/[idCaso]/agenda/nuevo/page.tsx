@@ -5,51 +5,64 @@ import BotonSesion from "../../../../../components/interfaz/BotonSesion";
 
 export default async function PaginaNuevoEvento({
   params,
+  searchParams,
 }: {
   params: Promise<{ idCaso: string }>;
+  searchParams?: Promise<{ returnTo?: string }>;
 }) {
   const { idCaso } = await params;
+  const query = searchParams ? await searchParams : {};
+  const returnTo = getSafeReturnTo(query.returnTo, `/casos/${idCaso}/agenda`);
+  const isAgendaFlow = returnTo === "/agenda";
 
   return (
-    <MarcoAplicacion activeSection="Casos">
-      <section className="h-full min-h-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
-        <header className="grid min-h-[58px] grid-cols-[minmax(180px,1fr)_minmax(300px,464px)_minmax(286px,auto)] items-center gap-6 border-b-4 border-[#88A9C8] bg-white px-20">
-          <h1 className="brand-font text-[34px] font-semibold leading-none">
-            Casos
+    <MarcoAplicacion activeSection={isAgendaFlow ? "Agenda" : "Casos"}>
+      <section className="h-full min-h-0 overflow-hidden bg-[#F4F7F5] text-[#0F2044]">
+        <header className="grid h-11 grid-cols-[minmax(150px,1fr)_minmax(240px,420px)_minmax(180px,auto)] items-center gap-4 border-b-[3px] border-[#88A9C8] bg-white px-6">
+          <h1 className="brand-font text-[25px] font-semibold leading-none">
+            {isAgendaFlow ? "Agenda" : "Casos"}
           </h1>
           <label className="relative block">
-            <span className="absolute left-5 top-1/2 -translate-y-1/2">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2">
               <SearchIcon />
             </span>
             <input
-              className="h-[35px] w-full rounded-full border-2 border-[#88A9C8] bg-white pl-[60px] pr-5 text-[28px] leading-none outline-none placeholder:text-[#0F2044]"
+              className="h-8 w-full rounded-full border-2 border-[#88A9C8] bg-white pl-11 pr-4 text-[18px] leading-none outline-none placeholder:text-[#0F2044]"
               placeholder="Buscar..."
               type="search"
             />
           </label>
-          <div className="flex items-center justify-end gap-6">
+          <div className="flex items-center justify-end gap-3">
             <Link
               aria-label="Configuracion"
-              className="grid h-10 w-10 place-items-center rounded-md"
+              className="grid h-8 w-8 place-items-center rounded-md"
               href="/configuracion"
             >
-              <CogIcon className="h-10 w-10" />
+              <CogIcon className="h-7 w-7" />
             </Link>
-            <BotonSesion className="h-9 w-9" />
+            <BotonSesion className="h-8 w-8" />
           </div>
         </header>
 
-        <main className="px-9 py-9">
-          <section className="mb-[50px] flex h-[90px] w-[308px] items-center gap-3 rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 text-[28px] leading-none">
-            <CalendarIcon className="h-9 w-9" />
+        <main className="grid h-[calc(100vh-44px)] min-h-0 grid-rows-[52px_minmax(0,1fr)] gap-3 px-7 py-4">
+          <section className="flex h-[52px] w-[238px] items-center gap-3 rounded-[14px] border-2 border-[#88A9C8] bg-white px-4 text-[20px] leading-none">
+            <CalendarIcon className="h-7 w-7" />
             Agregar eventos
           </section>
 
-          <FormularioNuevoEvento caseId={idCaso} />
+          <FormularioNuevoEvento caseId={idCaso} returnTo={returnTo} />
         </main>
       </section>
     </MarcoAplicacion>
   );
+}
+
+function getSafeReturnTo(value: string | undefined, fallback: string) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return fallback;
+  }
+
+  return value;
 }
 
 function SearchIcon() {

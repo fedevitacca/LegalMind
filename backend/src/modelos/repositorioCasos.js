@@ -27,12 +27,16 @@ async function listCases(organizationId, filters = {}) {
       c.created_at,
       c.updated_at,
       COUNT(DISTINCT ci.imputado_id)::int AS imputados_count,
+      COUNT(DISTINCT d.id)::int AS documentos_count,
+      COUNT(DISTINCT j.id)::int AS jurisprudencia_count,
       MIN(fr.fecha) FILTER (
         WHERE fr.requiere_alerta = true
           AND (fr.fecha IS NULL OR fr.fecha >= CURRENT_DATE)
       ) AS proxima_alerta
     FROM causas c
     LEFT JOIN causa_imputados ci ON ci.causa_id = c.id
+    LEFT JOIN documentos d ON d.causa_id = c.id
+    LEFT JOIN jurisprudencia j ON j.causa_id = c.id
     LEFT JOIN fechas_relevantes fr ON fr.causa_id = c.id
     WHERE ${where.join(" AND ")}
     GROUP BY c.id
@@ -1577,10 +1581,12 @@ function mapCaseListRow(row) {
     caption: buildCaption(row),
     created_at: row.created_at,
     descripcion: row.descripcion,
+    documentos_count: row.documentos_count || 0,
     estado: row.estado,
     id: row.id,
     identificador: row.identificador,
     imputados_count: row.imputados_count,
+    jurisprudencia_count: row.jurisprudencia_count || 0,
     name: row.caratula,
     proxima_alerta: row.proxima_alerta,
     slug: String(row.id),

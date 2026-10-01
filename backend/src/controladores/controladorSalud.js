@@ -9,11 +9,16 @@ const getApiHealth = (req, res) => {
 };
 
 const getAuthHealth = (req, res) => {
+  const backendUrl = process.env.BETTER_AUTH_URL || "http://localhost:5000";
+
   res.json({
     status: "ok",
     providers: {
       email: true,
       google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    },
+    oauth: {
+      google_redirect_uri: `${backendUrl.replace(/\/+$/, "")}/api/auth/callback/google`,
     },
   });
 };

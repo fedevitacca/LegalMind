@@ -4,6 +4,7 @@ const { rateLimit } = require("express-rate-limit");
 const crypto = require("node:crypto");
 
 const { betterAuthRoute } = require("./rutas/rutasAuth");
+const { getCorsOrigin } = require("./configuracion/origenesPermitidos");
 const healthRoutes = require("./rutas/rutasSalud");
 const iaRoutes = require("./rutas/rutasIA");
 const caseRoutes = require("./rutas/rutasCasos");
@@ -34,26 +35,9 @@ app.use((req, res, next) => {
 app.use("/api", rateLimit({ windowMs: 60_000, limit: Number(process.env.API_RATE_LIMIT_PER_MINUTE || 180), standardHeaders: "draft-8", legacyHeaders: false,
   skip: () => process.env.NODE_ENV === "test", message: { error: "Demasiadas solicitudes. Intenta nuevamente en un minuto." } }));
 
-const parseOrigins = (value) =>
-  value
-    ? value
-        .split(",")
-        .map((origin) => origin.trim())
-        .filter(Boolean)
-    : [];
-
-const allowedOrigins = new Set(
-  [
-    ...parseOrigins(process.env.FRONTEND_URLS),
-    process.env.FRONTEND_URL,
-    "http://localhost:3000",
-  ].filter(Boolean),
-);
-
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const fallbackOrigin = process.env.FRONTEND_URL || "http://localhost:3000";
-  const responseOrigin = origin && allowedOrigins.has(origin) ? origin : fallbackOrigin;
+  const responseOrigin = getCorsOrigin(origin);
 
   res.setHeader("Access-Control-Allow-Origin", responseOrigin);
   res.setHeader("Vary", "Origin");

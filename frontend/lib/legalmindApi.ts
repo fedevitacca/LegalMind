@@ -9,10 +9,12 @@ export type CaseListItem = {
   areas: CaseArea[];
   caption: string;
   descripcion?: string | null;
+  documentos_count?: number;
   estado?: string;
   id?: number;
   identificador?: string | null;
   imputados_count?: number;
+  jurisprudencia_count?: number;
   name: string;
   proxima_alerta?: string | null;
   slug: string;

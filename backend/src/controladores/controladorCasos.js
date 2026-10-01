@@ -612,6 +612,14 @@ function validateCreateCase(body) {
     return "El campo 'caratula' es obligatorio.";
   }
 
+  if (typeof body.identificador !== "string" || !body.identificador.trim()) {
+    return "El campo 'identificador' es obligatorio.";
+  }
+
+  if (typeof body.descripcion !== "string" || !body.descripcion.trim()) {
+    return "El campo 'descripcion' es obligatorio.";
+  }
+
   if (body.estado && !["activa", "archivada", "cerrada"].includes(body.estado)) {
     return "El campo 'estado' debe ser 'activa', 'archivada' o 'cerrada'.";
   }

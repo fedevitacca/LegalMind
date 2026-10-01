@@ -62,7 +62,7 @@ export async function saveUserPreferences(
 }
 
 export async function saveUserAccount(account: {
-  currentPassword?: string;
+  currentPassword: string;
   name: string;
   email: string;
   emailConfirmation?: string;
