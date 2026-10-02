@@ -132,7 +132,7 @@ export default function FormularioNuevoCaso() {
             <input
               className="min-w-0 flex-1 bg-transparent text-[23px] outline-none placeholder:text-[#64708B]"
               onChange={(event) => setFechaCreacion(event.target.value)}
-              placeholder="26/6/2011"
+              placeholder="DD/MM/AAAA"
               required
               type="text"
               value={fechaCreacion}
