@@ -44,7 +44,7 @@ const questionExamples: Record<Scope, string[]> = {
   defendant: ["¿Qué evidencia se vincula con este imputado?", "¿Qué contradicciones afectan específicamente su situación?"],
 };
 
-export default function CentroHerramientasIA() {
+export default function CentroHerramientasIA({ compact = false }: { compact?: boolean }) {
   const [tools, setTools] = useState<Tool[]>(fallbackTools);
   const [toolId, setToolId] = useState("resumen_expediente");
   const [cases, setCases] = useState<CaseOption[]>([]);
@@ -185,19 +185,19 @@ export default function CentroHerramientasIA() {
 
   const report = result ? formatReport(result, citations) : "";
 
-  return <div className="space-y-6">
-    <section className="rounded-2xl border border-[#d6d8d5] bg-white p-5 shadow-sm">
+  return <div className={compact ? "space-y-4" : "space-y-6"}>
+    <section className={`rounded-2xl border border-[#d6d8d5] bg-white shadow-sm ${compact ? "p-4" : "p-5"}`}>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#64706e]">Centro de herramientas</p><h2 className="mt-1 text-xl font-semibold text-[#172235]">Elegí una tarea jurídica</h2></div>
-        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">Respuesta objetivo: menos de 10 segundos</span>
+        {!compact && <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">Respuesta objetivo: menos de 10 segundos</span>}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className={`grid gap-3 ${compact ? "sm:grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-3"}`}>
         {tools.map((item) => {
           const itemUi = toolUi[item.id] || toolUi.consulta_rag;
           const active = item.id === toolId;
-          return <button type="button" key={item.id} onClick={() => selectTool(item)} aria-pressed={active} className={`group flex min-h-28 gap-3 rounded-xl border-2 p-4 text-left transition ${active ? itemUi.active : "border-[#e2e5e2] bg-[#fafbf9] hover:border-[#aeb6b2] hover:bg-white"}`}>
+          return <button type="button" key={item.id} onClick={() => selectTool(item)} aria-pressed={active} className={`group flex gap-3 rounded-xl border-2 text-left transition ${compact ? "min-h-24 p-3" : "min-h-28 p-4"} ${active ? itemUi.active : "border-[#e2e5e2] bg-[#fafbf9] hover:border-[#aeb6b2] hover:bg-white"}`}>
             <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xs font-black tracking-wider ${active ? itemUi.header : "bg-[#e8ece9] text-[#46524f]"}`}>{itemUi.code}</span>
-            <span><strong className="block text-sm text-[#202c3f]">{item.label}</strong><span className="mt-1 block text-xs leading-5 text-[#6a7481]">{item.description}</span></span>
+            <span><strong className="block text-sm text-[#202c3f]">{item.label}</strong>{!compact && <span className="mt-1 block text-xs leading-5 text-[#6a7481]">{item.description}</span>}</span>
           </button>;
         })}
       </div>
@@ -205,11 +205,11 @@ export default function CentroHerramientasIA() {
 
     <main className="space-y-5">
       <section className="overflow-hidden rounded-2xl border border-[#d6d8d5] bg-white shadow-sm">
-        <header className={`${ui.header} px-6 py-6`}>
+        <header className={`${ui.header} ${compact ? "px-4 py-4" : "px-6 py-6"}`}>
           <div className="flex items-start gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-sm font-black tracking-wider">{ui.code}</span><div><p className="text-xs font-bold uppercase tracking-[.14em] text-white/65">{ui.eyebrow}</p><h1 className="mt-1 text-2xl font-semibold">{tool?.label}</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-white/75">{ui.instruction}</p></div></div>
         </header>
 
-        <div className="border-b border-[#e1e3e0] bg-[#fafbf9] px-6 py-5">
+        <div className={`border-b border-[#e1e3e0] bg-[#fafbf9] ${compact ? "px-4 py-4" : "px-6 py-5"}`}>
           <label className="block max-w-xl"><span className="text-xs font-bold uppercase tracking-[.08em] text-[#59636f]">Expediente de trabajo</span><select value={caseId} onChange={(event) => { setCaseId(event.target.value); setResult(undefined); setError(""); }} className="mt-2 h-11 w-full rounded-lg border border-[#bfc4c1] bg-white px-3 text-sm outline-none"><option value="">Sin expediente · usar fuentes manuales</option>{cases.map((item) => <option value={item.id} key={item.id}>{item.identificador ? `${item.identificador} · ` : ""}{item.name || item.caratula || `Expediente ${item.id}`}</option>)}</select></label>
           {loadingCases && <p className="mt-2 text-xs text-[#687180]">Cargando expedientes…</p>}
         </div>
@@ -220,9 +220,9 @@ export default function CentroHerramientasIA() {
           ? effectiveScope === "documents"
             ? <CaseCorpus documents={caseDocuments} loading={loadingContext} error={contextError} />
             : <ContextSummary scope={effectiveScope} documents={readyDocuments} defendants={defendants} selectedDefendant={selectedDefendant} loading={loadingContext} error={contextError} />
-          : <div className={`grid gap-5 p-6 ${tool?.inputs === 2 ? "lg:grid-cols-2" : ""}`}><Source label={tool?.inputs === 2 ? "Fuente A" : "Material jurídico"} value={primary} onChange={setPrimary} documents={readyDocuments} focusClass={ui.focus} />{tool?.inputs === 2 && <Source label="Fuente B" value={secondary} onChange={setSecondary} documents={readyDocuments} focusClass={ui.focus} />}</div>}
+          : <div className={`grid gap-5 ${compact ? "p-4" : "p-6"} ${tool?.inputs === 2 && !compact ? "lg:grid-cols-2" : ""}`}><Source label={tool?.inputs === 2 ? "Fuente A" : "Material jurídico"} value={primary} onChange={setPrimary} documents={readyDocuments} focusClass={ui.focus} compact={compact} />{tool?.inputs === 2 && <Source label="Fuente B" value={secondary} onChange={setSecondary} documents={readyDocuments} focusClass={ui.focus} compact={compact} />}</div>}
 
-        <div className="border-t border-[#e1e3e0] px-6 py-5">
+        <div className={`border-t border-[#e1e3e0] ${compact ? "px-4 py-4" : "px-6 py-5"}`}>
           <label className="text-xs font-bold uppercase tracking-[.08em] text-[#59636f]">{toolId === "consulta_rag" ? "Pregunta concreta" : "Objetivo o enfoque (opcional)"}</label>
           {toolId === "consulta_rag" && caseId && <div className="mt-3 flex flex-wrap gap-2">{questionExamples[scope].map((example) => <button type="button" key={example} onClick={() => setQuery(example)} className="rounded-full border border-[#d3d8d5] bg-[#f7f8f6] px-3 py-1.5 text-left text-xs text-[#4e5a68] hover:border-[#7b8783]">{example}</button>)}</div>}
           <div className="mt-3 flex flex-col gap-3 lg:flex-row"><textarea rows={2} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={toolId === "consulta_rag" ? "Escribí una sola pregunta precisa sobre el alcance elegido…" : "Ej.: priorizar los argumentos favorables a la defensa"} className={`min-h-12 flex-1 resize-y rounded-lg border border-[#bfc4c1] bg-white px-3 py-3 text-sm outline-none ${ui.focus}`} /><button type="button" disabled={!canExecute} onClick={() => void execute()} className={`min-h-12 rounded-lg px-6 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-45 ${ui.button}`}>{busy ? `Analizando · ${elapsed.toFixed(1)} s` : ui.action}</button>{busy && <button type="button" onClick={() => { requestTimedOut.current = false; requestController.current?.abort(); }} className="min-h-12 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700">Cancelar</button>}</div>
@@ -253,7 +253,7 @@ function CaseCorpus({ documents, loading, error }: { documents: CaseDocument[]; 
   return <section className="p-6"><div className="rounded-xl border border-[#c8d6d3] bg-[#f4f8f7] p-5"><p className="text-xs font-bold uppercase tracking-[.08em] text-[#3f6f6b]">Corpus documental</p><h3 className="mt-1 text-lg font-semibold text-[#283446]">{loading ? "Cargando documentos…" : `${ready.length} de ${documents.length} documentos listos`}</h3><p className="mt-2 text-sm leading-6 text-[#687180]">Se recuperan únicamente los pasajes más relacionados con la pregunta y se muestran como fuentes.</p>{error && <p className="mt-4 text-sm font-medium text-red-700">{error}</p>}{!loading && !error && ready.length === 0 && <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">No hay documentos con texto extraído. Cargá uno desde la sección Documentos.</p>}{ready.length > 0 && <ul className="mt-4 grid gap-2 sm:grid-cols-2">{ready.map((item) => <li key={item.id} className="truncate rounded-lg border border-[#d8e1df] bg-white px-3 py-2 text-xs font-medium text-[#44504f]">{item.name}</li>)}</ul>}</div></section>;
 }
 
-function Source({ label, value, onChange, documents, focusClass }: { label: string; value: string; onChange: (value: string) => void; documents: CaseDocument[]; focusClass: string }) {
+function Source({ label, value, onChange, documents, focusClass, compact = false }: { label: string; value: string; onChange: (value: string) => void; documents: CaseDocument[]; focusClass: string; compact?: boolean }) {
   const [fileName, setFileName] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -269,7 +269,7 @@ function Source({ label, value, onChange, documents, focusClass }: { label: stri
     } catch (cause) { setUploadError(cause instanceof Error ? cause.message : "No se pudo leer el archivo."); }
     finally { setUploading(false); }
   }
-  return <div><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs font-bold uppercase tracking-[.08em] text-[#59636f]">{label}</span>{documents.length > 0 && <select aria-label={`Documento para ${label}`} defaultValue="" onChange={(event) => { const item = documents.find((document) => String(document.id) === event.target.value); if (item?.extracted_text) { onChange(item.extracted_text); setFileName(item.name); } }} className="rounded border border-[#bfc4c1] bg-white px-2 py-1 text-xs"><option value="">Elegir documento del expediente…</option>{documents.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select>}</div><label className="mt-2 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-[#abb4b0] bg-[#fafbf9] px-4 py-3"><span><strong className="block text-sm text-[#34413f]">{uploading ? "Leyendo…" : "Adjuntar archivo"}</strong><span className="text-xs text-[#747d7b]">PDF, DOCX, TXT, MD o CSV</span></span><span className="rounded-md border bg-white px-3 py-2 text-xs font-semibold">Examinar</span><input type="file" accept=".pdf,.docx,.txt,.md,.csv" className="hidden" onChange={(event) => void extract(event.target.files?.[0])} /></label>{fileName && <p className="mt-2 text-xs font-medium text-[#285f5b]">Fuente cargada: {fileName}</p>}{uploadError && <p className="mt-2 text-xs font-semibold text-red-700">{uploadError}</p>}<textarea value={value} onChange={(event) => onChange(event.target.value)} placeholder="Pegá el contenido o adjuntá un archivo." className={`mt-2 min-h-52 w-full resize-y rounded-lg border border-[#bfc4c1] p-4 text-sm leading-6 outline-none ${focusClass}`} /><span className="mt-1 block text-right text-xs text-[#7b838e]">{value.length.toLocaleString("es-AR")} caracteres</span></div>;
+  return <div><div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs font-bold uppercase tracking-[.08em] text-[#59636f]">{label}</span>{documents.length > 0 && <select aria-label={`Documento para ${label}`} defaultValue="" onChange={(event) => { const item = documents.find((document) => String(document.id) === event.target.value); if (item?.extracted_text) { onChange(item.extracted_text); setFileName(item.name); } }} className="rounded border border-[#bfc4c1] bg-white px-2 py-1 text-xs"><option value="">Elegir documento del expediente…</option>{documents.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select>}</div><label className="mt-2 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-dashed border-[#abb4b0] bg-[#fafbf9] px-4 py-3"><span><strong className="block text-sm text-[#34413f]">{uploading ? "Leyendo…" : "Adjuntar archivo"}</strong><span className="text-xs text-[#747d7b]">PDF, DOCX, TXT, MD o CSV</span></span><span className="rounded-md border bg-white px-3 py-2 text-xs font-semibold">Examinar</span><input type="file" accept=".pdf,.docx,.txt,.md,.csv" className="hidden" onChange={(event) => void extract(event.target.files?.[0])} /></label>{fileName && <p className="mt-2 text-xs font-medium text-[#285f5b]">Fuente cargada: {fileName}</p>}{uploadError && <p className="mt-2 text-xs font-semibold text-red-700">{uploadError}</p>}<textarea value={value} onChange={(event) => onChange(event.target.value)} placeholder="Pegá el contenido o adjuntá un archivo." className={`mt-2 w-full resize-y rounded-lg border border-[#bfc4c1] p-4 text-sm leading-6 outline-none ${compact ? "min-h-36" : "min-h-52"} ${focusClass}`} /><span className="mt-1 block text-right text-xs text-[#7b838e]">{value.length.toLocaleString("es-AR")} caracteres</span></div>;
 }
 
 function EmptyState({ busy, tool }: { busy: boolean; tool?: Tool }) {
