@@ -19,7 +19,8 @@ type Documento = {
   version?: number;
 };
 
-const apiUrl = process.env.NEXT_PUBLIC_LEGALMIND_API_URL || "http://localhost:5000";
+const apiUrl =
+  process.env.NEXT_PUBLIC_LEGALMIND_API_URL || "http://localhost:5000";
 
 export default function DetalleDocumentosCaso({
   analisis,
@@ -54,13 +55,15 @@ export default function DetalleDocumentosCaso({
 
           <div className="mt-6 grid gap-[13px]">
             {caso.documentos.length ? (
-              caso.documentos.slice(0, 8).map((documento, index) => (
-                <DocumentRow
-                  document={documento}
-                  index={index}
-                  key={`${documento.nombre}-${documento.id || index}`}
-                />
-              ))
+              caso.documentos
+                .slice(0, 8)
+                .map((documento, index) => (
+                  <DocumentRow
+                    document={documento}
+                    index={index}
+                    key={`${documento.nombre}-${documento.id || index}`}
+                  />
+                ))
             ) : (
               <section className="rounded-[23px] border-2 border-dashed border-[#88A9C8] bg-white px-5 py-6">
                 <h2 className="text-[28px] font-semibold leading-none">
@@ -85,7 +88,9 @@ export default function DetalleDocumentosCaso({
                   Agregar documentos al caso
                 </span>
               </span>
-              <span className="text-[38px] font-semibold leading-none">&gt;</span>
+              <span className="text-[38px] font-semibold leading-none">
+                &gt;
+              </span>
             </Link>
           </div>
         </section>
@@ -108,7 +113,7 @@ export default function DetalleDocumentosCaso({
             onClick={() => setAnalisisVisible(true)}
             type="button"
           >
-            Mostrar analisis IA
+            Mostrar analisis
           </button>
         ) : null}
       </main>
@@ -192,7 +197,9 @@ function DocumentRow({
   document: Documento;
   index: number;
 }) {
-  const downloadHref = document.download_url ? `${apiUrl}${document.download_url}` : "#";
+  const downloadHref = document.download_url
+    ? `${apiUrl}${document.download_url}`
+    : "#";
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_166px] gap-6">
@@ -204,7 +211,9 @@ function DocumentRow({
       </article>
       <a
         className={`flex h-[42px] items-center justify-center gap-2 rounded-[21px] border-2 border-[#88A9C8] bg-white px-4 text-[18px] leading-none transition ${
-          document.download_url ? "hover:bg-white/80" : "pointer-events-none opacity-55"
+          document.download_url
+            ? "hover:bg-white/80"
+            : "pointer-events-none opacity-55"
         }`}
         href={downloadHref}
       >
@@ -218,25 +227,60 @@ function DocumentRow({
 function SearchIcon() {
   return (
     <svg aria-hidden="true" className="h-6 w-6" viewBox="0 0 24 24" fill="none">
-      <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="2.2" />
-      <path d="m15.5 15.5 5 5" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
+      <circle
+        cx="10.5"
+        cy="10.5"
+        r="6.5"
+        stroke="currentColor"
+        strokeWidth="2.2"
+      />
+      <path
+        d="m15.5 15.5 5 5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2.2"
+      />
     </svg>
   );
 }
 
 function CogIcon({ className = "h-8 w-8" }: { className?: string }) {
   return (
-    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path fillRule="evenodd" d="M10.7 2h2.6l.7 2.8c.5.1 1 .3 1.5.6L18 3.9l1.9 1.9-1.5 2.5c.3.5.5 1 .6 1.5l2.8.7v2.6l-2.8.7c-.1.5-.3 1-.6 1.5l1.5 2.5-1.9 1.9-2.5-1.5c-.5.3-1 .5-1.5.6l-.7 2.8h-2.6l-.7-2.8c-.5-.1-1-.3-1.5-.6L6 20.1l-1.9-1.9 1.5-2.5c-.3-.5-.5-1-.6-1.5l-2.8-.7v-2.6l2.8-.7c.1-.5.3-1 .6-1.5L4.1 5.8 6 3.9l2.5 1.5c.5-.3 1-.5 1.5-.6l.7-2.8ZM12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" clipRule="evenodd" />
+    <svg
+      aria-hidden="true"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+    >
+      <path
+        fillRule="evenodd"
+        d="M10.7 2h2.6l.7 2.8c.5.1 1 .3 1.5.6L18 3.9l1.9 1.9-1.5 2.5c.3.5.5 1 .6 1.5l2.8.7v2.6l-2.8.7c-.1.5-.3 1-.6 1.5l1.5 2.5-1.9 1.9-2.5-1.5c-.5.3-1 .5-1.5.6l-.7 2.8h-2.6l-.7-2.8c-.5-.1-1-.3-1.5-.6L6 20.1l-1.9-1.9 1.5-2.5c-.3-.5-.5-1-.6-1.5l-2.8-.7v-2.6l2.8-.7c.1-.5.3-1 .6-1.5L4.1 5.8 6 3.9l2.5 1.5c.5-.3 1-.5 1.5-.6l.7-2.8ZM12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+        clipRule="evenodd"
+      />
     </svg>
   );
 }
 
 function DocumentIcon({ className = "h-8 w-8" }: { className?: string }) {
   return (
-    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none">
-      <path d="M6.5 3.5h7L18.5 8v12.5h-12v-17Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="2" />
-      <path d="M13.5 3.5V8h5M9 12h6M9 16h5" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+    <svg
+      aria-hidden="true"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <path
+        d="M6.5 3.5h7L18.5 8v12.5h-12v-17Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M13.5 3.5V8h5M9 12h6M9 16h5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
     </svg>
   );
 }
@@ -244,16 +288,40 @@ function DocumentIcon({ className = "h-8 w-8" }: { className?: string }) {
 function DownloadIcon() {
   return (
     <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none">
-      <path d="M12 4v10M8 10l4 4 4-4M5 18.5h14" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+      <path
+        d="M12 4v10M8 10l4 4 4-4M5 18.5h14"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2.2"
+      />
     </svg>
   );
 }
 
 function PlusIcon() {
   return (
-    <svg aria-hidden="true" className="h-10 w-10" viewBox="0 0 24 24" fill="none">
-      <rect x="3" y="3" width="18" height="18" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M12 7v10M7 12h10" stroke="currentColor" strokeLinecap="round" strokeWidth="1.6" />
+    <svg
+      aria-hidden="true"
+      className="h-10 w-10"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <rect
+        x="3"
+        y="3"
+        width="18"
+        height="18"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <path
+        d="M12 7v10M7 12h10"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.6"
+      />
     </svg>
   );
 }

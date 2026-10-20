@@ -10,7 +10,7 @@ type Alert = {
 };
 
 const shortcuts = [
-  { label: "Analisis IA", href: "/analisis" },
+  { label: "Analisis", href: "/analisis" },
   { label: "Nuevo caso", href: "/nuevo" },
   { label: "Agenda", href: "/agenda" },
 ];
@@ -20,7 +20,9 @@ export default function PanelLateralInicio({ alerts }: { alerts: Alert[] }) {
   const activeAlert = alerts[activeAlertIndex];
 
   function goToPreviousAlert() {
-    setActiveAlertIndex((index) => (index === 0 ? alerts.length - 1 : index - 1));
+    setActiveAlertIndex((index) =>
+      index === 0 ? alerts.length - 1 : index - 1,
+    );
   }
 
   function goToNextAlert() {

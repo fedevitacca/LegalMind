@@ -35,7 +35,8 @@ export default function FiltrosAccesosExpediente({
   deadline: string;
   idCaso: string;
 }) {
-  const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]["value"]>("todos");
+  const [activeFilter, setActiveFilter] =
+    useState<(typeof filters)[number]["value"]>("todos");
   const [query, setQuery] = useState("");
   const items = useMemo(
     () => buildAccessItems(idCaso, counts, deadline),
@@ -43,10 +44,13 @@ export default function FiltrosAccesosExpediente({
   );
   const normalizedQuery = normalize(query);
   const visibleItems = items.filter((item) => {
-    const matchesFilter = activeFilter === "todos" || item.status === activeFilter;
+    const matchesFilter =
+      activeFilter === "todos" || item.status === activeFilter;
     const matchesQuery =
       !normalizedQuery ||
-      normalize(`${item.label} ${item.detail} ${item.keywords}`).includes(normalizedQuery);
+      normalize(`${item.label} ${item.detail} ${item.keywords}`).includes(
+        normalizedQuery,
+      );
 
     return matchesFilter && matchesQuery;
   });
@@ -113,7 +117,9 @@ export default function FiltrosAccesosExpediente({
                   {item.detail}
                 </span>
               </span>
-              <span className="text-[30px] font-semibold leading-none">&gt;</span>
+              <span className="text-[30px] font-semibold leading-none">
+                &gt;
+              </span>
             </Link>
           ))}
         </div>
@@ -152,7 +158,9 @@ function buildAccessItems(
       status: counts.documentos ? "cargado" : "pendiente",
     },
     {
-      detail: counts.fechas ? `${counts.fechas} fecha${counts.fechas === 1 ? "" : "s"} clave | ${deadline}` : deadline,
+      detail: counts.fechas
+        ? `${counts.fechas} fecha${counts.fechas === 1 ? "" : "s"} clave | ${deadline}`
+        : deadline,
       href: `/casos/${idCaso}/agenda`,
       keywords: "agenda vencimientos fechas recordatorios",
       label: "Agenda",
@@ -166,17 +174,18 @@ function buildAccessItems(
       status: counts.jurisprudencia ? "cargado" : "pendiente",
     },
     {
-      detail: "Tareas, audiencias, clientes, honorarios, escritos y control interno",
+      detail: "Organizacion y seguimiento del expediente",
       href: `/casos/${idCaso}/gestion`,
-      keywords: "trabajo tareas checklist audiencia clientes honorarios portal revision",
+      keywords:
+        "trabajo tareas checklist audiencia clientes honorarios portal revision",
       label: "Gestion juridica",
       status: "accion",
     },
     {
-      detail: "Abrir consultas y analisis guardados del caso",
+      detail: "Consultas guardadas del expediente",
       href: `/casos/${idCaso}/consultas`,
       keywords: "ia consultas analisis inteligencia artificial",
-      label: "Consultas IA",
+      label: "Consultas",
       status: "ia",
     },
     {
@@ -221,8 +230,19 @@ function normalize(value: string) {
 function SearchIcon() {
   return (
     <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none">
-      <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="2.2" />
-      <path d="m15.5 15.5 5 5" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
+      <circle
+        cx="10.5"
+        cy="10.5"
+        r="6.5"
+        stroke="currentColor"
+        strokeWidth="2.2"
+      />
+      <path
+        d="m15.5 15.5 5 5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2.2"
+      />
     </svg>
   );
 }

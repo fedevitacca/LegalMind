@@ -20,7 +20,7 @@ export default function PanelAnalisisCaso({
     return (
       <aside className="min-h-[466px] rounded-[23px] border-2 border-[#88A9C8] bg-white px-[18px] py-6">
         <h2 className="text-[28px] font-medium leading-none">
-          Analisis IA <span aria-hidden="true">✧</span>
+          Analisis <span aria-hidden="true">✧</span>
         </h2>
 
         <section className="mt-5 border-b border-[#88A9C8] pb-4">
@@ -41,7 +41,7 @@ export default function PanelAnalisisCaso({
         </section>
 
         <section className="py-4">
-          <h3 className="text-[20px] leading-none">Sugerencia</h3>
+          <h3 className="text-[20px] leading-none">Observacion</h3>
           <p className="mt-2 text-[18px] leading-[1.25]">
             {analisis.observacion}
           </p>
@@ -59,14 +59,8 @@ export default function PanelAnalisisCaso({
   }
 
   return (
-    <aside className="h-full overflow-y-auto border-l border-[#84A2BD]/45 bg-white/90 px-5 py-6">
-      <h2 className="text-2xl font-semibold">Analisis IA</h2>
-      <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#546FC0]">
-        Resumen del caso
-      </p>
-      <p className="mt-1 text-xs font-medium leading-5 text-[#0F2044]/52">
-        Generado {analisis.generado}. Esta vista no se edita manualmente.
-      </p>
+    <aside className="h-full overflow-y-auto rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-6">
+      <h2 className="text-2xl font-semibold">Analisis</h2>
 
       <div className="mt-4 grid gap-3">
         <BloqueAnalisis titulo="Resumen" texto={analisis.resumen} />
@@ -92,7 +86,7 @@ export default function PanelAnalisisCaso({
 
 function BloqueAnalisis({ texto, titulo }: { texto: string; titulo: string }) {
   return (
-    <section className="rounded-lg border border-[#84A2BD]/35 bg-[#F4F7F5] p-4 shadow-[0_8px_22px_rgba(15,32,68,0.05)]">
+    <section className="rounded-xl border border-[#88A9C8]/45 bg-[#F4F7F5] p-4">
       <h3 className="text-lg font-semibold">{titulo}</h3>
       <p className="mt-2 text-sm font-medium leading-5 text-[#0F2044]/62">
         {texto}
@@ -101,15 +95,9 @@ function BloqueAnalisis({ texto, titulo }: { texto: string; titulo: string }) {
   );
 }
 
-function ListaAnalisis({
-  items,
-  titulo,
-}: {
-  items: string[];
-  titulo: string;
-}) {
+function ListaAnalisis({ items, titulo }: { items: string[]; titulo: string }) {
   return (
-    <section className="rounded-lg border border-[#84A2BD]/35 bg-[#F4F7F5] p-4 shadow-[0_8px_22px_rgba(15,32,68,0.05)]">
+    <section className="rounded-xl border border-[#88A9C8]/45 bg-[#F4F7F5] p-4">
       <h3 className="text-lg font-semibold">{titulo}</h3>
       <ul className="mt-2 grid gap-2">
         {items.map((item) => (

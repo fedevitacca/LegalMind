@@ -34,7 +34,7 @@ const preferenceLabels = {
   deadline_notifications: "Notificaciones de vencimientos",
   daily_digest: "Resumen diario de agenda",
   quick_case_shortcuts: "Atajos para carga de casos",
-  default_ai_analysis: "Analisis IA por defecto",
+  default_ai_analysis: "Analisis por defecto",
 } as const;
 
 type BooleanPreference = keyof typeof preferenceLabels;
@@ -142,7 +142,9 @@ export default function MenuUsuario({
 
   const hasEmailChanged =
     accountForm.email.trim().toLowerCase() !==
-    String(user.email || "").trim().toLowerCase();
+    String(user.email || "")
+      .trim()
+      .toLowerCase();
 
   const handleSignOut = async () => {
     if (!isSignOutArmed) {
@@ -199,7 +201,9 @@ export default function MenuUsuario({
       setMessage("Datos de usuario actualizados.");
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "No se pudo guardar.");
+      setMessage(
+        error instanceof Error ? error.message : "No se pudo guardar.",
+      );
     }
   };
 
@@ -214,7 +218,9 @@ export default function MenuUsuario({
       setMessage("Preferencias guardadas.");
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "No se pudo guardar.");
+      setMessage(
+        error instanceof Error ? error.message : "No se pudo guardar.",
+      );
     }
   };
 
@@ -469,7 +475,7 @@ export default function MenuUsuario({
                   <option value="dashboard">Dashboard</option>
                   <option value="casos">Casos</option>
                   <option value="agenda">Agenda</option>
-                  <option value="analisis">Analisis IA</option>
+                  <option value="analisis">Analisis</option>
                 </select>
               </label>
               <div className="grid grid-cols-2 gap-2 rounded-lg border border-[#84A2BD]/30 bg-[#F4F7F5] p-1">

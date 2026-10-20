@@ -74,7 +74,9 @@ export default function DetalleImputadosCaso({
                   Agregar imputados al caso
                 </span>
               </span>
-              <span className="text-[38px] font-semibold leading-none">&gt;</span>
+              <span className="text-[38px] font-semibold leading-none">
+                &gt;
+              </span>
             </Link>
           </div>
         </section>
@@ -97,7 +99,7 @@ export default function DetalleImputadosCaso({
             onClick={() => setAnalisisVisible(true)}
             type="button"
           >
-            Mostrar analisis IA
+            Mostrar analisis
           </button>
         ) : null}
       </main>
@@ -192,7 +194,11 @@ function DefendantRow({ defendant }: { defendant: Imputado }) {
 }
 
 function extractAge(defendant: Imputado) {
-  const source = [defendant.summary, defendant.caseLink, ...defendant.keyData].join(" ");
+  const source = [
+    defendant.summary,
+    defendant.caseLink,
+    ...defendant.keyData,
+  ].join(" ");
   const match = source.match(/(\d{1,3})\s*a[nñ]os/i);
   return match ? `${match[1]} anos` : defendant.status;
 }
@@ -200,15 +206,31 @@ function extractAge(defendant: Imputado) {
 function SearchIcon() {
   return (
     <svg aria-hidden="true" className="h-6 w-6" viewBox="0 0 24 24" fill="none">
-      <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="2.2" />
-      <path d="m15.5 15.5 5 5" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
+      <circle
+        cx="10.5"
+        cy="10.5"
+        r="6.5"
+        stroke="currentColor"
+        strokeWidth="2.2"
+      />
+      <path
+        d="m15.5 15.5 5 5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2.2"
+      />
     </svg>
   );
 }
 
 function UserIcon({ className = "h-8 w-8" }: { className?: string }) {
   return (
-    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="currentColor">
+    <svg
+      aria-hidden="true"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+    >
       <path d="M12 12.2a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4ZM3.4 21.1c.8-4.3 4-6.7 8.6-6.7s7.8 2.4 8.6 6.7H3.4Z" />
     </svg>
   );
@@ -216,17 +238,44 @@ function UserIcon({ className = "h-8 w-8" }: { className?: string }) {
 
 function CogIcon({ className = "h-8 w-8" }: { className?: string }) {
   return (
-    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path fillRule="evenodd" d="M10.7 2h2.6l.7 2.8c.5.1 1 .3 1.5.6L18 3.9l1.9 1.9-1.5 2.5c.3.5.5 1 .6 1.5l2.8.7v2.6l-2.8.7c-.1.5-.3 1-.6 1.5l1.5 2.5-1.9 1.9-2.5-1.5c-.5.3-1 .5-1.5.6l-.7 2.8h-2.6l-.7-2.8c-.5-.1-1-.3-1.5-.6L6 20.1l-1.9-1.9 1.5-2.5c-.3-.5-.5-1-.6-1.5l-2.8-.7v-2.6l2.8-.7c.1-.5.3-1 .6-1.5L4.1 5.8 6 3.9l2.5 1.5c.5-.3 1-.5 1.5-.6l.7-2.8ZM12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" clipRule="evenodd" />
+    <svg
+      aria-hidden="true"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+    >
+      <path
+        fillRule="evenodd"
+        d="M10.7 2h2.6l.7 2.8c.5.1 1 .3 1.5.6L18 3.9l1.9 1.9-1.5 2.5c.3.5.5 1 .6 1.5l2.8.7v2.6l-2.8.7c-.1.5-.3 1-.6 1.5l1.5 2.5-1.9 1.9-2.5-1.5c-.5.3-1 .5-1.5.6l-.7 2.8h-2.6l-.7-2.8c-.5-.1-1-.3-1.5-.6L6 20.1l-1.9-1.9 1.5-2.5c-.3-.5-.5-1-.6-1.5l-2.8-.7v-2.6l2.8-.7c.1-.5.3-1 .6-1.5L4.1 5.8 6 3.9l2.5 1.5c.5-.3 1-.5 1.5-.6l.7-2.8ZM12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+        clipRule="evenodd"
+      />
     </svg>
   );
 }
 
 function PlusIcon() {
   return (
-    <svg aria-hidden="true" className="h-10 w-10" viewBox="0 0 24 24" fill="none">
-      <rect x="3" y="3" width="18" height="18" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M12 7v10M7 12h10" stroke="currentColor" strokeLinecap="round" strokeWidth="1.6" />
+    <svg
+      aria-hidden="true"
+      className="h-10 w-10"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <rect
+        x="3"
+        y="3"
+        width="18"
+        height="18"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <path
+        d="M12 7v10M7 12h10"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.6"
+      />
     </svg>
   );
 }
