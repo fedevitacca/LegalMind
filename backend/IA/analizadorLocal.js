@@ -200,9 +200,7 @@ async function sendOllamaChatRequest({ messages, format = "json", maxOutputToken
           temperature: Number(process.env.LOCAL_AI_TEMPERATURE) || 0.1 },
         stream: false,
       }),
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getOllamaHeaders(),
       method: "POST",
       signal: controller.signal,
     });
@@ -319,7 +317,7 @@ async function embedTextsWithLocalAI(texts, { timeoutMs } = {}) {
   const requestTimeout = Math.max(250, Math.min(Number(timeoutMs) || configuredTimeout, configuredTimeout));
   const timeout = setTimeout(() => controller.abort(), requestTimeout);
   try {
-    const response = await fetch(`${baseUrl}/api/embed`, { method: "POST", headers: { "Content-Type": "application/json" },
+    const response = await fetch(`${baseUrl}/api/embed`, { method: "POST", headers: getOllamaHeaders(),
       body: JSON.stringify({ model, input: texts, keep_alive: process.env.LOCAL_AI_KEEP_ALIVE || "15m" }), signal: controller.signal });
     if (!response.ok) throw new Error(`Embeddings locales no disponibles (${response.status}).`);
     const body = await response.json();
@@ -334,7 +332,10 @@ async function embedTextsWithLocalAI(texts, { timeoutMs } = {}) {
 async function probeLocalAI() {
   const config = getLocalAIConfig();
   const started = Date.now();
-  const response = await fetch(`${config.baseUrl}/api/tags`, { signal: AbortSignal.timeout(5000) });
+  const response = await fetch(`${config.baseUrl}/api/tags`, {
+    headers: getOllamaHeaders(),
+    signal: AbortSignal.timeout(5000),
+  });
   if (!response.ok) throw new Error(`Ollama respondió ${response.status}.`);
   const body = await response.json();
   const models = (body.models || []).map((item) => item.name);
@@ -412,8 +413,20 @@ function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function getOllamaHeaders() {
+  const headers = { "Content-Type": "application/json" };
+  const apiKey = String(process.env.OLLAMA_API_KEY || "").trim();
+
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+
+  return headers;
+}
+
 function getLocalAIConfig() {
   return {
+    authenticated: Boolean(String(process.env.OLLAMA_API_KEY || "").trim()),
     baseUrl: (process.env.LOCAL_AI_BASE_URL || DEFAULT_LOCAL_AI_BASE_URL).replace(/\/$/, ""),
     model: process.env.LOCAL_AI_MODEL || DEFAULT_LOCAL_AI_MODEL,
     embeddingModel: process.env.LOCAL_AI_EMBEDDING_MODEL || "nomic-embed-text",
