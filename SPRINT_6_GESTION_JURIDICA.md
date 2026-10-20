@@ -32,7 +32,7 @@ Este sprint agrega herramientas operativas que no dependen de Ollama ni de APIs 
 
 ## Base de datos
 
-Las migraciones `012_sprint6_gestion_juridica.sql` y `013_sprint6_portal_operativo.sql` crean el modelo necesario. El servidor las ejecuta al iniciar y también pueden aplicarse manualmente con:
+Las migraciones `012_sprint6_gestion_juridica.sql`, `013_sprint6_portal_operativo.sql` y `014_portal_archivos_persistentes.sql` crean el modelo necesario. Los archivos enviados por clientes se guardan en PostgreSQL para no depender del disco efimero de Render. El servidor ejecuta las migraciones al iniciar y también pueden aplicarse manualmente con:
 
 ```bash
 cd backend
