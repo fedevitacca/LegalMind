@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@layer components {
+  .input {
+    @apply min-h-11 w-full rounded-xl border border-[#B7C8D5] bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-[#0F2044] outline-none focus:border-[#546FC0];
+  }
+}
+
 :root {
   --background: #f3f6f5;
   --foreground: #0f2044;

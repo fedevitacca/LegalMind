@@ -6,6 +6,7 @@ const sideItems = [
   { icon: FolderIcon, label: "Casos", href: "/casos" },
   { icon: SparkIcon, label: "Analisis IA", href: "/analisis" },
   { icon: CalendarIcon, label: "Agenda", href: "/agenda" },
+  { icon: WorkIcon, label: "Trabajo", href: "/trabajo" },
   { icon: SettingsIcon, label: "Configuracion", href: "/configuracion" },
 ];
 
@@ -98,6 +99,15 @@ function SettingsIcon() {
   return (
     <svg aria-hidden="true" className="h-[37px] w-[37px]" viewBox="0 0 24 24" fill="currentColor">
       <path fillRule="evenodd" d="M10.6 2h2.8l.7 3a7.4 7.4 0 0 1 1.5.6l2.6-1.6 2 2-1.6 2.6c.3.5.5 1 .6 1.5l3 .7v2.8l-3 .7a7.4 7.4 0 0 1-.6 1.5l1.6 2.6-2 2-2.6-1.6c-.5.3-1 .5-1.5.6l-.7 3h-2.8l-.7-3a7.4 7.4 0 0 1-1.5-.6l-2.6 1.6-2-2 1.6-2.6a7.4 7.4 0 0 1-.6-1.5l-3-.7v-2.8l3-.7c.1-.5.3-1 .6-1.5L3.8 6l2-2 2.6 1.6c.5-.3 1-.5 1.5-.6l.7-3ZM12 15.4a3.4 3.4 0 1 0 0-6.8 3.4 3.4 0 0 0 0 6.8Z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
+function WorkIcon() {
+  return (
+    <svg aria-hidden="true" className="h-[34px] w-[34px]" viewBox="0 0 24 24" fill="none">
+      <path d="M8 6V4.8C8 3.8 8.8 3 9.8 3h4.4c1 0 1.8.8 1.8 1.8V6M4 8h16v11.5A1.5 1.5 0 0 1 18.5 21h-13A1.5 1.5 0 0 1 4 19.5V8Z" stroke="currentColor" strokeWidth="2" />
+      <path d="M4 12h16M10 12v2h4v-2" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }

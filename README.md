@@ -1,5 +1,7 @@
 # LegalMind
 
+La gestion operativa sin IA del Sprint 6 esta documentada en [SPRINT_6_GESTION_JURIDICA.md](SPRINT_6_GESTION_JURIDICA.md).
+
 > Para el camino desde prototipo hacia uso profesional, consultar [`README_PROFESIONALIZACION.md`](README_PROFESIONALIZACION.md). El prompt ejecutable por fases está en [`PROMPT_IMPLEMENTACION_PROFESIONAL.md`](PROMPT_IMPLEMENTACION_PROFESIONAL.md).
 
 LegalMind es un workspace jurídico para organizar causas y analizar material sensible con inteligencia artificial ejecutada localmente. La aplicación no reemplaza el criterio profesional: acelera lectura, comparación, control y recuperación de evidencia dejando visibles sus fuentes y limitaciones.

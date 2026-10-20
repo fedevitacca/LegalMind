@@ -10,6 +10,8 @@ const iaRoutes = require("./rutas/rutasIA");
 const caseRoutes = require("./rutas/rutasCasos");
 const userRoutes = require("./rutas/rutasUsuarios");
 const organizationRoutes = require("./rutas/rutasOrganizaciones");
+const workRoutes = require("./rutas/rutasTrabajo");
+const portalRoutes = require("./rutas/rutasPortal");
 
 const app = express();
 if (process.env.TRUST_PROXY) {
@@ -70,6 +72,8 @@ app.use("/api/ia", iaRoutes);
 app.use("/api/casos", caseRoutes);
 app.use("/api/usuarios", userRoutes);
 app.use("/api/organizaciones", organizationRoutes);
+app.use("/api/trabajo", workRoutes);
+app.use("/api/portal", portalRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

@@ -166,6 +166,13 @@ function buildAccessItems(
       status: counts.jurisprudencia ? "cargado" : "pendiente",
     },
     {
+      detail: "Tareas, audiencias, clientes, honorarios, escritos y control interno",
+      href: `/casos/${idCaso}/gestion`,
+      keywords: "trabajo tareas checklist audiencia clientes honorarios portal revision",
+      label: "Gestion juridica",
+      status: "accion",
+    },
+    {
       detail: "Abrir consultas y analisis guardados del caso",
       href: `/casos/${idCaso}/consultas`,
       keywords: "ia consultas analisis inteligencia artificial",

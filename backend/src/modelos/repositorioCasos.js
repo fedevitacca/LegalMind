@@ -609,6 +609,7 @@ async function listDocumentsByCase(caseId, filters = {}) {
         d.version,
         d.requiere_ocr,
         d.confianza_extraccion,
+        d.visible_portal,
         d.created_at,
         d.updated_at,
         COALESCE(
@@ -1542,6 +1543,7 @@ async function getDocumentById(caseId, documentId) {
         version,
         requiere_ocr,
         confianza_extraccion,
+        visible_portal,
         created_at,
         updated_at
       FROM documentos
@@ -1660,6 +1662,7 @@ function mapDocumentRow(row) {
     version: row.version || 1,
     requiere_ocr: Boolean(row.requiere_ocr),
     confianza_extraccion: row.confianza_extraccion == null ? null : Number(row.confianza_extraccion),
+    visible_portal: Boolean(row.visible_portal),
     imputados: Array.isArray(row.imputados) ? row.imputados : [],
   };
 }
