@@ -46,6 +46,7 @@ const labels: Record<string, string> = {
   cronologia: "Cronología",
   consulta_rag: "Consulta documental",
   teoria_del_caso: "Teoría del caso",
+  preparar_audiencia: "Preparación de audiencia",
 };
 
 export default function HistorialConsultasIA({ caseId }: { caseId: string }) {

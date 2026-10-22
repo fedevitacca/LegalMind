@@ -84,6 +84,23 @@ const TOOL_DEFINITIONS = {
       "Separá hechos acreditados, inferencias e hipótesis de trabajo. No inventes normas, prueba ni objetivos procesales que no hayan sido indicados.",
     ].join(" "),
   },
+  preparar_audiencia: {
+    label: "Preparar audiencia",
+    description: "Arma una guía de intervención a partir del expediente.",
+    inputs: 1,
+    family: "litigacion",
+    resultView: "hearing",
+    accent: "navy",
+    fields: ["tipo_audiencia", "objetivo", "parte_representada"],
+    maxOutputTokens: 780,
+    maxContextChunks: 7,
+    instruction: [
+      "Prepará una guía práctica para la audiencia indicada usando únicamente la información del expediente.",
+      "Desarrollá: objetivo concreto; hechos que deben quedar establecidos; argumentos principales; preguntas útiles; objeciones o respuestas previsibles; documentación para tener a mano; y resultado buscado.",
+      "Señalá por separado los datos que deben confirmarse antes de la audiencia. No inventes hechos, prueba, normas ni una posición procesal que no surja de las fuentes o del objetivo indicado.",
+      "Redactá contenido operativo que el abogado pueda consultar durante la audiencia, con frases breves y orden de prioridad.",
+    ].join(" "),
+  },
 };
 
 const toolResultSchema = {

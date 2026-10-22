@@ -85,6 +85,12 @@ const fallbackTools: Tool[] = [
     description: "Ordena hipótesis, prueba y debilidades.",
     inputs: 1,
   },
+  {
+    id: "preparar_audiencia",
+    label: "Preparar audiencia",
+    description: "Arma una guía de intervención con respaldo documental.",
+    inputs: 1,
+  },
 ];
 
 const toolUi: Record<
@@ -148,6 +154,15 @@ const toolUi: Record<
     code: "TC",
     instruction: "Hechos, prueba y puntos pendientes.",
     action: "Preparar teoría",
+    header: "bg-[#0F2044] text-white",
+    active: "border-[#546FC0] bg-[#EEF3F8]",
+    button: "bg-[#0F2044] hover:bg-[#1C3768]",
+    focus: "focus:border-[#546FC0]",
+  },
+  preparar_audiencia: {
+    code: "PA",
+    instruction: "Objetivos, argumentos, preguntas y controles.",
+    action: "Preparar audiencia",
     header: "bg-[#0F2044] text-white",
     active: "border-[#546FC0] bg-[#EEF3F8]",
     button: "bg-[#0F2044] hover:bg-[#1C3768]",
@@ -232,10 +247,13 @@ export default function CentroHerramientasIA({
         (toolId !== "consulta_rag" || Boolean(query.trim())));
 
   useEffect(() => {
-    const requestedCase = new URLSearchParams(window.location.search).get(
-      "case_id",
-    );
+    const searchParams = new URLSearchParams(window.location.search);
+    const requestedCase = searchParams.get("case_id");
+    const requestedTool = searchParams.get("tool");
+    const requestedQuery = searchParams.get("query");
     if (requestedCase) setCaseId(requestedCase);
+    if (requestedTool && toolUi[requestedTool]) setToolId(requestedTool);
+    if (requestedQuery) setQuery(requestedQuery);
     void fetch(`${apiUrl}/api/ia/tools`)
       .then((response) => response.json())
       .then((body) => {
@@ -421,9 +439,16 @@ export default function CentroHerramientasIA({
                 >
                   {itemUi.code}
                 </span>
-                <strong className="block text-sm text-[#0F2044]">
-                  {item.label}
-                </strong>
+                <span>
+                  <strong className="block text-sm text-[#0F2044]">
+                    {item.label}
+                  </strong>
+                  {item.id === "preparar_audiencia" && (
+                    <small className="mt-1 inline-block rounded-full bg-[#0F2044] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                      Nuevo
+                    </small>
+                  )}
+                </span>
               </button>
             );
           })}

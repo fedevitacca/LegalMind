@@ -119,8 +119,9 @@ describe("IA file routes", () => {
     const response = await fetch(`${baseUrl}/api/ia/tools`);
     const body = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(body.tools.length, 6);
+    assert.equal(body.tools.length, 7);
     assert.ok(body.tools.some((tool) => tool.id === "comparar_jurisprudencia" && tool.inputs === 2));
+    assert.ok(body.tools.some((tool) => tool.id === "preparar_audiencia" && tool.inputs === 1));
     const removedTools = ["matriz_evidencia", "detectar_riesgos", "contradicciones_multifuente", "auditor_citas", "borrador_juridico"];
     assert.ok(body.tools.every((tool) => !removedTools.includes(tool.id)));
   });
