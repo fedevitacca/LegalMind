@@ -9,6 +9,8 @@ const {
   embedTextsWithLocalAI,
 } = require("../../IA/analizadorLocal");
 const { getTool, listTools } = require("../../IA/motorHerramientas");
+const { buildStructuredCaseDocuments } = require("../../IA/contextoExpediente");
+const { expandLegalQuery } = require("../../IA/terminologiaRag");
 const { createAIQuery, deleteAIQuery, getAIQuery, listAIQueries } = require("../modelos/repositorioConsultasIA");
 const {
   triageLegalDocumentWithRandomForest,
@@ -32,7 +34,8 @@ const {
   saveLegalAnalysis,
 } = require("../modelos/repositorioIA");
 const { hybridSearch } = require("../modelos/repositorioRagVectorial");
-const { listDefendantsByCase } = require("../modelos/repositorioCasos");
+const { listDatesByCase, listDefendantsByCase } = require("../modelos/repositorioCasos");
+const { listCaseRecords, listTasks } = require("../modelos/repositorioTrabajoJuridico");
 const { assessEvidence, buildLegalCitations, verifyResultClaims } = require("../servicios/citasJuridicas");
 
 const router = express.Router();
@@ -54,6 +57,8 @@ router.get("/health", (req, res) => {
       "entidades_para_base_juridica",
       "grafo_conocimiento",
       "rag_juridico_local",
+      "expansion_terminologica_juridica",
+      "contexto_estructurado_del_expediente",
       "rag_local_documentos_persistidos",
       "analizador_estrategico",
       "alertas_inteligentes",
@@ -125,6 +130,8 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
     let selectedDefendant = null;
     let documents;
     let sourceDocumentCount = secondaryText ? 2 : 1;
+    let structuredContextCount = 0;
+    let structuredContextWarning = null;
     const scopeLabel = getScopeLabel(scope, useCaseContext);
 
     if (useCaseContext) {
@@ -141,21 +148,35 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
           availableMs(deadline, 800),
           "La lectura de los imputados excedió el tiempo disponible."
         );
+        let structuredDocuments = [];
+        try {
+          structuredDocuments = await withTimeout(
+            loadStructuredCaseContext(req.security.organizationId, caseId),
+            availableMs(deadline, 700),
+            "La lectura de la gestión del expediente excedió el tiempo disponible."
+          );
+        } catch (error) {
+          console.warn("No se pudo incorporar la gestión del expediente al RAG:", error.message);
+          structuredContextWarning = "No se pudo incorporar la gestión del expediente.";
+        }
+        structuredContextCount = structuredDocuments.length;
         if (scope === "defendant") {
           selectedDefendant = defendants.find((item) => Number(item.id) === defendantId);
           if (!selectedDefendant) {
             return res.status(400).json({ error: "El imputado seleccionado no pertenece al expediente." });
           }
-          documents = [buildDefendantDocument(selectedDefendant), ...documents];
+          documents = [buildDefendantDocument(selectedDefendant), ...structuredDocuments, ...documents];
         } else {
-          documents = [buildCaseOverviewDocument(caseId, defendants), ...documents];
+          documents = [buildCaseOverviewDocument(caseId, defendants), ...structuredDocuments, ...documents];
         }
       }
+
+      sourceDocumentCount = documents.length;
 
       if (!documents.length) {
         return res.status(409).json({
           error: "El expediente no tiene información procesada para consultar.",
-          details: "Cargue un documento y espere a que finalice la extracción de texto.",
+          details: "Cargue un documento o registre datos de gestión en el expediente.",
         });
       }
     } else {
@@ -169,7 +190,7 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
       .filter(Boolean)
       .join(" ");
     let chunks;
-    let retrieval = "bm25_trigram_mmr";
+    let retrieval = "bm25_legal_expansion_trigram_mmr";
     let semanticRetrieval = "lexical_fallback";
     const maxContextChunks = tool.maxContextChunks || 6;
     chunks = retrieveRelevantChunks(documents, retrievalQuery, maxContextChunks * 2);
@@ -179,7 +200,9 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
       maxContextChunks,
       Math.min(700, availableMs(deadline, 1000))
     ));
-    retrieval = useCaseContext ? "case_documents_bm25_trigram_mmr" : "bm25_trigram_mmr";
+    retrieval = useCaseContext
+      ? "case_documents_and_management_bm25_legal_expansion_mmr"
+      : "bm25_legal_expansion_trigram_mmr";
 
     if (!chunks.length) {
       return res.status(422).json({
@@ -223,6 +246,8 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
       defendant_id: selectedDefendant?.id || null,
       defendant_name: selectedDefendant?.nombre || null,
       source_document_count: sourceDocumentCount,
+      structured_context_count: structuredContextCount,
+      structured_context_warning: structuredContextWarning,
       context_chunk_count: chunks.length,
       max_output_tokens: 360,
       response_budget_ms: getResponseBudgetMs(),
@@ -258,7 +283,10 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
 async function rerankChunksWithEmbeddings(chunks, retrievalQuery, limit = 6, timeoutMs = 700) {
   try {
     if (!chunks.length) return { chunks: [], semanticRetrieval: "lexical_fallback" };
-    const embeddings = await embedTextsWithLocalAI([retrievalQuery, ...chunks.map((chunk) => chunk.text)], { timeoutMs });
+    const embeddings = await embedTextsWithLocalAI([
+      expandLegalQuery(retrievalQuery),
+      ...chunks.map((chunk) => chunk.text),
+    ], { timeoutMs });
     const queryEmbedding = embeddings[0];
     return {
       chunks: chunks.map((chunk, index) => ({
@@ -314,6 +342,16 @@ function buildCaseOverviewDocument(caseId, defendants) {
         : "No hay imputados registrados en el expediente.",
     ].join(" "),
   };
+}
+
+async function loadStructuredCaseContext(organizationId, caseId) {
+  const [tasks, hearings, dates, communications] = await Promise.all([
+    listTasks(organizationId, { caseId }),
+    listCaseRecords("audiencias", organizationId, caseId),
+    listDatesByCase(caseId),
+    listCaseRecords("comunicaciones", organizationId, caseId),
+  ]);
+  return buildStructuredCaseDocuments({ tasks, hearings, dates, communications });
 }
 
 function getResponseBudgetMs() {
@@ -424,19 +462,34 @@ router.post("/rag/query", requireCaseAccess, async (req, res, next) => {
       });
     }
 
-    const documents = await listDocumentsForCase(caseId);
+    let documents = await listDocumentsForCase(caseId);
+    let structuredDocuments = [];
+    try {
+      structuredDocuments = await loadStructuredCaseContext(req.security.organizationId, caseId);
+      documents = [...structuredDocuments, ...documents];
+    } catch (error) {
+      console.warn("Contexto estructurado no disponible para RAG:", error.message);
+    }
     let chunks;
     let retrieval = "lexical_memory_fallback";
     try {
-      const [queryEmbedding] = await embedTextsWithLocalAI([question]);
+      const [queryEmbedding] = await embedTextsWithLocalAI([expandLegalQuery(question)]);
       const stored = await hybridSearch({ organizationId: req.security.organizationId, caseId, query: question,
         queryEmbedding, limit: Number(req.body.top_k) || 5 });
       if (stored.length) {
-        chunks = stored.map((item) => ({ id: item.id, document_id: item.documento_id,
+        const storedChunks = stored.map((item) => ({ id: item.id, document_id: item.documento_id,
           document_name: item.nombre_archivo, chunk_index: item.orden, page: item.pagina,
           text: item.texto, score: Number(item.score), lexical_score: Number(item.lexical_score),
           semantic_score: Number(item.semantic_score), metadata: item.metadata_json }));
-        retrieval = "pgvector_hybrid_hnsw_fts";
+        const managementChunks = retrieveRelevantChunks(
+          structuredDocuments,
+          question,
+          Math.min(3, Number(req.body.top_k) || 5)
+        );
+        chunks = [...storedChunks, ...managementChunks]
+          .sort((left, right) => right.score - left.score)
+          .slice(0, Number(req.body.top_k) || 5);
+        retrieval = "pgvector_hybrid_plus_case_management";
       }
     } catch (error) { console.warn("RAG vectorial no disponible; se usa recuperación léxica:", error.message); }
     if (!chunks) chunks = retrieveRelevantChunks(documents, question, Number(req.body.top_k) || 5);

@@ -6,6 +6,7 @@ const {
   extractSimpleCaseData,
   retrieveRelevantChunks,
 } = require("./ragLocal");
+const { expandLegalQuery } = require("./terminologiaRag");
 
 describe("ragLocal", () => {
   it("recupera fragmentos relevantes de documentos de una causa", () => {
@@ -27,6 +28,19 @@ describe("ragLocal", () => {
 
     assert.equal(chunks[0].document_id, 1);
     assert.match(chunks[0].text, /audiencia/);
+  });
+
+  it("expande vocabulario juridico equivalente para mejorar la recuperacion", () => {
+    const expanded = expandLegalQuery("¿Que dijeron los acusados en las vistas?");
+    assert.match(expanded, /imputado/);
+    assert.match(expanded, /audiencia/);
+
+    const documents = [
+      { id: 1, nombre_archivo: "acta.txt", texto_extraido: "El imputado presto declaracion durante la audiencia." },
+      { id: 2, nombre_archivo: "otro.txt", texto_extraido: "Se incorporo documentacion administrativa." },
+    ];
+    const chunks = retrieveRelevantChunks(documents, "testimonio del acusado en la vista", 1);
+    assert.equal(chunks[0].document_id, 1);
   });
 
   it("genera respuesta extractiva con respaldo", () => {

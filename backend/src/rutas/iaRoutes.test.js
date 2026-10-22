@@ -134,7 +134,7 @@ describe("IA file routes", () => {
     const body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body._metadata.engine, "ollama_local_timeboxed_rag");
-    assert.equal(body._metadata.retrieval, "bm25_trigram_mmr");
+    assert.equal(body._metadata.retrieval, "bm25_legal_expansion_trigram_mmr");
     assert.ok(body._metadata.response_budget_ms < 10000);
     assert.ok(body._metadata.duration_ms < 10000);
     assert.ok(Array.isArray(body.citations));

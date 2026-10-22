@@ -24,10 +24,13 @@ const STOP_WORDS = new Set([
   "y",
 ]);
 
+const { expandLegalQuery } = require("./terminologiaRag");
+
 function retrieveRelevantChunks(documents, question, topK = 5) {
   const chunks = documents.flatMap((document) => buildChunks(document));
   if (!chunks.length) return [];
-  const queryTokens = tokenize(question);
+  const expandedQuestion = expandLegalQuery(question);
+  const queryTokens = tokenize(expandedQuestion);
   const documentTokens = chunks.map((chunk) => tokenize(chunk.text));
   const averageLength = documentTokens.reduce((sum, tokens) => sum + tokens.length, 0) / chunks.length;
   const scored = chunks.map((chunk, index) => {
@@ -151,6 +154,7 @@ function buildChunks(document) {
         document_name: document.nombre_archivo,
         chunk_index: chunks.length,
         text,
+        metadata: document.metadata || null,
       });
     }
   }
@@ -293,7 +297,14 @@ function tokenize(text) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .match(/[a-z0-9]{3,}/g)
-    ?.filter((token) => !STOP_WORDS.has(token)) || [];
+    ?.map(stemToken)
+    .filter((token) => !STOP_WORDS.has(token)) || [];
+}
+
+function stemToken(token) {
+  if (token.length > 5 && token.endsWith("es")) return token.slice(0, -2);
+  if (token.length > 4 && token.endsWith("s")) return token.slice(0, -1);
+  return token;
 }
 
 function cosineSimilarity(left, right) {
