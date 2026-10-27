@@ -12,6 +12,7 @@ const userRoutes = require("./rutas/rutasUsuarios");
 const organizationRoutes = require("./rutas/rutasOrganizaciones");
 const workRoutes = require("./rutas/rutasTrabajo");
 const portalRoutes = require("./rutas/rutasPortal");
+const notificationRoutes = require("./rutas/rutasNotificaciones");
 
 const app = express();
 if (process.env.TRUST_PROXY) {
@@ -74,6 +75,7 @@ app.use("/api/usuarios", userRoutes);
 app.use("/api/organizaciones", organizationRoutes);
 app.use("/api/trabajo", workRoutes);
 app.use("/api/portal", portalRoutes);
+app.use("/api/notificaciones", notificationRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

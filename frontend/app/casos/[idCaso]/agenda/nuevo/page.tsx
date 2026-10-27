@@ -17,7 +17,7 @@ export default async function PaginaNuevoEvento({
 
   return (
     <MarcoAplicacion activeSection={isAgendaFlow ? "Agenda" : "Casos"}>
-      <section className="h-full min-h-0 overflow-hidden bg-[#F4F7F5] text-[#0F2044]">
+      <section className="h-full min-h-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
         <header className="grid h-11 grid-cols-[minmax(150px,1fr)_minmax(240px,420px)_minmax(180px,auto)] items-center gap-4 border-b-[3px] border-[#88A9C8] bg-white px-6">
           <h1 className="brand-font text-[25px] font-semibold leading-none">
             {isAgendaFlow ? "Agenda" : "Casos"}
@@ -44,7 +44,7 @@ export default async function PaginaNuevoEvento({
           </div>
         </header>
 
-        <main className="grid h-[calc(100vh-44px)] min-h-0 grid-rows-[52px_minmax(0,1fr)] gap-3 px-7 py-4">
+        <main className="grid content-start gap-3 px-7 py-4">
           <section className="flex h-[52px] w-[238px] items-center gap-3 rounded-[14px] border-2 border-[#88A9C8] bg-white px-4 text-[20px] leading-none">
             <CalendarIcon className="h-7 w-7" />
             Agregar eventos

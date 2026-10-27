@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { authClient } from "@/lib/authClient";
 import {
   changeUserPassword,
@@ -58,6 +59,8 @@ export default function MenuUsuario({
   user: SessionUser;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 8, right: 16, maxHeight: 600 });
   const [isOpen, setIsOpen] = useState(false);
   const [panel, setPanel] = useState<UserMenuPanel>("perfil");
   const [isSignOutArmed, setIsSignOutArmed] = useState(false);
@@ -81,13 +84,41 @@ export default function MenuUsuario({
   );
   const [message, setMessage] = useState("");
 
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    const positionMenu = () => {
+      const trigger = menuRef.current?.getBoundingClientRect();
+      if (!trigger) return;
+      const viewport = window.visualViewport;
+      const height = viewport?.height ?? window.innerHeight;
+      const width = viewport?.width ?? window.innerWidth;
+      const offsetTop = viewport?.offsetTop ?? 0;
+      const offsetLeft = viewport?.offsetLeft ?? 0;
+      const top = Math.max(offsetTop + 8, Math.min(trigger.bottom + 8, offsetTop + height - 608));
+      const panelWidth = Math.min(360, width - 32);
+      const left = Math.max(offsetLeft + 16, Math.min(trigger.right - panelWidth, offsetLeft + width - panelWidth - 16));
+      setMenuPosition({ top, right: window.innerWidth - left - panelWidth, maxHeight: Math.max(0, offsetTop + height - top - 8) });
+    };
+    positionMenu();
+    window.addEventListener("resize", positionMenu);
+    window.addEventListener("scroll", positionMenu, true);
+    window.visualViewport?.addEventListener("resize", positionMenu);
+    window.visualViewport?.addEventListener("scroll", positionMenu);
+    return () => {
+      window.removeEventListener("resize", positionMenu);
+      window.removeEventListener("scroll", positionMenu, true);
+      window.visualViewport?.removeEventListener("resize", positionMenu);
+      window.visualViewport?.removeEventListener("scroll", positionMenu);
+    };
+  }, [isOpen]);
+
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node) && !panelRef.current?.contains(event.target as Node)) {
         setIsOpen(false);
         setPanel("perfil");
         setIsSignOutArmed(false);
@@ -300,15 +331,13 @@ export default function MenuUsuario({
         </svg>
       </button>
 
-      <div
-        className={`absolute right-0 top-[42px] z-50 w-[min(360px,calc(100vw-32px))] overflow-hidden rounded-[10px] border border-[#E4D7BE] bg-[#FCF7E8] shadow-[0_18px_36px_rgba(15,32,68,0.16)] transition ${
-          isOpen
-            ? "translate-y-0 opacity-100"
-            : "pointer-events-none -translate-y-1 opacity-0"
-        }`}
+      {isOpen ? createPortal(<div
+        ref={panelRef}
+        style={menuPosition}
+        className="fixed z-[100] flex w-[min(360px,calc(100vw-32px))] flex-col overflow-y-auto overscroll-contain rounded-[10px] border border-[#E4D7BE] bg-[#FCF7E8] shadow-[0_18px_36px_rgba(15,32,68,0.16)]"
         role="menu"
       >
-        <section className="border-b border-[#E4D7BE] bg-[#FCF7E8] p-4">
+        <section className="shrink-0 border-b border-[#E4D7BE] bg-[#FCF7E8] p-4">
           <div className="flex items-center gap-3">
             <div className="grid h-[46px] w-[46px] place-items-center rounded-full bg-[#191547] text-[16px] font-semibold text-white">
               {getInitials(user.name, user.email)}
@@ -349,7 +378,7 @@ export default function MenuUsuario({
           </div>
         </section>
 
-        <div className="max-h-[min(430px,calc(100vh-96px))] overflow-y-auto border-b border-[#E4D7BE] p-3">
+        <div className="min-h-0 max-h-[430px] flex-auto overflow-y-auto overscroll-contain border-b border-[#E4D7BE] p-3">
           {panel === "perfil" ? (
             <div className="grid gap-3">
               <label className="grid gap-1.5 text-[14px] font-semibold">
@@ -592,7 +621,7 @@ export default function MenuUsuario({
           ) : null}
         </div>
 
-        <div className="border-t border-[#E4D7BE] p-3">
+        <div className="shrink-0 border-t border-[#E4D7BE] bg-[#FCF7E8] p-3">
           {isSignOutArmed ? (
             <div className="rounded-lg border border-[#A68147]/35 bg-[#A68147]/10 p-3">
               <p className="text-sm font-semibold text-[#0F2044]">
@@ -629,7 +658,7 @@ export default function MenuUsuario({
             </button>
           )}
         </div>
-      </div>
+      </div>, document.body) : null}
     </div>
   );
 }

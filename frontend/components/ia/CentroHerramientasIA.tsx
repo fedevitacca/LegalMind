@@ -62,6 +62,12 @@ const fallbackTools: Tool[] = [
     inputs: 2,
   },
   {
+    id: "comparar_imputados",
+    label: "Comparar imputados",
+    description: "Contrasta las fichas de dos imputados del expediente.",
+    inputs: 2,
+  },
+  {
     id: "comparar_jurisprudencia",
     label: "Comparar fallos",
     description: "Contrasta criterios y utilidad de dos decisiones.",
@@ -118,6 +124,15 @@ const toolUi: Record<
     code: "CD",
     instruction: "Coincidencias y diferencias entre dos textos.",
     action: "Comparar",
+    header: "bg-[#0F2044] text-white",
+    active: "border-[#546FC0] bg-[#EEF3F8]",
+    button: "bg-[#0F2044] hover:bg-[#1C3768]",
+    focus: "focus:border-[#546FC0]",
+  },
+  comparar_imputados: {
+    code: "CI",
+    instruction: "Comparación de las fichas registradas de dos imputados del mismo expediente.",
+    action: "Comparar imputados",
     header: "bg-[#0F2044] text-white",
     active: "border-[#546FC0] bg-[#EEF3F8]",
     button: "bg-[#0F2044] hover:bg-[#1C3768]",
@@ -204,6 +219,7 @@ export default function CentroHerramientasIA({
   const [defendants, setDefendants] = useState<Defendant[]>([]);
   const [scope, setScope] = useState<Scope>("documents");
   const [defendantId, setDefendantId] = useState("");
+  const [defendantPair, setDefendantPair] = useState<[string, string]>(["", ""]);
   const [primary, setPrimary] = useState("");
   const [secondary, setSecondary] = useState("");
   const [query, setQuery] = useState("");
@@ -236,7 +252,9 @@ export default function CentroHerramientasIA({
   const canExecute =
     Boolean(tool) &&
     !busy &&
-    (usesCaseContext
+    (toolId === "comparar_imputados"
+      ? Boolean(caseId) && !loadingContext && !contextError && defendantPair.every((id) => defendants.some((item) => String(item.id) === id)) && defendantPair[0] !== defendantPair[1]
+      : usesCaseContext
       ? !loadingContext &&
         !contextError &&
         (effectiveScope !== "documents" || readyDocuments.length > 0) &&
@@ -264,6 +282,7 @@ export default function CentroHerramientasIA({
   }, []);
 
   useEffect(() => {
+    setDefendantPair(["", ""]);
     if (!caseId) {
       setCaseDocuments([]);
       setDefendants([]);
@@ -384,6 +403,7 @@ export default function CentroHerramientasIA({
             effectiveScope === "defendant" && defendantId
               ? Number(defendantId)
               : null,
+          defendant_ids: toolId === "comparar_imputados" ? defendantPair.map(Number) : undefined,
           use_case_context: usesCaseContext,
         }),
       });
@@ -393,6 +413,9 @@ export default function CentroHerramientasIA({
       setResult(body.result);
       setCitations(body.citations || []);
       setSavedId(body.saved_query?.id);
+      if (body._metadata?.engine === "fast_extractive_rag") {
+        setNotice("Se muestran pasajes extraídos de las fuentes porque la IA no pudo completar el análisis. Revisá ambas fuentes antes de interpretar coincidencias o diferencias.");
+      }
     } catch (cause) {
       const aborted =
         cause instanceof DOMException && cause.name === "AbortError";
@@ -484,12 +507,14 @@ export default function CentroHerramientasIA({
                 value={caseId}
                 onChange={(event) => {
                   setCaseId(event.target.value);
+                  setDefendantPair(["", ""]);
+                  setPrimary(""); setSecondary(""); setCitations([]); setSavedId(undefined);
                   setResult(undefined);
                   setError("");
                 }}
                 className="mt-2 h-11 w-full rounded-lg border border-[#bfc4c1] bg-white px-3 text-sm outline-none"
               >
-                <option value="">Sin expediente · usar fuentes manuales</option>
+                <option value="">{toolId === "comparar_imputados" ? "Seleccionar expediente" : "Sin expediente · usar fuentes manuales"}</option>
                 {cases.map((item) => (
                   <option value={item.id} key={item.id}>
                     {item.identificador ? `${item.identificador} · ` : ""}
@@ -519,7 +544,29 @@ export default function CentroHerramientasIA({
             />
           )}
 
-          {usesCaseContext ? (
+          {toolId === "comparar_imputados" ? (
+            <div className={compact ? "p-4" : "p-6"}>
+              <p className="mb-4 text-sm text-[#0F2044]/70">Seleccioná dos personas distintas. Se comparan sus fichas registradas; los documentos del expediente no se incluyen automáticamente.</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {([0, 1] as const).map((index) => (
+                  <label key={index} className="text-sm font-semibold">
+                    Imputado {index === 0 ? "A" : "B"}
+                    <select className="input mt-2" value={defendantPair[index]} disabled={!caseId || loadingContext || busy} onChange={(event) => {
+                      const next: [string, string] = [...defendantPair];
+                      next[index] = event.target.value;
+                      setDefendantPair(next); setResult(undefined); setError("");
+                    }}>
+                      <option value="">Seleccionar imputado</option>
+                      {defendants.map((item) => <option key={item.id} value={item.id} disabled={String(item.id) === defendantPair[index === 0 ? 1 : 0]}>{item.nombre}{item.rol ? ` · ${item.rol}` : ""}</option>)}
+                    </select>
+                  </label>
+                ))}
+              </div>
+              {loadingContext ? <p role="status" className="mt-3 text-sm">Cargando fichas…</p> : null}
+              {contextError ? <p role="alert" className="mt-3 text-sm text-red-700">{contextError}</p> : null}
+              {caseId && !loadingContext && !contextError && defendants.length < 2 ? <p className="mt-3 text-sm">Este expediente necesita al menos dos imputados registrados para comparar.</p> : null}
+            </div>
+          ) : usesCaseContext ? (
             effectiveScope === "documents" ? (
               <CaseCorpus
                 documents={caseDocuments}
@@ -541,6 +588,7 @@ export default function CentroHerramientasIA({
               className={`grid gap-5 ${compact ? "p-4" : "p-6"} ${tool?.inputs === 2 && !compact ? "lg:grid-cols-2" : ""}`}
             >
               <Source
+                key={`${caseId}-${toolId}-a`}
                 label={tool?.inputs === 2 ? "Fuente A" : "Material jurídico"}
                 value={primary}
                 onChange={setPrimary}
@@ -550,6 +598,7 @@ export default function CentroHerramientasIA({
               />
               {tool?.inputs === 2 && (
                 <Source
+                  key={`${caseId}-${toolId}-b`}
                   label="Fuente B"
                   value={secondary}
                   onChange={setSecondary}

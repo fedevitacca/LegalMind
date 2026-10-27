@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { createCaseDate, updateCaseDate } from "@/lib/legalmindApi";
+import SelectorRecordatorio, { reminderTime } from "./SelectorRecordatorio";
 
 type FechaAgenda = {
   descripcion: string;
@@ -58,6 +59,7 @@ export default function EspacioAgenda({
   const [selectedDate, setSelectedDate] = useState(() => toDateKey(today));
   const [newDescription, setNewDescription] = useState("");
   const [newTime, setNewTime] = useState("09:00");
+  const [recordatorio, setRecordatorio] = useState("automatico");
   const [newPriority, setNewPriority] =
     useState<FechaAgenda["prioridad"]>("Media");
   const [formVisible, setFormVisible] = useState(false);
@@ -82,6 +84,11 @@ export default function EspacioAgenda({
       return;
     }
 
+    const eventTime = new Date(`${selectedDate}T${newTime || "09:00"}:00`);
+    if (!Number.isFinite(eventTime.getTime()) || (recordatorio !== "" && eventTime.getTime() <= Date.now())) {
+      setError("Elegí una fecha futura o seleccioná Sin recordatorio.");
+      return;
+    }
     setIsSaving(true);
     const targetCaseId = caseId || selectedCaseId;
     const nextEvent = {
@@ -101,7 +108,10 @@ export default function EspacioAgenda({
       if (targetCaseId) {
         const savedDate = await createCaseDate(targetCaseId, {
           evento: nextEvent.descripcion,
-          fecha: selectedDate,
+          fecha: eventTime.toISOString(),
+          fecha_texto: `${selectedDate} ${newTime || "09:00"}`,
+          recordatorio_at: reminderTime(eventTime, recordatorio),
+          metadata: { recordatorios_automaticos: recordatorio === "automatico" },
           prioridad: toApiPriority(newPriority),
           tipo: "agenda",
         });
@@ -379,6 +389,10 @@ export default function EspacioAgenda({
               >
                 {isSaving ? "Guardando..." : "Guardar"}
               </button>
+              <div className="lg:col-span-full">
+                <SelectorRecordatorio value={recordatorio} onChange={setRecordatorio} />
+                <p className="mt-2 text-xs text-[#0F2044]/65">Horario local. Si la anticipación ya pasó, recibirás el aviso al guardar. El correo requiere que el estudio habilite los envíos.</p>
+              </div>
             </form>
           ) : null}
 

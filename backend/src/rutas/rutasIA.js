@@ -108,7 +108,7 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
   const tool = getTool(req.params.toolId);
   if (!tool) return res.status(404).json({ error: "Herramienta de IA inexistente." });
   let primaryText = String(req.body?.primary_text || req.body?.text || "").trim();
-  const secondaryText = String(req.body?.secondary_text || "").trim();
+  let secondaryText = String(req.body?.secondary_text || "").trim();
   const query = String(req.body?.query || req.body?.parameters?.pregunta || "").trim();
   const caseId = parseOptionalNumericId(req.body?.case_id);
   const scope = normalizeToolScope(req.body?.scope);
@@ -116,6 +116,12 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
     && tool.inputs === 1
     && (parseBoolean(req.body?.use_case_context) || parseBoolean(req.body?.use_case_documents));
   const defendantId = parseOptionalNumericId(req.body?.defendant_id);
+  const comparingDefendants = req.params.toolId === "comparar_imputados";
+  const pair = req.body?.defendant_ids;
+  if (comparingDefendants && (!caseId || !Array.isArray(pair) || pair.length !== 2
+    || !pair.every((id) => Number.isSafeInteger(Number(id)) && Number(id) > 0) || Number(pair[0]) === Number(pair[1]))) {
+    return res.status(400).json({ error: "Seleccioná un expediente y dos imputados distintos para comparar." });
+  }
 
   if (req.params.toolId === "consulta_rag" && !query) {
     return res.status(400).json({ error: "Escriba una pregunta para realizar la consulta." });
@@ -123,8 +129,8 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
   if (scope === "defendant" && useCaseContext && !defendantId) {
     return res.status(400).json({ error: "Seleccione el imputado sobre el que quiere consultar." });
   }
-  if (!primaryText && !useCaseContext) return res.status(400).json({ error: "La fuente principal es obligatoria." });
-  if (tool.inputs === 2 && !secondaryText) return res.status(400).json({ error: "Esta herramienta requiere dos fuentes." });
+  if (!primaryText && !useCaseContext && !comparingDefendants) return res.status(400).json({ error: "La fuente principal es obligatoria." });
+  if (tool.inputs === 2 && !secondaryText && !comparingDefendants) return res.status(400).json({ error: "Esta herramienta requiere dos fuentes." });
 
   try {
     let selectedDefendant = null;
@@ -132,9 +138,21 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
     let sourceDocumentCount = secondaryText ? 2 : 1;
     let structuredContextCount = 0;
     let structuredContextWarning = null;
-    const scopeLabel = getScopeLabel(scope, useCaseContext);
+    let scopeLabel = getScopeLabel(scope, useCaseContext);
+    let comparedDefendants = [];
 
-    if (useCaseContext) {
+    if (comparingDefendants) {
+      const defendants = await withTimeout(listDefendantsByCase(caseId), availableMs(deadline, 1100), "No se pudieron leer las fichas a tiempo.");
+      comparedDefendants = pair.map((id) => defendants.find((item) => Number(item.id) === Number(id)));
+      if (comparedDefendants.some((item) => !item)) {
+        return res.status(400).json({ error: "Los dos imputados deben pertenecer al expediente seleccionado." });
+      }
+      documents = comparedDefendants.map(buildDefendantDocument);
+      primaryText = documents[0].texto_extraido;
+      secondaryText = documents[1].texto_extraido;
+      sourceDocumentCount = 2;
+      scopeLabel = `las fichas de ${comparedDefendants.map((item) => item.nombre).join(" y ")}`;
+    } else if (useCaseContext) {
       documents = await withTimeout(
         listDocumentsForCase(caseId),
         availableMs(deadline, 1100),
@@ -193,13 +211,19 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
     let retrieval = "bm25_legal_expansion_trigram_mmr";
     let semanticRetrieval = "lexical_fallback";
     const maxContextChunks = tool.maxContextChunks || 6;
-    chunks = retrieveRelevantChunks(documents, retrievalQuery, maxContextChunks * 2);
-    ({ chunks, semanticRetrieval } = await rerankChunksWithEmbeddings(
+    if (tool.inputs === 2) {
+      // Las dos fuentes deben estar representadas, incluso si una tiene más texto.
+      chunks = documents.flatMap((document) => retrieveRelevantChunks([document], `${retrievalQuery} ${document.texto_extraido.slice(0, 160)}`, Math.ceil(maxContextChunks / 2)));
+      semanticRetrieval = "balanced_lexical_sources";
+    } else {
+      chunks = retrieveRelevantChunks(documents, retrievalQuery, maxContextChunks * 2);
+      ({ chunks, semanticRetrieval } = await rerankChunksWithEmbeddings(
       chunks,
       retrievalQuery,
       maxContextChunks,
       Math.min(700, availableMs(deadline, 1000))
-    ));
+      ));
+    }
     retrieval = useCaseContext
       ? "case_documents_and_management_bm25_legal_expansion_mmr"
       : "bm25_legal_expansion_trigram_mmr";
@@ -223,7 +247,8 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
         primaryText: modelPrimaryText,
         secondaryText: secondaryText.slice(0, 18000),
         query,
-        parameters: { ...(req.body?.parameters || {}), scope, defendant: selectedDefendant?.nombre || null },
+        parameters: { ...(req.body?.parameters || {}), scope, defendant: selectedDefendant?.nombre || null,
+          compared_defendants: comparedDefendants.map((item) => ({ id: item.id, nombre: item.nombre })) },
         context: chunks.map((chunk) => `[${chunk.document_id}:${chunk.chunk_index ?? chunk.orden}] ${chunk.text}`),
         timeoutMs: Math.min(5000, availableMs(deadline, 900)),
         maxOutputTokens: 360,
@@ -241,10 +266,12 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
       engine, model: getLocalAIConfig().model,
       embedding_model: getLocalAIConfig().embeddingModel, tool_id: req.params.toolId,
       retrieval, semantic_retrieval: semanticRetrieval,
-      source: useCaseContext ? `case_${scope}` : "ad_hoc_text",
+      source: comparingDefendants ? "case_defendant_comparison" : useCaseContext ? `case_${scope}` : "ad_hoc_text",
       scope,
       defendant_id: selectedDefendant?.id || null,
       defendant_name: selectedDefendant?.nombre || null,
+      compared_defendants: comparedDefendants.map((item) => ({ id: item.id, nombre: item.nombre })),
+      comparison_scope: comparingDefendants ? "fichas_registradas" : null,
       source_document_count: sourceDocumentCount,
       structured_context_count: structuredContextCount,
       structured_context_warning: structuredContextWarning,
@@ -258,7 +285,8 @@ router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asiste
     if (caseId && availableMs(deadline, 150) >= 250) {
       try {
         savedQuery = await withTimeout(createAIQuery({ caseId, userId: req.user.id, toolId: req.params.toolId,
-          title: result.titulo || tool.label, query, input: { scope, defendant_id: defendantId, parameters: req.body?.parameters || {} },
+          title: result.titulo || tool.label, query, input: { scope, defendant_id: defendantId,
+            defendant_ids: comparedDefendants.map((item) => item.id), parameters: req.body?.parameters || {} },
           result, citations, metadata }), Math.min(550, availableMs(deadline, 150)), "No se alcanzó a guardar la consulta dentro del límite de respuesta.");
       } catch (error) {
         metadata.persistence_warning = error.message;

@@ -12,7 +12,7 @@ export default async function AgendaPage() {
 
   return (
     <MarcoAplicacion activeSection="Agenda">
-      <section className="h-full min-h-0 overflow-hidden bg-[#F4F7F5] text-[#0F2044]">
+      <section className="flex h-full min-h-0 flex-col overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
         <header className="grid h-11 grid-cols-[minmax(150px,1fr)_minmax(260px,464px)_minmax(180px,auto)] items-center gap-4 border-b-[3px] border-[#88A9C8] bg-white px-6">
           <h1 className="brand-font text-[25px] font-semibold leading-none">
             Agenda

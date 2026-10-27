@@ -44,6 +44,9 @@ export default function DetalleImputadosCaso({
         <section className="min-w-0">
           <BackToCaseLink idCaso={idCaso} />
           <SummaryCard caseName={caso.name} defendants={caso.defendants} />
+          <Link className="mt-4 inline-flex rounded-lg bg-[#0F2044] px-4 py-2 text-sm font-semibold text-white" href={`/analisis?tool=comparar_imputados&case_id=${idCaso}`}>
+            Comparar imputados
+          </Link>
 
           <div className="mt-6 grid gap-6">
             {caso.defendants.length ? (

@@ -133,7 +133,7 @@ export default function ConfiguracionUsuario() {
   };
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[220px_minmax(0,1fr)] bg-[#F4F7F5] text-[#0F2044]">
+    <div className="app-shell settings-page grid h-full min-h-0 grid-cols-[220px_minmax(0,1fr)] bg-[#F4F7F5] text-[#0F2044]">
       <aside className="bg-[#0F2044] px-5 py-6 text-white">
         <Link className="brand-font text-[32px] font-semibold leading-none" href="/dashboard">
           LegalMind
@@ -156,7 +156,7 @@ export default function ConfiguracionUsuario() {
         </nav>
       </aside>
 
-      <section className="min-w-0 overflow-hidden">
+      <section className="min-w-0 overflow-y-auto">
         <header className="grid h-[46px] grid-cols-[minmax(180px,1fr)_minmax(260px,420px)_48px_190px] items-center gap-5 border-b-4 border-[#88A9C8] bg-[#F4F7F5] px-10">
           <h1 className="text-[26px] font-semibold leading-none">Configuracion</h1>
           <label className="relative block">

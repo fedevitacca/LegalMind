@@ -206,6 +206,19 @@ export async function fetchCaseDetail(idCaso: string, cookieHeader?: string): Pr
   return buildSampleCaseFromSlug(idCaso);
 }
 
+export async function deleteCase(caseId: number | string): Promise<void> {
+  const response = await fetch(`${getApiUrl()}/api/casos/${encodeURIComponent(caseId)}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(response.status === 403
+      ? "Solo un administrador puede eliminar casos."
+      : data?.error || "No se pudo eliminar el caso. Intentá nuevamente.");
+  }
+}
+
 export async function createCase(payload: CreateCasePayload): Promise<CaseDetail> {
   const response = await fetch(`${getApiUrl()}/api/casos`, {
     body: JSON.stringify(payload),
@@ -276,6 +289,8 @@ export async function createCaseDate(
     evento: string;
     fecha?: string;
     fecha_texto?: string;
+    recordatorio_at?: string;
+    metadata?: { recordatorios_automaticos: boolean };
     prioridad: "baja" | "media" | "alta" | "urgente";
     tipo?: string;
   },

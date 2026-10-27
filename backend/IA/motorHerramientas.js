@@ -27,6 +27,21 @@ const TOOL_DEFINITIONS = {
       "Atribuí cada afirmación a Fuente A o Fuente B y no conviertas diferencias de redacción en contradicciones materiales.",
     ].join(" "),
   },
+  comparar_imputados: {
+    label: "Comparar imputados",
+    description: "Contrasta las fichas de dos imputados del mismo expediente.",
+    inputs: 2,
+    family: "comparacion", resultView: "diff", accent: "blue",
+    fields: ["criterio_comparacion"],
+    maxOutputTokens: 780,
+    maxContextChunks: 6,
+    instruction: [
+      "Compará las fichas registradas de los dos imputados del expediente.",
+      "Identificá a cada persona y desarrollá roles, hechos registrados, coincidencias, diferencias y datos pendientes de verificación.",
+      "Atribuí los datos a la ficha de cada persona. No confundas notas del expediente con hechos acreditados ni infieras culpabilidad, participación o contradicciones cuando las fichas no aportan sustento.",
+      "Aclarar que el alcance son las fichas seleccionadas y no la totalidad de la prueba documental del caso.",
+    ].join(" "),
+  },
   comparar_jurisprudencia: {
     label: "Comparar fallos",
     description: "Contrasta hechos, criterios y utilidad de dos decisiones.",

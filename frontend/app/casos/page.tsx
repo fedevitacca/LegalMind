@@ -1,6 +1,7 @@
 import Link from "next/link";
 import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
 import BotonSesion from "../../components/interfaz/BotonSesion";
+import BotonEliminarCaso from "../../components/casos/BotonEliminarCaso";
 import { CaseListItem, fetchCases } from "../../lib/legalmindServerApi";
 
 const caseSections = [
@@ -122,6 +123,10 @@ function CaseRow({
           ))}
         </div>
       </Link>
+
+      <div className="mt-3 flex justify-end">
+        <BotonEliminarCaso caseId={legalCase.id || legalCase.slug} caseName={legalCase.name} />
+      </div>
 
       <div className="mt-[13px] grid grid-cols-4 gap-2">
         {caseSections.map((section) => (

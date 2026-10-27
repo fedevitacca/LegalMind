@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Encabezado from "../components/interfaz/Encabezado";
 import PieDePagina from "../components/interfaz/PieDePagina";
+import EspacioTrabajo from "../components/estructura/EspacioTrabajo";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ export default function RootLayout({
     <html lang="es" className="h-full antialiased">
       <body className="flex h-screen flex-col overflow-hidden">
         <Encabezado />
-        <main className="min-h-0 flex-1">{children}</main>
+        <main className="min-h-0 flex-1"><EspacioTrabajo>{children}</EspacioTrabajo></main>
         <PieDePagina />
       </body>
     </html>

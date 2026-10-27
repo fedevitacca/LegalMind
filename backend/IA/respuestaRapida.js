@@ -1,6 +1,7 @@
 const TITLES = {
   resumen_expediente: "Resumen rápido del expediente",
   comparar_documentos: "Comparación documental",
+  comparar_imputados: "Pasajes de las fichas de imputados",
   comparar_jurisprudencia: "Comparación de fallos",
   cronologia: "Cronología y fechas relevantes",
   consulta_rag: "Respuesta basada en el expediente",
@@ -9,7 +10,9 @@ const TITLES = {
 };
 
 function buildFastToolResult({ toolId, chunks = [], query = "", scopeLabel = "las fuentes seleccionadas" }) {
-  const passages = selectPassages(chunks, query, toolId === "cronologia" ? 6 : 5);
+  const passages = toolId.startsWith("comparar_")
+    ? [...new Set(chunks.map((chunk) => chunk.document_id))].flatMap((id) => selectPassages(chunks.filter((chunk) => chunk.document_id === id), query, 2))
+    : selectPassages(chunks, query, toolId === "cronologia" ? 6 : 5);
   const points = passages.map((item) => `${item.documentName}: ${item.text}`);
   const emptyMessage = `No se encontró información suficiente en ${scopeLabel} para responder con respaldo.`;
 
@@ -74,7 +77,7 @@ function buildConclusion(toolId, passages, scopeLabel) {
 
   if (toolId === "consulta_rag") return `Según ${scopeLabel}, ${lowercaseStart(joined)}`;
   if (toolId === "cronologia") return `Se localizaron ${passages.length} referencias temporales o procesales relevantes. ${joined}`;
-  if (toolId === "comparar_documentos" || toolId === "comparar_jurisprudencia") {
+  if (toolId.startsWith("comparar_")) {
     return `La comparación rápida identificó los siguientes pasajes centrales. ${joined}`;
   }
   if (toolId === "teoria_del_caso") return `Como base provisional de trabajo, ${lowercaseStart(joined)}`;
@@ -83,6 +86,15 @@ function buildConclusion(toolId, passages, scopeLabel) {
 }
 
 function buildSections(toolId, passages, query) {
+  if (toolId.startsWith("comparar_")) {
+    return [
+      ...[...new Set(passages.map((item) => item.documentName))].map((name) => ({
+        titulo: name,
+        contenido: passages.filter((item) => item.documentName === name).map((item) => item.text).join("\n"),
+      })),
+      { titulo: "Alcance de la extracción", contenido: "Estos son pasajes de ambas fuentes. La extracción no determina por sí sola coincidencias, contradicciones ni conclusiones jurídicas." },
+    ];
+  }
   const midpoint = Math.max(1, Math.ceil(passages.length / 2));
   const first = passages.slice(0, midpoint).map(formatPassage).join("\n");
   const second = passages.slice(midpoint).map(formatPassage).join("\n") || "No surgieron otros pasajes distintos con igual nivel de pertinencia.";

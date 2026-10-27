@@ -272,7 +272,10 @@ async function agregarFecha(req, res, next) {
       return res.status(400).json({ error: validationError });
     }
 
-    const fecha = await createDateForCase(caseId, normalizeDatePayload(req.body));
+    const payload = normalizeDatePayload(req.body);
+    // Los avisos de la agenda pertenecen al usuario que carga la fecha.
+    if (!payload.responsable_user_id) payload.responsable_user_id = req.security.userId;
+    const fecha = await createDateForCase(caseId, payload);
     await recordAudit(req, { action: "fecha.creada", resourceType: "fecha_relevante", resourceId: fecha.id, metadata: { causa_id: caseId, prioridad: fecha.prioridad } });
     return res.status(201).json({ fecha });
   } catch (error) {

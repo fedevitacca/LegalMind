@@ -4,6 +4,7 @@ import { FormEvent, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createCaseDate } from "@/lib/legalmindApi";
+import SelectorRecordatorio, { reminderTime } from "./SelectorRecordatorio";
 
 export default function FormularioNuevoEvento({
   caseId,
@@ -21,6 +22,7 @@ export default function FormularioNuevoEvento({
   const [fecha, setFecha] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [lugar, setLugar] = useState("");
+  const [recordatorio, setRecordatorio] = useState("automatico");
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -35,8 +37,13 @@ export default function FormularioNuevoEvento({
 
     const normalizedDate = normalizeDate(fecha.trim());
 
-    if (!normalizedDate && !fecha.trim()) {
-      setError("Ingresa la fecha del evento.");
+    const eventTime = new Date(`${normalizedDate}T${hora || "09:00"}:00`);
+    if (!normalizedDate || !Number.isFinite(eventTime.getTime()) || `${eventTime.getFullYear()}-${String(eventTime.getMonth() + 1).padStart(2, "0")}-${String(eventTime.getDate()).padStart(2, "0")}` !== normalizedDate) {
+      setError("Ingresá una fecha válida (dd/mm/aaaa).");
+      return;
+    }
+    if (recordatorio !== "" && eventTime.getTime() <= Date.now()) {
+      setError("Para recibir un recordatorio, elegí un evento futuro o seleccioná Sin recordatorio.");
       return;
     }
 
@@ -54,8 +61,10 @@ export default function FormularioNuevoEvento({
     try {
       await createCaseDate(caseId, {
         evento: details ? `${titulo.trim()}\n${details}` : titulo.trim(),
-        fecha: normalizedDate || undefined,
-        fecha_texto: normalizedDate ? undefined : fecha.trim(),
+        fecha: eventTime.toISOString(),
+        fecha_texto: `${fecha.trim()} ${hora || "09:00"}`,
+        recordatorio_at: reminderTime(eventTime, recordatorio),
+        metadata: { recordatorios_automaticos: recordatorio === "automatico" },
         prioridad: "media",
         tipo: "agenda",
       });
@@ -91,7 +100,7 @@ export default function FormularioNuevoEvento({
   }
 
   return (
-    <form className="max-w-[920px] rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 py-4" onSubmit={handleSubmit}>
+    <form className="event-form max-w-[920px] rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 py-4" onSubmit={handleSubmit}>
       <div className="grid grid-cols-3 gap-4">
         <TextField
           label="Titulo del evento"
@@ -168,6 +177,11 @@ export default function FormularioNuevoEvento({
           value={descripcion}
         />
       </label>
+
+      <div className="mt-4">
+        <SelectorRecordatorio value={recordatorio} onChange={setRecordatorio} />
+        <p className="mt-2 text-xs text-[#0F2044]/65">El aviso aparecerá en Notificaciones y se enviará al correo de tu cuenta cuando el estudio habilite los envíos. Horario local ({Intl.DateTimeFormat().resolvedOptions().timeZone}); sin hora se toma 09:00. Si la anticipación ya pasó, se avisa al guardar.</p>
+      </div>
 
       {error ? (
         <p

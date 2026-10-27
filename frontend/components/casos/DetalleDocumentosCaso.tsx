@@ -52,6 +52,9 @@ export default function DetalleDocumentosCaso({
         <section className="min-w-0">
           <BackToCaseLink idCaso={idCaso} />
           <SummaryCard caseName={caso.name} documents={caso.documentos} />
+          <Link className="mt-4 inline-flex rounded-lg bg-[#0F2044] px-4 py-2 text-sm font-semibold text-white" href={`/analisis?tool=comparar_documentos&case_id=${idCaso}`}>
+            Comparar documentos
+          </Link>
 
           <div className="mt-6 grid gap-[13px]">
             {caso.documentos.length ? (

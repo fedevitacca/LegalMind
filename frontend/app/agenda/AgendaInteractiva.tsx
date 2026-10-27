@@ -50,8 +50,8 @@ export default function AgendaInteractiva({
   }
 
   return (
-    <main className="grid h-[calc(100vh-44px)] min-h-0 grid-rows-[88px_minmax(0,1fr)] gap-3 px-7 py-4">
-      <section className="w-[340px] rounded-[14px] border-2 border-[#88A9C8] bg-white px-4 py-3">
+    <main className="grid flex-1 content-start gap-3 px-7 py-4">
+      <section className="w-full max-w-[340px] rounded-[14px] border-2 border-[#88A9C8] bg-white px-4 py-3">
         <h2 className="flex items-center gap-2 text-[19px] leading-none">
           <ClockIcon />
           Proximos vencimientos
@@ -62,9 +62,9 @@ export default function AgendaInteractiva({
         <p className="mt-1 text-[14px] leading-none">Esta semana</p>
       </section>
 
-      <section className="grid min-h-0 grid-cols-[minmax(0,720px)_306px] gap-3">
+      <section className="agenda-columns grid min-h-0 grid-cols-[minmax(0,720px)_306px] gap-3">
         <section className="min-h-0 rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 py-3">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <h2 className="flex items-center gap-2 text-[23px] leading-none">
               <CalendarIcon />
               {monthNames[visibleMonth.getMonth()]} {visibleMonth.getFullYear()}

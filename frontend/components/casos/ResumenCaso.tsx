@@ -1,6 +1,7 @@
 import Link from "next/link";
 import BotonSesion from "../interfaz/BotonSesion";
 import FiltrosAccesosExpediente from "./FiltrosAccesosExpediente";
+import BotonEliminarCaso from "./BotonEliminarCaso";
 
 type CasoResumen = {
   analisis?: {
@@ -48,6 +49,9 @@ export default function ResumenCaso({
       <main className="px-9 py-9">
         <div className="max-w-[940px]">
           <article className="rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-4">
+            <div className="mb-4 flex justify-end">
+              <BotonEliminarCaso caseId={caso.id || idCaso} caseName={caso.name} redirect />
+            </div>
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
               <h1 className="flex items-center gap-2 text-[29px] font-semibold leading-none">
                 <UserIcon className="h-9 w-9" />

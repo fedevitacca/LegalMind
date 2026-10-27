@@ -932,6 +932,7 @@ async function createDeadlineReminder(caseId, payload) {
         titulo,
         mensaje,
         programado_para,
+        email_estado,
         metadata_json
       )
       SELECT
@@ -943,6 +944,7 @@ async function createDeadlineReminder(caseId, payload) {
         $5,
         $6,
         $7,
+        CASE WHEN $4 = 'email' THEN 'pendiente' ELSE 'no_solicitado' END,
         $8::jsonb
       FROM fechas_relevantes fr
       INNER JOIN causas c ON c.id = fr.causa_id
@@ -1704,6 +1706,7 @@ function mapComparisonRow(row) {
 
 function mapDefendantRow(row) {
   return {
+    datos_contexto: row.datos_contexto || {},
     caseLink:
       row.datos_contexto?.vinculo ||
       "Vinculado al expediente para revisar datos, actuaciones y documentos.",
