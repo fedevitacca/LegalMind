@@ -7,6 +7,8 @@ function buildLegalCitations(chunks = [], { caseId } = {}) {
     const page = positiveInteger(chunk.page ?? chunk.pagina);
     const text = String(chunk.text ?? chunk.texto ?? "").trim();
     const score = clampScore(chunk.score);
+    const article = chunk.metadata?.article ?? chunk.metadata_json?.article ?? null;
+    const sourceUrl = chunk.source_url ?? chunk.metadata?.source_url ?? null;
     const fingerprint = crypto.createHash("sha256")
       .update(`${documentId}:${page || 0}:${fragmentOrder}:${text}`)
       .digest("hex").slice(0, 16);
@@ -24,10 +26,12 @@ function buildLegalCitations(chunks = [], { caseId } = {}) {
       characters_start: nullableNumber(chunk.caracteres_inicio ?? chunk.start),
       characters_end: nullableNumber(chunk.caracteres_fin ?? chunk.end),
       section: chunk.metadata?.section ?? chunk.metadata_json?.section ?? null,
-      location_label: page ? `Página ${page} · fragmento ${fragmentOrder + 1}` : `Fragmento ${fragmentOrder + 1}`,
-      document_url: caseId && /^\d+$/.test(documentId)
+      article,
+      source_type: chunk.source_type ?? "expediente",
+      location_label: article || (page ? `Página ${page} · fragmento ${fragmentOrder + 1}` : `Fragmento ${fragmentOrder + 1}`),
+      document_url: sourceUrl || (caseId && /^\d+$/.test(documentId)
         ? `/casos/${caseId}/documentos?documento=${documentId}${page ? `&pagina=${page}` : ""}`
-        : null,
+        : null),
     };
   });
 }

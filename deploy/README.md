@@ -68,6 +68,15 @@ varios minutos. Revisar el avance con:
 docker compose --env-file deploy/.env -f deploy/compose.yml ps
 docker compose --env-file deploy/.env -f deploy/compose.yml logs -f ollama-models
 docker compose --env-file deploy/.env -f deploy/compose.yml logs -f backend
+docker compose --env-file deploy/.env -f deploy/compose.yml logs -f legal-corpus
+```
+
+`legal-corpus` descarga e indexa textos actualizados desde la fuente oficial
+`argentina.gob.ar/normativa`. La aplicación puede iniciar si esa sincronización
+falla y conserva la última versión válida. Para forzar una actualización:
+
+```bash
+docker compose --env-file deploy/.env -f deploy/compose.yml run --rm legal-corpus
 ```
 
 Después abrir el valor de `PUBLIC_URL` desde una computadora de la misma red.

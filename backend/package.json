@@ -7,10 +7,9 @@
     "start": "node src/servidor.js",
     "test": "node --test",
     "test:ia": "node --test IA/*.test.js src/rutas/iaRoutes.test.js",
-    "test:ia:local": "node IA/probarAnalisis.js",
-    "dataset:ia": "node IA/dataset/prepararMultiEurlex.js",
     "migrate": "node scripts/migrar.js",
-    "rag:reindex": "node scripts/reindexar-rag.js"
+    "rag:reindex": "node scripts/reindexar-rag.js",
+    "corpus:sync": "node scripts/sincronizar-corpus-juridico.js"
   },
   "keywords": [],
   "author": "",

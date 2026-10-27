@@ -1,12 +1,8 @@
 # LegalMind
 
-La gestion operativa sin IA del Sprint 6 esta documentada en [SPRINT_6_GESTION_JURIDICA.md](SPRINT_6_GESTION_JURIDICA.md).
-
-> Para el camino desde prototipo hacia uso profesional, consultar [`README_PROFESIONALIZACION.md`](README_PROFESIONALIZACION.md). El prompt ejecutable por fases está en [`PROMPT_IMPLEMENTACION_PROFESIONAL.md`](PROMPT_IMPLEMENTACION_PROFESIONAL.md).
-
 LegalMind es un workspace jurídico para organizar causas y analizar material sensible con inteligencia artificial ejecutada localmente. La aplicación no reemplaza el criterio profesional: acelera lectura, comparación, control y recuperación de evidencia dejando visibles sus fuentes y limitaciones.
 
-## Nueva composición de IA
+## Capacidades
 
 `/analisis` ya no es un chat o analizador único. Es un laboratorio con herramientas especializadas:
 
@@ -14,17 +10,19 @@ LegalMind es un workspace jurídico para organizar causas y analizar material se
 - comparación de documentos y cuadros;
 - comparación de jurisprudencia (hechos, cuestión, holding, criterio y aplicabilidad);
 - línea de tiempo procesal;
-- consulta documental RAG con citas.
+- consulta jurídica del expediente y normativa oficial con citas;
 - constructor de teoría del caso;
 
 Cada herramienta posee parámetros, instrucciones, flujo visual y lectura de resultados propios. Al seleccionar un expediente también se pueden reutilizar sus documentos como fuentes A/B. La ejecución se guarda en `Consultas IA` dentro del caso con entrada, parámetros, respuesta, citas, modelo y fecha, y puede reabrirse o eliminarse.
 
-El pipeline combina cuatro capas locales:
+El pipeline combina capas locales y auditables:
 
 1. extracción jurídica determinista para entidades y fechas;
-2. ML supervisado local (ensamble de árboles) para priorización documental;
-3. RAG híbrido BM25 + trigramas + MMR + embeddings semánticos locales;
-4. razonamiento estructurado en Ollama con fuentes y límites explícitos.
+2. recuperación extractiva sobre el expediente;
+3. búsqueda en una biblioteca nacional y federal sincronizada desde fuentes oficiales;
+4. razonamiento estructurado en Ollama para las herramientas que requieren redacción generativa.
+
+La consulta principal `POST /api/ia/rag/query` no usa Ollama: cruza evidencia del expediente con la Constitución Nacional, el Código Penal y el Código Procesal Penal Federal, y devuelve artículos y URLs verificables. La arquitectura completa está en [`backend/IA/README.md`](backend/IA/README.md).
 
 El laboratorio acepta PDF, DOCX, TXT, Markdown y CSV mediante selector o arrastre. También puede reutilizar documentos previamente cargados en un expediente.
 
@@ -34,12 +32,13 @@ Los prompts prohíben inventar datos y los resultados separan resumen, hallazgos
 
 - Frontend: Next.js 15, React 19, TypeScript y Tailwind CSS.
 - Backend: Node.js, Express y PostgreSQL/Neon opcional.
-- IA local: Ollama o API compatible (`llama3.1:8b` por defecto).
+- Recuperación jurídica híbrida: BM25/Full Text Search, embeddings locales y pgvector.
+- IA generativa opcional para herramientas: Ollama (`llama3.1:8b` por defecto).
 - Archivos: texto y extracción PDF en los endpoints compatibles.
 
 ## Puesta en marcha
 
-Requisitos: Node.js 20+, Ollama y el modelo configurado.
+Requisitos: Node.js 20+ y PostgreSQL. Ollama es necesario para las herramientas generativas, pero no para la consulta jurídica extractiva.
 
 ```bash
 ollama pull llama3.1:8b
@@ -65,6 +64,12 @@ npm run dev:frontend
 
 PostgreSQL es necesario para persistencia de usuarios y causas, pero no para ejecutar herramientas sobre texto pegado.
 
+Para cargar o actualizar la biblioteca jurídica oficial:
+
+```bash
+npm --prefix backend run corpus:sync
+```
+
 Para instalar el sistema completo en un servidor del colegio mediante Docker,
 incluidos PostgreSQL, Ollama, los modelos y el proxy de acceso, consultar
 [`deploy/README.md`](deploy/README.md).
@@ -77,13 +82,15 @@ npm run build
 npm run lint
 ```
 
-La suite valida rutas, extracción, RAG y clasificación; el build valida todas las pantallas y tipos.
+La suite valida rutas, extracción y recuperación jurídica; el build valida todas las pantallas y tipos.
 
 ## Estructura
 
 ```text
 backend/IA/                 motor local, RAG, ML, prompts y esquemas
+backend/migrations/         esquema versionado de PostgreSQL
 backend/src/rutas/          API HTTP
+deploy/                     despliegue Docker completo
 frontend/app/analisis/      laboratorio de análisis
 frontend/components/ia/     interfaz y visualización de resultados
 ```
