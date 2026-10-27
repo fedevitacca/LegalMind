@@ -95,6 +95,24 @@ services:
       timeout: 10s
       retries: 20
 
+  legal-corpus:
+    build:
+      context: ../backend
+    restart: "no"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-legalmind_app}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB:-legalmind}?sslmode=disable
+      PG_CONNECTION_TIMEOUT_MS: ${PG_CONNECTION_TIMEOUT_MS:-10000}
+      LOCAL_AI_BASE_URL: http://ollama:11434
+      LOCAL_AI_EMBEDDING_MODEL: ${LOCAL_AI_EMBEDDING_MODEL:-nomic-embed-text}
+      LOCAL_AI_EMBEDDING_TIMEOUT_MS: ${LOCAL_AI_EMBEDDING_TIMEOUT_MS:-30000}
+      LOCAL_AI_KEEP_ALIVE: ${LOCAL_AI_KEEP_ALIVE:-15m}
+      RAG_EMBEDDING_BATCH_SIZE: ${RAG_EMBEDDING_BATCH_SIZE:-12}
+    command: ["npm", "run", "corpus:sync"]
+
   frontend:
     build:
       context: ../frontend

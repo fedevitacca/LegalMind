@@ -7,9 +7,6 @@ const {
   resetLocalAIClientFactoryForTests,
   setLocalAIClientFactoryForTests,
 } = require("../../IA/analizadorLocal");
-const {
-  resetRandomForestForTests,
-} = require("../../IA/randomForestJuridico");
 const { setSessionResolverForTests, resetSessionResolverForTests } = require("../autenticacion/sesion");
 const { setAuthorizationResolverForTests, resetAuthorizationResolverForTests } = require("../autenticacion/autorizacion");
 
@@ -20,8 +17,6 @@ describe("IA file routes", () => {
   before(async () => {
     setSessionResolverForTests(async () => ({ user: { id: "test-user", name: "Test", email: "test@legalmind.local" } }));
     setAuthorizationResolverForTests(async (req, kind) => kind === "context" ? { organizationId: 1, role: "administrador", userId: req.user.id } : true);
-    resetRandomForestForTests();
-
     setLocalAIClientFactoryForTests(() => ({
       chat: async (payload) => JSON.stringify(payload.messages.some((message) => message.content.includes("motor RAG juridico"))
         ? createSampleRagSearch()
@@ -42,7 +37,6 @@ describe("IA file routes", () => {
   after(async () => {
     resetSessionResolverForTests(); resetAuthorizationResolverForTests();
     resetLocalAIClientFactoryForTests();
-    resetRandomForestForTests();
 
     await new Promise((resolve, reject) => {
       server.close((error) => {
@@ -81,7 +75,6 @@ describe("IA file routes", () => {
     assert.match(analysis.informe_abogado.resumen_causa, /Ana Gomez/);
     assert.equal(analysis.datos_locales.numero_causa, "789/26");
     assert.deepEqual(analysis.datos_locales.imputados, ["Ana Gomez"]);
-    assert.ok(["alta", "urgente"].includes(analysis.triage.prioridad));
   });
 
   it("rechaza archivos sin extractor disponible", async () => {
@@ -243,24 +236,6 @@ describe("IA file routes", () => {
     assert.deepEqual(body.datos_causa.imputados, ["Carlos Diaz"]);
   });
 
-  it("prioriza documentos con Random Forest juridico", async () => {
-    const response = await fetch(`${baseUrl}/api/ia/random-forest/triage`, {
-      body: JSON.stringify({
-        text: "Vence el plazo para apelar la prision preventiva del imputado detenido.",
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-      method: "POST",
-    });
-    const body = await response.json();
-
-    assert.equal(response.status, 200);
-    assert.equal(body._metadata.engine, "legalmind_random_forest_triage");
-    assert.equal(body.triage.prioridad, "urgente");
-    assert.ok(body.triage.senales_detectadas.some((signal) => signal.clave === "libertad"));
-    assert.ok(body.triage.senales_detectadas.some((signal) => signal.clave === "vencimiento"));
-  });
 });
 
 function createPdfBuffer(text) {

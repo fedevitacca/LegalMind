@@ -13,9 +13,6 @@ const { buildStructuredCaseDocuments } = require("../../IA/contextoExpediente");
 const { expandLegalQuery } = require("../../IA/terminologiaRag");
 const { createAIQuery, deleteAIQuery, getAIQuery, listAIQueries } = require("../modelos/repositorioConsultasIA");
 const {
-  triageLegalDocumentWithRandomForest,
-} = require("../../IA/randomForestJuridico");
-const {
   MAX_TEXT_FILE_SIZE_BYTES,
   extractTextFromSupportedFile,
   extractTextFromTxtFile,
@@ -24,15 +21,16 @@ const {
   isTxtFile,
 } = require("../../IA/textFile");
 const {
-  buildExtractiveAnswer,
   extractSimpleCaseData,
   retrieveRelevantChunks,
 } = require("../../IA/ragLocal");
 const { buildFastToolResult } = require("../../IA/respuestaRapida");
+const { buildGroundedLegalAnswer } = require("../../IA/respuestaJuridicaExtractiva");
 const {
   listDocumentsForCase,
   saveLegalAnalysis,
 } = require("../modelos/repositorioIA");
+const { searchLegalLibrary } = require("../modelos/repositorioBibliotecaJuridica");
 const { hybridSearch } = require("../modelos/repositorioRagVectorial");
 const { listDatesByCase, listDefendantsByCase } = require("../modelos/repositorioCasos");
 const { listCaseRecords, listTasks } = require("../modelos/repositorioTrabajoJuridico");
@@ -498,67 +496,56 @@ router.post("/rag/query", requireCaseAccess, async (req, res, next) => {
     } catch (error) {
       console.warn("Contexto estructurado no disponible para RAG:", error.message);
     }
-    let chunks;
-    let retrieval = "lexical_memory_fallback";
+    const topK = Math.min(20, Math.max(1, Number(req.body.top_k) || 8));
+    const lexicalCaseChunks = retrieveRelevantChunks(documents, question, Math.max(3, topK))
+      .map((chunk) => ({ ...chunk, source_type: "expediente" }));
+    let queryEmbedding = null;
     try {
-      const [queryEmbedding] = await embedTextsWithLocalAI([expandLegalQuery(question)]);
-      const stored = await hybridSearch({ organizationId: req.security.organizationId, caseId, query: question,
-        queryEmbedding, limit: Number(req.body.top_k) || 5 });
-      if (stored.length) {
-        const storedChunks = stored.map((item) => ({ id: item.id, document_id: item.documento_id,
+      [queryEmbedding] = await embedTextsWithLocalAI([expandLegalQuery(question)]);
+    } catch (error) {
+      console.warn("Embeddings no disponibles; se usa recuperación léxica:", error.message);
+    }
+    let semanticCaseChunks = [];
+    if (queryEmbedding) {
+      try {
+        const stored = await hybridSearch({ organizationId: req.security.organizationId, caseId, query: question,
+          queryEmbedding, limit: topK });
+        semanticCaseChunks = stored.map((item) => ({ id: item.id, document_id: item.documento_id,
           document_name: item.nombre_archivo, chunk_index: item.orden, page: item.pagina,
           text: item.texto, score: Number(item.score), lexical_score: Number(item.lexical_score),
-          semantic_score: Number(item.semantic_score), metadata: item.metadata_json }));
-        const managementChunks = retrieveRelevantChunks(
-          structuredDocuments,
-          question,
-          Math.min(3, Number(req.body.top_k) || 5)
-        );
-        chunks = [...storedChunks, ...managementChunks]
-          .sort((left, right) => right.score - left.score)
-          .slice(0, Number(req.body.top_k) || 5);
-        retrieval = "pgvector_hybrid_plus_case_management";
+          semantic_score: Number(item.semantic_score), metadata: item.metadata_json, source_type: "expediente" }));
+      } catch (error) {
+        console.warn("Índice vectorial del expediente no disponible:", error.message);
       }
-    } catch (error) { console.warn("RAG vectorial no disponible; se usa recuperación léxica:", error.message); }
-    if (!chunks) chunks = retrieveRelevantChunks(documents, question, Number(req.body.top_k) || 5);
+    }
+    const caseChunks = fuseCaseRankings(lexicalCaseChunks, semanticCaseChunks, Math.max(3, Math.ceil(topK / 2)));
+    let legalChunks = [];
+    try {
+      legalChunks = await searchLegalLibrary({ query: question, queryEmbedding, limit: Math.max(5, topK) });
+    } catch (error) {
+      console.warn("Biblioteca jurídica no disponible:", error.message);
+    }
+    const chunks = [...caseChunks, ...legalChunks];
     const citations = buildLegalCitations(chunks, { caseId });
     const evidence = assessEvidence(citations);
-    const contextText = chunks
-      .map((chunk) => [
-        `Documento: ${chunk.document_name}`,
-        `Fragmento ${chunk.chunk_index + 1}:`,
-        chunk.text,
-      ].join("\n"))
-      .join("\n\n---\n\n");
-
-    if (!contextText.trim()) {
-      const answer = buildExtractiveAnswer(question, chunks);
-
-      return res.json({
-        ...answer,
-        case_id: caseId,
-        retrieved_chunks: citations,
-        evidence,
-        engine: "ollama_rag",
-        model: getLocalAIConfig().model,
-      });
-    }
-
-    const ragResult = await searchLegalTextWithLocalAI({
-      limit: Number(req.body.top_k) || 5,
-      query: question,
-      text: contextText,
-    });
+    const result = buildGroundedLegalAnswer({ question, caseChunks, legalChunks });
 
     return res.json({
-      answer: ragResult.answer?.respuesta || "No se pudo generar una respuesta con respaldo.",
+      answer: result.answer,
       case_id: caseId,
-      confidence: ragResult.answer?.requiere_revision ? "medio" : "alto",
+      confidence: result.confidence,
       retrieved_chunks: citations,
       evidence,
-      engine: "ollama_rag",
-      retrieval,
-      model: getLocalAIConfig().model,
+      engine: "extractive_legal_retrieval",
+      retrieval: queryEmbedding ? "hybrid_lexical_semantic_with_official_law" : "lexical_with_official_law",
+      model: null,
+      ollama_used: false,
+      embedding_model: queryEmbedding ? getLocalAIConfig().embeddingModel : null,
+      sources: {
+        case_chunks: caseChunks.length,
+        legal_chunks: legalChunks.length,
+        jurisdiction: "nacional_federal",
+      },
     });
   } catch (error) {
     return next(error);
@@ -635,43 +622,6 @@ router.post("/rag/extract", (req, res) => {
   return res.json(buildSimpleCaseDataPayload(text));
 });
 
-router.post("/random-forest/triage", (req, res) => {
-  if (isMultipartRequest(req)) {
-    parseTextFileUpload(req, async (uploadError) => {
-      if (uploadError) {
-        return res.status(400).json({
-          error: getUploadErrorMessage(uploadError),
-        });
-      }
-
-      try {
-        const text = await extractTextFromSupportedFile(req.file);
-
-        return res.json(buildRandomForestTriagePayload(text, {
-          name: req.file.originalname,
-          mime_type: req.file.mimetype,
-          size_bytes: req.file.size,
-        }));
-      } catch (error) {
-        return res.status(400).json({
-          error: error.message,
-        });
-      }
-    }, { allowPdf: true });
-    return;
-  }
-
-  const text = String(req.body?.text || "").trim();
-
-  if (!text) {
-    return res.status(400).json({
-      error: "El campo 'text' es obligatorio o se debe enviar un archivo .txt/.pdf.",
-    });
-  }
-
-  return res.json(buildRandomForestTriagePayload(text));
-});
-
 async function sendAnalysisResponse(res, text, options = {}) {
   try {
     const lawyerBrief = await buildLawyerBriefWithLocalAI(text);
@@ -702,12 +652,10 @@ async function sendAnalysisResponse(res, text, options = {}) {
 
 function buildLawyerAnalysisPayload(lawyerBrief, metadata, text) {
   const localData = extractSimpleCaseData(text);
-  const triage = triageLegalDocumentWithRandomForest(text);
   return {
     informe_abogado: lawyerBrief,
     datos_locales: localData,
-    triage,
-    ...buildFrontendCompatibilityFields(lawyerBrief, localData, triage),
+    ...buildFrontendCompatibilityFields(lawyerBrief, localData),
     _metadata: metadata,
   };
 }
@@ -730,7 +678,7 @@ async function persistAnalysisPayload(payload, text, options) {
   });
 }
 
-function buildFrontendCompatibilityFields(lawyerBrief, localData, triage) {
+function buildFrontendCompatibilityFields(lawyerBrief, localData) {
   return {
     resumen: lawyerBrief.resumen_causa,
     tipo_documento: "informe_abogado",
@@ -753,10 +701,10 @@ function buildFrontendCompatibilityFields(lawyerBrief, localData, triage) {
       evento: "Fecha detectada localmente",
       fecha: date,
       fecha_normalizada: null,
-      requiere_alerta: ["alta", "urgente"].includes(triage.prioridad),
+      requiere_alerta: false,
       tipo: "fecha_detectada",
     })),
-    categorias: triage.senales_detectadas.map((signal) => signal.descripcion),
+    categorias: [],
     actuaciones_pendientes: localData.vencimientos_o_plazos,
     observaciones: [
       "Ollama genera el informe explicativo; los datos concretos se extraen localmente.",
@@ -802,32 +750,18 @@ function buildFrontendCompatibilityFields(lawyerBrief, localData, triage) {
         tipo: "revision_abogado",
       })),
     },
-    alertas: triage.prioridad === "urgente" || triage.prioridad === "alta"
-      ? [{
-          descripcion: triage.recomendacion,
-          fecha: null,
-          prioridad: triage.prioridad,
-          tipo: "triage_random_forest",
-          titulo: `Revision ${triage.prioridad}`,
-        }]
-      : [],
+    alertas: [],
     scoring_confianza: {
-      factores: triage.senales_detectadas.map((signal) => signal.descripcion),
+      factores: [],
       nivel: lawyerBrief.nivel_confianza,
-      puntaje: Math.round(triage.confianza * 100),
-      requiere_revision: triage.prioridad !== "baja",
+      puntaje: confidenceScore(lawyerBrief.nivel_confianza),
+      requiere_revision: lawyerBrief.nivel_confianza !== "alto",
     },
   };
 }
 
-function buildRandomForestTriagePayload(text, sourceFile) {
-  return {
-    triage: triageLegalDocumentWithRandomForest(text),
-    _metadata: {
-      engine: "legalmind_random_forest_triage",
-      source_file: sourceFile || null,
-    },
-  };
+function confidenceScore(level) {
+  return { alto: 80, medio: 60, bajo: 35 }[level] || 35;
 }
 
 function buildSimpleCaseDataPayload(text, sourceFile) {
@@ -1018,6 +952,23 @@ function vectorCosine(left = [], right = []) {
   let dot = 0; let leftNorm = 0; let rightNorm = 0;
   for (let index = 0; index < left.length; index += 1) { dot += left[index] * right[index]; leftNorm += left[index] ** 2; rightNorm += right[index] ** 2; }
   return dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm) || 1);
+}
+
+function fuseCaseRankings(lexicalChunks, semanticChunks, limit) {
+  const fused = new Map();
+  const add = (chunk, rank, weight) => {
+    const key = `${chunk.document_id}:${chunk.chunk_index}`;
+    const current = fused.get(key) || { ...chunk, score: 0 };
+    current.score += weight / (60 + rank + 1);
+    if (chunk.semantic_score != null) current.semantic_score = chunk.semantic_score;
+    if (chunk.lexical_score != null) current.lexical_score = chunk.lexical_score;
+    fused.set(key, current);
+  };
+  lexicalChunks.forEach((chunk, rank) => add(chunk, rank, 0.45));
+  semanticChunks.forEach((chunk, rank) => add(chunk, rank, 0.55));
+  const maximum = 1 / 61;
+  return [...fused.values()].map((chunk) => ({ ...chunk, score: Math.min(1, chunk.score / maximum) }))
+    .sort((left, right) => right.score - left.score).slice(0, limit);
 }
 
 function parseOptionalNumericId(value) {

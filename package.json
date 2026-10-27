@@ -1,8 +1,7 @@
 {
   "name": "legalmind",
   "version": "1.0.0",
-  "description": "instalaciones backend:\r cd backend\r npm init -y\r npm install express\r npm install -D nodemon",
-  "main": "index.js",
+  "description": "Workspace jurídico con recuperación documental y asistencia de IA local.",
   "scripts": {
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:frontend:lowmem": "npm --prefix frontend run dev:lowmem",
@@ -21,11 +20,5 @@
   "bugs": {
     "url": "https://github.com/fedevitacca/LegalMind/issues"
   },
-  "homepage": "https://github.com/fedevitacca/LegalMind#readme",
-  "dependencies": {
-    "express": "^5.2.1"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.14"
-  }
+  "homepage": "https://github.com/fedevitacca/LegalMind#readme"
 }
