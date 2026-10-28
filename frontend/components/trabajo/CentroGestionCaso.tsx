@@ -528,16 +528,6 @@ function HearingTab({
     selected
       ? setSelected({ ...selected, [key]: value })
       : setForm({ ...form, [key]: value });
-  const hearingQuery = [
-    active.titulo
-      ? `Audiencia: ${active.titulo}`
-      : "Preparar la próxima audiencia",
-    active.objetivo ? `Objetivo: ${active.objetivo}` : "",
-    active.participantes ? `Participantes: ${active.participantes}` : "",
-  ]
-    .filter(Boolean)
-    .join(". ");
-  const preparationHref = `/analisis?case_id=${caseId}&tool=preparar_audiencia&query=${encodeURIComponent(hearingQuery)}`;
   return (
     <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
       <Panel title="Audiencias">
@@ -565,7 +555,7 @@ function HearingTab({
           ))}
         </div>
       </Panel>
-      <Panel title={selected ? "Ficha de audiencia" : "Preparar audiencia"}>
+      <Panel title={selected ? "Ficha de audiencia" : "Nueva audiencia"}>
         <form
           className="grid gap-3 md:grid-cols-2"
           onSubmit={(e) => {
@@ -652,14 +642,8 @@ function HearingTab({
               { value: "cancelada", label: "Cancelada" },
             ]}
           />
-          <div className="grid gap-2 md:col-span-2 sm:grid-cols-2">
+          <div className="md:col-span-2">
             <Submit>{selected ? "Guardar ficha" : "Crear audiencia"}</Submit>
-            <Link
-              href={preparationHref}
-              className="rounded-xl border-2 border-[#88A9C8] bg-[#EEF3F8] px-5 py-3 text-center text-sm font-semibold text-[#0F2044]"
-            >
-              Preparar con IA
-            </Link>
           </div>
         </form>
       </Panel>

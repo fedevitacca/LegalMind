@@ -6,7 +6,6 @@ const TITLES = {
   cronologia: "Cronología y fechas relevantes",
   consulta_rag: "Respuesta basada en el expediente",
   teoria_del_caso: "Teoría del caso provisional",
-  preparar_audiencia: "Guía para la audiencia",
 };
 
 function buildFastToolResult({ toolId, chunks = [], query = "", scopeLabel = "las fuentes seleccionadas" }) {
@@ -81,7 +80,6 @@ function buildConclusion(toolId, passages, scopeLabel) {
     return `La comparación rápida identificó los siguientes pasajes centrales. ${joined}`;
   }
   if (toolId === "teoria_del_caso") return `Como base provisional de trabajo, ${lowercaseStart(joined)}`;
-  if (toolId === "preparar_audiencia") return `Para preparar la audiencia, los pasajes centrales indican que ${lowercaseStart(joined)}`;
   return `La síntesis de ${scopeLabel} muestra que ${lowercaseStart(joined)}`;
 }
 
@@ -104,9 +102,7 @@ function buildSections(toolId, passages, query) {
       ? ["Fuente y coincidencias", "Diferencias para revisar"]
       : toolId === "teoria_del_caso"
         ? ["Base fáctica", "Aspectos por contrastar"]
-        : toolId === "preparar_audiencia"
-          ? ["Ejes para la audiencia", "Preguntas y controles"]
-        : toolId === "consulta_rag"
+      : toolId === "consulta_rag"
           ? ["Respuesta documental", "Contexto relacionado"]
           : ["Información central", "Contexto complementario"];
 
@@ -120,7 +116,6 @@ function buildActions(toolId) {
   if (toolId === "cronologia") return ["Confirmar cada fecha contra la actuación original y controlar el punto de inicio de los plazos."];
   if (toolId.startsWith("comparar_")) return ["Revisar ambas fuentes completas antes de calificar una diferencia como contradicción material."];
   if (toolId === "teoria_del_caso") return ["Separar hechos acreditados, inferencias e hipótesis al definir la estrategia."];
-  if (toolId === "preparar_audiencia") return ["Confirmar la documentación, las personas intervinientes y el resultado buscado antes de la audiencia."];
   return ["Abrir las fuentes citadas y comprobar el contexto completo de los pasajes relevantes."];
 }
 

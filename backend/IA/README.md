@@ -209,7 +209,6 @@ Los scores ordenan evidencia. No representan probabilidad de verdad ni reemplaza
 - comparación de jurisprudencia;
 - cronología y vencimientos;
 - consulta documental;
-- preparación de audiencia;
 - teoría del caso.
 
 Estas herramientas pueden usar Ollama para redactar resultados estructurados. Sus prompts exigen distinguir hechos, inferencias y limitaciones.

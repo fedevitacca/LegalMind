@@ -46,7 +46,6 @@ const labels: Record<string, string> = {
   cronologia: "Cronología",
   consulta_rag: "Consulta documental",
   teoria_del_caso: "Teoría del caso",
-  preparar_audiencia: "Preparación de audiencia",
 };
 
 export default function HistorialConsultasIA({ caseId }: { caseId: string }) {
@@ -67,8 +66,11 @@ export default function HistorialConsultasIA({ caseId }: { caseId: string }) {
         return body;
       })
       .then((body) => {
-        setItems(body.queries || []);
-        setSelected(body.queries?.[0]);
+        const visibleQueries = (body.queries || []).filter(
+          (item: QueryItem) => item.tool_id !== "preparar_audiencia",
+        );
+        setItems(visibleQueries);
+        setSelected(visibleQueries[0]);
       })
       .catch((cause) => setError(cause.message))
       .finally(() => setLoading(false));
