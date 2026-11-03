@@ -1,8 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
 import BotonSesion from "../../components/interfaz/BotonSesion";
 import BotonEliminarCaso from "../../components/casos/BotonEliminarCaso";
-import { CaseListItem, fetchCases } from "../../lib/legalmindServerApi";
+import { CaseListItem, fetchCases } from "../../lib/legalmindApi";
 
 const caseSections = [
   { label: "Imputados", path: "imputados" },
@@ -11,8 +14,23 @@ const caseSections = [
   { label: "Jurisprudencia", path: "jurisprudencia" },
 ];
 
-export default async function CasesPage() {
-  const cases = await fetchCases();
+export default function CasesPage() {
+  const [cases, setCases] = useState<CaseListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    fetchCases()
+      .then((items) => {
+        if (active) setCases(items);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   const activeCases = cases.filter((legalCase) => legalCase.estado !== "archivada");
 
   return (
@@ -35,7 +53,9 @@ export default async function CasesPage() {
           </section>
 
           <section className="mt-5 grid max-w-[792px] gap-[20px]">
-            {cases.length ? (
+            {loading ? (
+              <p className="rounded-2xl border border-[#88A9C8] bg-white p-6">Cargando casos...</p>
+            ) : cases.length ? (
               cases.map((legalCase, index) => (
                 <CaseRow
                   key={legalCase.slug}

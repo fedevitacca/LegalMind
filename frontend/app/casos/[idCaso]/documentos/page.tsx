@@ -1,14 +1,14 @@
+"use client";
+
+import { useParams } from "next/navigation";
 import DetalleDocumentosCaso from "../../../../components/casos/DetalleDocumentosCaso";
 import MarcoAplicacion from "../../../../components/estructura/MarcoAplicacion";
-import { fetchCaseDetail } from "../../../../lib/legalmindServerApi";
+import { useCaseDetailClient } from "../../../../lib/useCaseDetailClient";
 
-export default async function PaginaDocumentos({
-  params,
-}: {
-  params: Promise<{ idCaso: string }>;
-}) {
-  const { idCaso } = await params;
-  const savedCase = await fetchCaseDetail(idCaso);
+export default function PaginaDocumentos() {
+  const { idCaso } = useParams<{ idCaso: string }>();
+  const { error, legalCase: savedCase } = useCaseDetailClient(idCaso);
+  if (!savedCase) return <MarcoAplicacion activeSection="Casos"><EstadoCarga error={error} /></MarcoAplicacion>;
   const caso = {
     analisis: savedCase.analisis,
     deadline: savedCase.deadline,
@@ -27,3 +27,5 @@ export default async function PaginaDocumentos({
     </MarcoAplicacion>
   );
 }
+
+function EstadoCarga({ error }: { error: string }) { return <p className="m-8 rounded-2xl border border-[#88A9C8] bg-white p-6 text-[#0F2044]">{error || "Cargando expediente..."}</p>; }
