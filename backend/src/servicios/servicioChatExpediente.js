@@ -1,4 +1,5 @@
-const { runCaseChatWithLocalAI, runLegalToolWithLocalAI, embedTextsWithLocalAI, getLocalAIConfig } = require("../../IA/analizadorLocal");
+const { runCaseChatWithLocalAI, runCaseChatPlainWithLocalAI, runLegalToolWithLocalAI,
+  embedTextsWithLocalAI, getLocalAIConfig } = require("../../IA/analizadorLocal");
 const { buildStructuredCaseDocuments } = require("../../IA/contextoExpediente");
 const { retrieveRelevantChunks } = require("../../IA/ragLocal");
 const { expandLegalQuery } = require("../../IA/terminologiaRag");
@@ -72,6 +73,8 @@ async function answerCaseChat({ organizationId, caseId, question, history = [], 
   let limitations = [];
   let engine = "ollama_case_chat";
   let fallbackReason = null;
+  const generationTimeoutMs = Math.max(15000, Math.min(getLocalAIConfig().timeoutMs, 60000));
+  const generationTokens = Math.max(650, getLocalAIConfig().maxOutputTokens);
 
   if (!chunks.length) {
     answer = "No encontre informacion suficiente en el expediente para responder. Carga documentos o registra datos del caso y volve a intentarlo.";
@@ -85,13 +88,14 @@ async function answerCaseChat({ organizationId, caseId, question, history = [], 
           secondaryText: toolInput?.secondaryText || "",
           query: question, parameters: { scope: "case", conversation: true },
           context: chunks.map((chunk, index) => `[FUENTE ${index + 1}] ${chunk.document_name}: ${chunk.text}`),
-          timeoutMs: 7000, maxOutputTokens: 650 });
+          timeoutMs: generationTimeoutMs, maxOutputTokens: generationTokens });
         answer = formatToolResult(result);
         limitations = result.limitaciones || [];
         suggestedQuestions = result.acciones_sugeridas || [];
         engine = `ollama_tool_${toolId}`;
       } else {
-        const result = await runCaseChatWithLocalAI({ question, history, context: chunks.map((chunk, index) => ({
+        const result = await runCaseChatWithLocalAI({ question, history, timeoutMs: generationTimeoutMs,
+          maxOutputTokens: generationTokens, context: chunks.map((chunk, index) => ({
           documentName: chunk.document_name, location: citations[index]?.location_label, text: chunk.text,
         })) });
         if (!result.answer) throw new Error("El modelo no devolvio una respuesta conversacional.");
@@ -100,12 +104,25 @@ async function answerCaseChat({ organizationId, caseId, question, history = [], 
         limitations = result.limitations;
       }
     } catch (error) {
-      const fallback = buildGroundedLegalAnswer({ question: retrievalQuery,
-        caseChunks: toolInput?.chunks?.length ? toolInput.chunks : caseChunks, legalChunks });
-      answer = fallback.answer;
-      limitations = ["La redaccion conversacional no estuvo disponible; se muestran extractos recuperados."];
-      engine = "extractive_chat_fallback";
-      fallbackReason = error.message;
+      try {
+        const retryQuestion = selectedTool
+          ? `${selectedTool.instruction}\n\nSolicitud del abogado: ${question}` : question;
+        const retry = await runCaseChatPlainWithLocalAI({ question: retryQuestion, history,
+          timeoutMs: generationTimeoutMs, maxOutputTokens: generationTokens,
+          context: chunks.map((chunk, index) => ({ documentName: chunk.document_name,
+            location: citations[index]?.location_label, text: chunk.text })) });
+        answer = normalizeSourceMarkers(retry.answer, chunks.length);
+        limitations = ["La salida estructurada no estuvo disponible; Ollama redacto la respuesta en formato libre."];
+        engine = selectedTool ? `ollama_plain_retry_${toolId}` : "ollama_case_chat_plain_retry";
+        fallbackReason = error.message;
+      } catch (retryError) {
+        const fallback = buildGroundedLegalAnswer({ question: retrievalQuery,
+          caseChunks: toolInput?.chunks?.length ? toolInput.chunks : caseChunks, legalChunks });
+        answer = fallback.answer;
+        limitations = ["Ollama no estuvo disponible; se muestran extractos recuperados como ultimo recurso."];
+        engine = "extractive_chat_fallback";
+        fallbackReason = `${error.message} | Reintento: ${retryError.message}`;
+      }
     }
   }
 

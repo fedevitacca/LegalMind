@@ -7,6 +7,7 @@ const {
   probeLocalAI,
   resetLocalAIClientFactoryForTests,
   runCaseChatWithLocalAI,
+  runCaseChatPlainWithLocalAI,
   setLocalAIClientFactoryForTests,
 } = require("./analizadorLocal");
 
@@ -41,6 +42,18 @@ describe("cliente Ollama", () => {
     assert.ok(payload.messages.some((message) => message.content.includes("Revisemos las próximas fechas")));
     assert.match(result.answer, /12 de mayo/);
     assert.deepEqual(result.suggestedQuestions, ["¿Quiénes participan?"]);
+  });
+
+  it("permite un reintento conversacional libre sin exigir JSON", async () => {
+    let payload;
+    setLocalAIClientFactoryForTests(() => ({ chat: async (value) => {
+      payload = value;
+      return "La pericia acredita el acceso, pero no identifica al operador [FUENTE 1].";
+    } }));
+    const result = await runCaseChatPlainWithLocalAI({ question: "Evalua la pericia",
+      context: [{ documentName: "Pericia", text: "No fue posible identificar a la persona que opero." }] });
+    assert.equal(payload.format, null);
+    assert.match(result.answer, /no identifica al operador/i);
   });
 
   it("envia la API key a Ollama Cloud sin exponerla en la configuracion", async () => {

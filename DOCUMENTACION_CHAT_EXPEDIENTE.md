@@ -19,7 +19,7 @@ La respuesta no surge de enviar directamente la pregunta a un modelo. LegalMind 
 9. valida los marcadores de fuente y calcula el nivel de respaldo;
 10. persiste conversacion, mensajes, citas, herramienta usada y metadatos de recuperacion.
 
-Si el modelo no responde, el sistema conserva una respuesta extractiva basada en los fragmentos recuperados. Los saludos y consultas sobre capacidades se resuelven sin invocar al modelo.
+El RAG no redacta la respuesta principal: recupera y ordena evidencia para que Ollama razone y escriba la contestacion final. El chat concede a Ollama un tiempo de generacion mayor que la busqueda y, si falla la salida JSON estructurada, realiza un segundo intento generativo en formato libre. Solo si ambos intentos de Ollama fallan se muestra una respuesta extractiva basada en los fragmentos recuperados. Los saludos y consultas sobre capacidades se resuelven sin invocar al modelo.
 
 ## Persistencia
 
