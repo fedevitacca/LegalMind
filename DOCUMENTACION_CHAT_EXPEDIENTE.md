@@ -19,7 +19,7 @@ La respuesta no surge de enviar directamente la pregunta a un modelo. LegalMind 
 9. valida los marcadores de fuente y calcula el nivel de respaldo;
 10. persiste conversacion, mensajes, citas, herramienta usada y metadatos de recuperacion.
 
-Si el modelo no responde, el sistema conserva una respuesta extractiva basada en los fragmentos recuperados. Los saludos y consultas sobre capacidades se resuelven sin invocar al modelo.
+El RAG no redacta la respuesta principal: recupera y ordena evidencia para que Ollama razone y escriba la contestacion final. El chat concede a Ollama un tiempo de generacion mayor que la busqueda y, si falla la salida JSON estructurada, realiza un segundo intento generativo en formato libre. Solo si ambos intentos de Ollama fallan se muestra una respuesta extractiva basada en los fragmentos recuperados. Los saludos y consultas sobre capacidades se resuelven sin invocar al modelo.
 
 ## Persistencia
 
@@ -38,11 +38,11 @@ Cada lectura y escritura filtra simultaneamente por organizacion, expediente y u
 - `DELETE /api/ia/cases/:caseId/chats/:chatId`
 - `POST /api/ia/cases/:caseId/chats/:chatId/messages`
 
-Las herramientas habilitadas dentro del chat son resumen del expediente, cronologia y teoria del caso. La eleccion se valida en el backend; el cliente no puede ejecutar una herramienta arbitraria.
+Las herramientas habilitadas dentro del chat son resumen del expediente, cronologia, teoria del caso, comparacion de documentos, comparacion de imputados y comparacion de jurisprudencia. Las comparaciones exigen dos elementos distintos del mismo expediente y el backend vuelve a validar su pertenencia; el cliente no puede ejecutar una herramienta ni comparar registros arbitrarios.
 
 ## Interfaz
 
-Cada expediente incorpora el acceso `Chat del expediente`. La pantalla contiene historial, memoria por conversacion, preguntas sugeridas, selector de herramienta, indicador de respaldo y fuentes expandibles con enlace al documento original.
+La seccion `Analisis` funciona como espacio unificado: permite seleccionar un expediente, conversar y ejecutar herramientas sin abandonar el hilo. Cada expediente mantiene ademas el acceso directo `Chat del expediente`. La interfaz contiene historial, memoria por conversacion, preguntas sugeridas, selectores contextuales para comparaciones, indicador de respaldo y fuentes expandibles con enlace al documento original.
 
 ## Verificacion
 
@@ -54,5 +54,6 @@ Los tests cubren:
 - fusion de ranking lexico y vectorial sin duplicados;
 - validacion de marcadores de fuente;
 - validacion de mensajes y herramientas antes de acceder a datos.
+- validacion de pares documentales y rechazo de elementos ajenos al expediente.
 
 Para evaluar calidad funcional conviene mantener un conjunto fijo de preguntas por expediente y medir recuperacion de la fuente esperada, respaldo de la respuesta, latencia y comportamiento ante falta de evidencia.

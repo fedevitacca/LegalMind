@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
 import BotonSesion from "../../components/interfaz/BotonSesion";
 import {
@@ -7,7 +9,7 @@ import {
   CaseListItem,
   fetchCases,
   fetchDeadlines,
-} from "../../lib/legalmindServerApi";
+} from "../../lib/legalmindApi";
 
 const quickActions = [
   {
@@ -24,11 +26,22 @@ const quickActions = [
   },
 ];
 
-export default async function Home() {
-  const [cases, deadlines] = await Promise.all([
-    fetchCases(),
-    fetchDeadlines(),
-  ]);
+export default function Home() {
+  const [cases, setCases] = useState<CaseListItem[]>([]);
+  const [deadlines, setDeadlines] = useState<CaseDeadline[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([fetchCases(), fetchDeadlines()]).then(([nextCases, nextDeadlines]) => {
+      if (active) {
+        setCases(nextCases);
+        setDeadlines(nextDeadlines);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   const today = new Date();
   const activeCases = cases.filter(
     (legalCase) => legalCase.estado !== "archivada",

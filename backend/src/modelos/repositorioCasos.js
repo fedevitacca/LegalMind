@@ -835,6 +835,18 @@ async function createJurisprudenceForCase(caseId, payload) {
   return mapJurisprudenceRow(result.rows[0]);
 }
 
+async function listJurisprudenceByCase(caseId) {
+  ensureDatabaseConfigured();
+  const result = await pool.query(
+    `SELECT id, titulo, anio, tribunal, referencia, cita, resumen, metadata_json, created_at
+       FROM jurisprudencia
+      WHERE causa_id = $1
+      ORDER BY created_at DESC, id DESC`,
+    [caseId]
+  );
+  return result.rows;
+}
+
 async function updateDateForCase(caseId, dateId, payload) {
   ensureDatabaseConfigured();
 
@@ -2033,6 +2045,7 @@ module.exports = {
   listDatesByCase,
   listDeadlinesByOrganization,
   listInternalComparisons,
+  listJurisprudenceByCase,
   listDocumentsByCase,
   listDefendantsByCase,
   listPendingReminders,

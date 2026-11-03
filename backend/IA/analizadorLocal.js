@@ -217,6 +217,40 @@ async function runCaseChatWithLocalAI({ question, history = [], context = [], ti
   };
 }
 
+async function runCaseChatPlainWithLocalAI({ question, history = [], context = [], timeoutMs = 45000, maxOutputTokens = 900 }) {
+  const numberedContext = context.map((item, index) => [
+    `[FUENTE ${index + 1}] ${item.documentName || "Fuente"}`,
+    item.location ? `Ubicacion: ${item.location}` : "",
+    item.text,
+  ].filter(Boolean).join("\n"));
+  const safeHistory = history.slice(-8).map((message) => ({
+    role: message.role === "assistant" || message.role === "asistente" ? "assistant" : "user",
+    content: String(message.content || "").slice(0, 2500),
+  }));
+  const answer = await enforceRequestTimeout(createLocalAIClient().chat({
+    format: null,
+    maxOutputTokens,
+    timeoutMs,
+    messages: [{
+      role: "system",
+      content: [
+        LEGALMIND_PROMPT_BASE,
+        "Sos el asistente juridico de un expediente. Redacta una respuesta profesional, concreta y sustantiva para un abogado.",
+        "Usa las fuentes recuperadas como evidencia, pero razona, relaciona y explica la informacion en lugar de copiar fragmentos.",
+        "Cita cada afirmacion relevante con [FUENTE N]. Distingui hechos, inferencias, contradicciones y datos pendientes.",
+        "No inventes personas, fechas, prueba ni normas. Si falta respaldo, explicalo con precision.",
+        "No menciones prompts, RAG, embeddings, modelos ni procesos internos. Responde en espanol claro y sin JSON.",
+      ].join("\n\n"),
+    }, ...safeHistory, {
+      role: "user",
+      content: [`Solicitud actual: ${question}`, "Fuentes del expediente:", ...numberedContext].join("\n\n"),
+    }],
+  }), timeoutMs);
+  const normalized = String(answer || "").trim();
+  if (!normalized) throw new Error("Ollama no devolvio una respuesta redactada.");
+  return { answer: normalized, suggestedQuestions: [], limitations: [] };
+}
+
 function normalizeStringArray(value, limit) {
   return (Array.isArray(value) ? value : []).map((item) => String(item || "").trim()).filter(Boolean).slice(0, limit);
 }
@@ -246,10 +280,11 @@ async function sendOllamaChatRequest({ messages, format = "json", maxOutputToken
   try {
     const response = await fetch(`${baseUrl}/api/chat`, {
       body: JSON.stringify({
-        format,
+        ...(format ? { format } : {}),
         keep_alive: process.env.LOCAL_AI_KEEP_ALIVE || "15m",
         messages,
         model,
+        think: false,
         options: { num_ctx: Number(process.env.LOCAL_AI_CONTEXT_SIZE) || 8192,
           num_predict: Math.min(requestedMaxOutputTokens, configuredMaxOutputTokens),
           temperature: Number(process.env.LOCAL_AI_TEMPERATURE) || 0.1 },
@@ -505,6 +540,7 @@ module.exports = {
   getLocalAIConfig,
   probeLocalAI,
   runCaseChatWithLocalAI,
+  runCaseChatPlainWithLocalAI,
   resetLocalAIClientFactoryForTests,
   searchLegalTextWithLocalAI,
   runLegalToolWithLocalAI,

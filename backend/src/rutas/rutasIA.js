@@ -136,7 +136,9 @@ router.post("/cases/:caseId/chats/:chatId/messages", requireCaseAccess, requireR
     const conversation = await getConversation(ids);
     if (!conversation) return res.status(404).json({ error: "Conversacion no encontrada." });
     const generated = await answerCaseChat({ organizationId: ids.organizationId, caseId: ids.caseId,
-      question: content, history: conversation.messages, toolId });
+      question: content, history: conversation.messages, toolId,
+      toolParameters: req.body?.tool_parameters && typeof req.body.tool_parameters === "object"
+        ? req.body.tool_parameters : {} });
     const saved = await appendExchange({ ...ids, userContent: content, assistantContent: generated.answer,
       retrievalQuery: generated.retrievalQuery, toolId, citations: generated.citations, metadata: generated.metadata });
     await recordAudit(req, { action: "ia.chat_mensaje", resourceType: "conversacion_ia", resourceId: ids.conversationId,

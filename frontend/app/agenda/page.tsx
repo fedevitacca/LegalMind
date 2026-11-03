@@ -1,11 +1,28 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import AgendaInteractiva from "./AgendaInteractiva";
 import BotonSesion from "../../components/interfaz/BotonSesion";
 import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
-import { fetchCases, fetchDeadlines } from "../../lib/legalmindServerApi";
+import { fetchCases, fetchDeadlines, type CaseDeadline, type CaseListItem } from "../../lib/legalmindApi";
 
-export default async function AgendaPage() {
-  const [cases, deadlines] = await Promise.all([fetchCases(), fetchDeadlines()]);
+export default function AgendaPage() {
+  const [cases, setCases] = useState<CaseListItem[]>([]);
+  const [deadlines, setDeadlines] = useState<CaseDeadline[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([fetchCases(), fetchDeadlines()]).then(([nextCases, nextDeadlines]) => {
+      if (active) {
+        setCases(nextCases);
+        setDeadlines(nextDeadlines);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   const addEventHref = cases[0]
     ? `/casos/${cases[0].slug}/agenda/nuevo?returnTo=%2Fagenda`
     : "/casos";

@@ -1,6 +1,9 @@
+"use client";
+
+import { useParams } from "next/navigation";
 import DetalleJurisprudenciaCaso from "../../../../components/casos/DetalleJurisprudenciaCaso";
 import MarcoAplicacion from "../../../../components/estructura/MarcoAplicacion";
-import { fetchCaseDetail } from "../../../../lib/legalmindServerApi";
+import { useCaseDetailClient } from "../../../../lib/useCaseDetailClient";
 
 const fallos = [
   {
@@ -23,13 +26,10 @@ const fallos = [
   },
 ];
 
-export default async function PaginaJurisprudencia({
-  params,
-}: {
-  params: Promise<{ idCaso: string }>;
-}) {
-  const { idCaso } = await params;
-  const caso = await fetchCaseDetail(idCaso);
+export default function PaginaJurisprudencia() {
+  const { idCaso } = useParams<{ idCaso: string }>();
+  const { error, legalCase: caso } = useCaseDetailClient(idCaso);
+  if (!caso) return <MarcoAplicacion activeSection="Casos"><p className="m-8 rounded-2xl border border-[#88A9C8] bg-white p-6 text-[#0F2044]">{error || "Cargando expediente..."}</p></MarcoAplicacion>;
   const fallosDelCaso = caso.jurisprudencia?.length
     ? caso.jurisprudencia
     : fallos;

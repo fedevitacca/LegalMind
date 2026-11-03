@@ -206,6 +206,20 @@ export async function fetchCaseDetail(idCaso: string, cookieHeader?: string): Pr
   return buildSampleCaseFromSlug(idCaso);
 }
 
+export async function fetchAuthenticatedCaseDetail(idCaso: string): Promise<CaseDetail> {
+  const response = await fetch(`${getApiUrl()}/api/casos/${encodeURIComponent(idCaso)}`, {
+    cache: "no-store",
+    credentials: "include",
+  });
+  const body = (await response.json().catch(() => null)) as { case?: CaseDetail; error?: string } | null;
+
+  if (!response.ok || !body?.case) {
+    throw new Error(body?.error || "No se pudo cargar el expediente.");
+  }
+
+  return body.case;
+}
+
 export async function deleteCase(caseId: number | string): Promise<void> {
   const response = await fetch(`${getApiUrl()}/api/casos/${encodeURIComponent(caseId)}`, {
     method: "DELETE",
