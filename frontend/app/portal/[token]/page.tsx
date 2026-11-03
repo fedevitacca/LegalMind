@@ -136,7 +136,7 @@ export default function PortalCliente({
           <p className="mt-8 text-center">Validando acceso…</p>
         )}
         {data && (
-          <div className="mt-6 grid gap-5 lg:grid-cols-2">
+          <div className="mt-6 grid gap-5 @min-[1024px]:grid-cols-2">
             <Section title="Proximas fechas">
               <div className="space-y-3">
                 {data.fechas.map((item) => (

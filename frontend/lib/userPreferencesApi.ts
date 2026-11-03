@@ -1,3 +1,5 @@
+import { assertSettingsEditable } from "./workspaceAccess";
+
 export type UserPreferences = {
   user_id: string;
   default_view: "dashboard" | "casos" | "agenda" | "analisis";
@@ -49,6 +51,7 @@ export async function fetchUserPreferences() {
 export async function saveUserPreferences(
   preferences: Partial<UserPreferences>,
 ) {
+  assertSettingsEditable();
   const response = await fetch(`${apiUrl}/api/usuarios/me/preferencias`, {
     body: JSON.stringify(preferences),
     credentials: "include",
@@ -67,6 +70,7 @@ export async function saveUserAccount(account: {
   email: string;
   emailConfirmation?: string;
 }) {
+  assertSettingsEditable();
   const response = await fetch(`${apiUrl}/api/usuarios/me/cuenta`, {
     body: JSON.stringify(account),
     credentials: "include",
@@ -88,6 +92,7 @@ export async function changeUserPassword(input: {
   currentPassword: string;
   newPassword: string;
 }) {
+  assertSettingsEditable();
   const response = await fetch(`${apiUrl}/api/auth/change-password`, {
     body: JSON.stringify({
       currentPassword: input.currentPassword,

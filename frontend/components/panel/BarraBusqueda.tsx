@@ -20,8 +20,8 @@ export default function BarraBusqueda({
   const actionStyles = `grid h-11 place-items-center rounded-full px-5 text-sm font-semibold ${actionClassName}`;
 
   return (
-    <div className="flex items-center gap-4">
-      <label className="block flex-1">
+    <div className="flex flex-wrap items-center gap-4">
+      <label className="block flex-[1_1_240px]">
         <span className="sr-only">Buscar</span>
         <input
           className="h-11 w-full rounded-full border border-[#84A2BD]/60 bg-white/95 px-5 text-base font-medium shadow-[0_8px_24px_rgba(15,32,68,0.07)] outline-none placeholder:text-[#0F2044]/40"

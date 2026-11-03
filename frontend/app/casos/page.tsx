@@ -21,7 +21,7 @@ export default async function CasesPage() {
         <PageHeader />
 
         <main className="mx-auto max-w-[1540px] px-9 py-9">
-          <section className="surface-card w-[288px] rounded-[23px] border border-[#88A9C8] bg-white px-5 py-5">
+          <section className="surface-card w-full max-w-[288px] rounded-[23px] border border-[#88A9C8] bg-white px-5 py-5">
             <p className="flex items-center gap-2 text-[28px] leading-none">
               <FolderIcon className="h-9 w-9" />
               Casos activos
@@ -128,7 +128,7 @@ function CaseRow({
         <BotonEliminarCaso caseId={legalCase.id || legalCase.slug} caseName={legalCase.name} />
       </div>
 
-      <div className="mt-[13px] grid grid-cols-4 gap-2">
+      <div className="mt-[13px] grid grid-cols-1 @min-[400px]:grid-cols-2 @min-[900px]:grid-cols-4 gap-2">
         {caseSections.map((section) => (
           <SectionLink
             href={`/casos/${legalCase.slug}/${section.path}`}
@@ -144,7 +144,7 @@ function CaseRow({
 function SectionLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
-      className="soft-action flex h-[43px] items-center justify-between rounded-[14px] border border-[#88A9C8] bg-white px-[18px] text-[18px] leading-none"
+      className="soft-action flex min-h-[44px] items-center justify-between rounded-[14px] border border-[#88A9C8] bg-white px-[18px] text-[18px] leading-none"
       href={href}
     >
       <span>{label}</span>
@@ -156,7 +156,7 @@ function SectionLink({ href, label }: { href: string; label: string }) {
 function NewCaseCard() {
   return (
     <Link
-      className="surface-card surface-card-interactive mt-1 grid min-h-[140px] w-[288px] grid-cols-[minmax(0,1fr)_28px] items-center rounded-[23px] border border-[#88A9C8] bg-white px-5 py-5"
+      className="surface-card surface-card-interactive mt-1 grid min-h-[140px] w-full max-w-[288px] grid-cols-[minmax(0,1fr)_28px] items-center rounded-[23px] border border-[#88A9C8] bg-white px-5 py-5"
       href="/nuevo"
     >
       <span>

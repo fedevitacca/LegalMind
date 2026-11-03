@@ -81,8 +81,8 @@ export default function FormularioNuevoCaso() {
   }
 
   return (
-    <form className="surface-card max-w-[1040px] rounded-[24px] border border-[#84A2BD]/35 bg-white/75 p-7 backdrop-blur-sm" onSubmit={handleSubmit}>
-      <div className="grid grid-cols-3 gap-8">
+    <form className="responsive-form surface-card max-w-[1040px] rounded-[24px] border border-[#84A2BD]/35 bg-white/75 p-7 backdrop-blur-sm" onSubmit={handleSubmit}>
+      <div className="grid grid-cols-1 @min-[800px]:grid-cols-3 gap-8">
         <TextField
           label="Nombre del caso"
           onChange={setCaratula}
@@ -125,7 +125,7 @@ export default function FormularioNuevoCaso() {
         />
       </label>
 
-      <div className="mt-9 grid grid-cols-[308px_minmax(0,1fr)] items-end gap-8">
+      <div className="mt-9 grid grid-cols-1 @min-[800px]:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-end gap-8">
         <label className="block">
           <span className="text-[19px] leading-none">Fecha de creacion del caso</span>
           <span className="mt-2 flex h-[74px] items-center rounded-[12px] border border-[#88A9C8]/70 bg-white px-3 shadow-sm transition focus-within:border-[#546FC0] focus-within:ring-4 focus-within:ring-[#546FC0]/10">

@@ -58,8 +58,8 @@ export default function FormularioNuevoImputado({
   }
 
   return (
-    <form className="max-w-[988px]" onSubmit={handleSubmit}>
-      <div className="grid grid-cols-3 gap-8">
+    <form className="responsive-form max-w-[988px]" onSubmit={handleSubmit}>
+      <div className="grid grid-cols-1 @min-[800px]:grid-cols-3 gap-8">
         <TextField
           label="Nombre"
           onChange={setNombre}
@@ -91,7 +91,7 @@ export default function FormularioNuevoImputado({
         />
       </label>
 
-      <label className="mt-9 block w-[308px]">
+      <label className="mt-9 block w-full max-w-[308px]">
         <span className="text-[19px] leading-none">Fecha de nacimiento</span>
         <span className="mt-2 flex h-[74px] items-center rounded-[8px] border-2 border-[#88A9C8] bg-white px-3">
           <input

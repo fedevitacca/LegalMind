@@ -45,7 +45,7 @@ export default function ListaCasos({ cases }: { cases: LegalCase[] }) {
             </Link>
           </div>
 
-          <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid gap-2 @min-[640px]:grid-cols-2 @min-[1280px]:grid-cols-4">
             {legalCase.areas.map((area) =>
               area.path ? (
                 <Link

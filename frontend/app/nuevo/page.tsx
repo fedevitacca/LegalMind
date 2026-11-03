@@ -34,7 +34,7 @@ export default function NewCasePage() {
         </header>
 
         <main className="mx-auto max-w-[1540px] px-9 py-9">
-          <section className="surface-card mb-[50px] flex h-[90px] w-[288px] items-center gap-2 rounded-[23px] border border-[#88A9C8] bg-white px-5 text-[28px] leading-none">
+          <section className="surface-card mb-[50px] flex h-[90px] w-full max-w-[288px] items-center gap-2 rounded-[23px] border border-[#88A9C8] bg-white px-5 text-[28px] leading-none">
             <FolderIcon className="h-9 w-9" />
             Nuevo caso
           </section>

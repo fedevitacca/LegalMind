@@ -45,7 +45,7 @@ export default function DetalleDocumentosCaso({
       <main
         className={`grid gap-6 px-9 py-9 ${
           analisisVisible && analisis
-            ? "grid-cols-[minmax(0,792px)_280px]"
+            ? "grid-cols-1 @min-[1100px]:grid-cols-[minmax(0,792px)_280px]"
             : "grid-cols-[minmax(0,792px)]"
         }`}
       >
@@ -79,7 +79,7 @@ export default function DetalleDocumentosCaso({
             )}
 
             <Link
-              className="mt-3 grid min-h-[140px] w-[408px] grid-cols-[minmax(0,1fr)_32px] items-center rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5 transition hover:bg-white/80"
+              className="mt-3 grid min-h-[140px] w-full max-w-[408px] grid-cols-[minmax(0,1fr)_32px] items-center rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5 transition hover:bg-white/80"
               href={`/casos/${idCaso}/documentos/nuevo`}
             >
               <span>
@@ -112,7 +112,7 @@ export default function DetalleDocumentosCaso({
           </aside>
         ) : analisis ? (
           <button
-            className="h-[43px] w-[280px] rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 text-left text-[18px] transition hover:bg-white/80"
+            className="h-[43px] w-full max-w-[280px] rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 text-left text-[18px] transition hover:bg-white/80"
             onClick={() => setAnalisisVisible(true)}
             type="button"
           >
@@ -177,7 +177,7 @@ function SummaryCard({
   ).length;
 
   return (
-    <section className="w-[408px] rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5">
+    <section className="w-full max-w-[408px] rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5">
       <h2 className="flex items-center gap-2 text-[28px] leading-none">
         <DocumentIcon className="h-9 w-9" />
         <span>Documentos</span>
@@ -205,7 +205,7 @@ function DocumentRow({
     : "#";
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_166px] gap-6">
+    <div className="grid grid-cols-1 @min-[600px]:grid-cols-[minmax(0,1fr)_166px] gap-6">
       <article className="flex h-[42px] items-center rounded-[21px] border-2 border-[#88A9C8] bg-white px-5">
         <DocumentIcon className="mr-3 h-7 w-7 shrink-0" />
         <span className="truncate text-[18px] leading-none">

@@ -136,7 +136,7 @@ export default function HistorialConsultasIA({ caseId }: { caseId: string }) {
             <h2 className="text-lg font-semibold">No hay análisis guardados</h2>
           </div>
         ) : (
-          <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
+          <div className="grid gap-5 @min-[1024px]:grid-cols-[340px_minmax(0,1fr)]">
             <aside className="overflow-hidden rounded-[23px] border-2 border-[#88A9C8] bg-white">
               {items.map((item) => (
                 <button
@@ -243,7 +243,7 @@ function StoredReport({
           <h3 className="text-sm font-semibold text-[#283446]">
             Análisis desarrollado
           </h3>
-          <div className="mt-3 grid gap-3 xl:grid-cols-2">
+          <div className="mt-3 grid gap-3 @min-[1280px]:grid-cols-2">
             {item.result.desarrollo.map((section, index) => (
               <div
                 key={`${section.titulo}-${index}`}
@@ -278,7 +278,7 @@ function StoredReport({
       ) : null}
       {item.result.acciones_sugeridas?.length ||
       item.result.limitaciones?.length ? (
-        <div className="grid gap-3 border-t border-[#e1e3e0] pt-4 xl:grid-cols-2">
+        <div className="grid gap-3 border-t border-[#e1e3e0] pt-4 @min-[1280px]:grid-cols-2">
           {item.result.acciones_sugeridas?.length ? (
             <StoredList
               title="Controles sugeridos"

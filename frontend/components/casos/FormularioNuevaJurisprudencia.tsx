@@ -53,8 +53,8 @@ export default function FormularioNuevaJurisprudencia({
   }
 
   return (
-    <form className="max-w-[988px]" onSubmit={handleSubmit}>
-      <div className="grid grid-cols-3 gap-8">
+    <form className="responsive-form max-w-[988px]" onSubmit={handleSubmit}>
+      <div className="grid grid-cols-1 @min-[800px]:grid-cols-3 gap-8">
         <TextField
           label="Nombre del fallo"
           onChange={setNombreFallo}

@@ -200,9 +200,9 @@ export default function FormularioInicio() {
   }
 
   return (
-    <main className="h-full min-h-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
+    <main className="landing-page h-full min-h-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
       <header className="sticky top-0 z-30 border-b-4 border-[#88A9C8] bg-[#F4F7F5]/95 backdrop-blur">
-        <nav className="mx-auto grid h-[58px] max-w-[1226px] grid-cols-[1fr_auto] items-center gap-6 px-8">
+        <nav className="landing-nav mx-auto grid min-h-[58px] max-w-[1226px] grid-cols-[1fr_auto] items-center gap-6 px-8">
           <button
             className="brand-font justify-self-start text-[31px] font-semibold leading-none"
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
@@ -242,11 +242,11 @@ export default function FormularioInicio() {
       </header>
 
       <section
-        className="mx-auto grid max-w-[1226px] grid-cols-[minmax(0,1fr)_420px] items-center gap-16 px-8 pb-24 pt-[140px]"
+        className="mx-auto grid max-w-[1226px] grid-cols-1 @min-[1000px]:grid-cols-[minmax(0,1fr)_420px] items-center gap-16 px-8 pb-24 pt-[140px]"
         id="inicio"
       >
         <div>
-          <h1 className="brand-font max-w-[760px] text-[61px] font-semibold leading-[1.25]">
+          <h1 className="brand-font max-w-[760px] text-[clamp(2rem,5vw,3.8125rem)] font-semibold leading-[1.25]">
             Gestiona tus casos con el respaldo de{" "}
             <span className="text-[#88A9C8]">LegalMind</span>
           </h1>
@@ -268,11 +268,15 @@ export default function FormularioInicio() {
           </ul>
         </div>
 
-        <div className="flex items-center justify-center gap-4">
-          <div className="grid h-[206px] w-[206px] place-items-center rounded-[6px] border-4 border-[#88A9C8] bg-[#0F2044] text-white shadow-[0_12px_28px_rgba(15,32,68,0.16)]">
-            <span className="font-serif text-[130px] leading-none">LM</span>
-          </div>
-          <span className="brand-font text-[42px] font-semibold">LegalMind</span>
+        <div className="flex flex-wrap items-center justify-center gap-4">
+          <Image
+            alt=""
+            className="h-[clamp(96px,20vw,160px)] w-auto shrink-0 rounded-lg shadow-[0_12px_28px_rgba(15,32,68,0.16)]"
+            height={160}
+            src="/legalmind-logo.png"
+            width={160}
+          />
+          <span className="brand-font whitespace-nowrap text-[clamp(28px,6vw,42px)] font-semibold">LegalMind</span>
         </div>
       </section>
 
@@ -280,7 +284,7 @@ export default function FormularioInicio() {
         <h2 className="brand-font text-center text-[48px] font-semibold leading-none">
           ¿Que ofrecemos?
         </h2>
-        <div className="mt-16 grid grid-cols-3 gap-8">
+        <div className="mt-16 grid grid-cols-1 @min-[700px]:grid-cols-3 gap-8">
           <FeatureCard
             detail="Organiza expedientes, imputados y documentos."
             icon={<FolderIcon />}
@@ -303,7 +307,7 @@ export default function FormularioInicio() {
         <h2 className="brand-font text-center text-[48px] font-semibold leading-none">
           ¿Como funciona?
         </h2>
-        <div className="mt-16 grid grid-cols-4 gap-8">
+        <div className="mt-16 grid grid-cols-1 @min-[600px]:grid-cols-2 @min-[1000px]:grid-cols-4 gap-8">
           <StepCard
             detail="Registra un nuevo caso y completa la informacion inicial."
             icon={<FolderIcon />}
@@ -332,7 +336,7 @@ export default function FormularioInicio() {
       </section>
 
       <section
-        className="mx-auto grid max-w-[1226px] grid-cols-[390px_minmax(0,1fr)] items-center gap-16 px-8 py-16"
+        className="mx-auto grid max-w-[1226px] grid-cols-1 @min-[1000px]:grid-cols-[390px_minmax(0,1fr)] items-center gap-16 px-8 py-16"
         id="equipo"
       >
         <div>
@@ -439,7 +443,7 @@ function LoginScreen({
   }
 
   return (
-    <main className="relative h-screen overflow-hidden bg-[#0F2044] text-[#0F2044]">
+    <main className="auth-page relative h-full overflow-y-auto bg-[#0F2044] text-[#0F2044]">
       <AuthBackground />
 
       <button
@@ -450,7 +454,7 @@ function LoginScreen({
         Volver
       </button>
 
-      <section className="relative z-10 mx-auto flex h-screen w-full max-w-[980px] flex-col items-center px-6 py-[clamp(12px,2vh,28px)]">
+      <section className="relative z-10 mx-auto flex min-h-full w-full max-w-[980px] flex-col items-center px-6 py-[clamp(12px,2vh,28px)]">
         <BrandMark />
 
         <div className="mt-[clamp(14px,2.2vh,28px)] text-center">
@@ -753,7 +757,7 @@ function StepCard({
 
 function DashboardPreview() {
   return (
-    <div className="overflow-hidden rounded-[23px] border-2 border-[#88A9C8] bg-white shadow-[0_14px_35px_rgba(15,32,68,0.12)]">
+    <div className="dashboard-preview overflow-hidden rounded-[23px] border-2 border-[#88A9C8] bg-white shadow-[0_14px_35px_rgba(15,32,68,0.12)]">
       <div className="grid grid-cols-[155px_minmax(0,1fr)]">
         <aside className="bg-[#0F2044] p-5 text-white">
           <h3 className="brand-font text-[20px] font-semibold">LegalMind</h3>

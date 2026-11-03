@@ -10,7 +10,6 @@ const sections = [
   { href: "/nuevo", label: "Nuevo caso" },
   { href: "/analisis", label: "Análisis" },
   { href: "/agenda", label: "Agenda / Calendario" },
-  { href: "/trabajo", label: "Trabajo" },
   { href: "/configuracion", label: "Configuración" },
 ];
 
@@ -87,7 +86,7 @@ export default function EspacioTrabajo({ children }: { children: React.ReactNode
   return (
     <div className={`workspace flex h-full min-h-0 flex-col ${divided ? "workspace-split" : ""}`}>
       {ready && internal && !embedded ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#88A9C8]/50 bg-white px-4 py-2 text-sm">
+        <div className="workspace-toolbar flex flex-wrap items-center justify-between gap-2 border-b border-[#88A9C8]/50 bg-white px-4 py-2 text-sm">
           <span className="font-semibold">Espacio de trabajo</span>
           <div className="flex flex-wrap items-center gap-2">
           <CentroNotificaciones />
@@ -97,13 +96,18 @@ export default function EspacioTrabajo({ children }: { children: React.ReactNode
           </div>
         </div>
       ) : null}
-      <div className={`grid min-h-0 flex-1 ${divided ? "grid-rows-2 md:grid-cols-2 md:grid-rows-1" : "grid-cols-1"}`}>
+      {ready && internal && !embedded && !divided ? (
+        <div className="workspace-mobile-navigation">
+          <PaneNavigation label="Ir a" path={pathname} navigate={(path) => router.push(path)} />
+        </div>
+      ) : null}
+      <div className={`workspace-panes grid min-h-0 flex-1 ${divided ? "grid-rows-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-2 lg:grid-rows-1" : "grid-cols-1"}`}>
         <div className="workspace-pane flex min-h-0 min-w-0 flex-col overflow-hidden">
           {divided ? <PaneNavigation label="Ventana principal" path={pathname} navigate={(path) => router.push(path)} /> : null}
           <div className="min-h-0 flex-1 overflow-auto">{children}</div>
         </div>
         {ready && split && !embedded ? (
-          <div className={`workspace-pane min-h-0 min-w-0 flex-col border-t-2 border-[#88A9C8] md:border-l-2 md:border-t-0 ${divided ? "flex" : "hidden"}`}>
+          <div className={`workspace-pane min-h-0 min-w-0 flex-col border-t-2 border-[#88A9C8] lg:border-l-2 lg:border-t-0 ${divided ? "flex" : "hidden"}`}>
             <PaneNavigation label="Segunda ventana" path={secondary} navigate={(path) => { setSecondary(path); frame.current?.contentWindow?.location.assign(path); }} />
             <iframe ref={frame} className="min-h-0 w-full flex-1 border-0 bg-[#F3F6F5]" src={secondarySource} title="Segunda ventana de LegalMind" />
           </div>
@@ -115,9 +119,9 @@ export default function EspacioTrabajo({ children }: { children: React.ReactNode
 
 function PaneNavigation({ label, path, navigate }: { label: string; path: string; navigate: (path: string) => void }) {
   return (
-    <label className="flex flex-wrap items-center gap-2 border-b border-[#88A9C8]/40 bg-white px-3 py-2 text-sm font-semibold">
+    <label className="flex min-w-0 flex-wrap items-center gap-2 border-b border-[#88A9C8]/40 bg-white px-3 py-2 text-sm font-semibold">
       {label}
-      <select className="min-w-0 flex-1 rounded-lg border border-[#88A9C8] bg-white p-2" value={path} onChange={(event) => navigate(event.target.value)}>
+      <select className="min-h-11 min-w-0 flex-1 rounded-lg border border-[#88A9C8] bg-white p-2" value={path} onChange={(event) => navigate(event.target.value)}>
         {!sections.some(({ href }) => href === path) ? <option value={path}>{isInternalPage(path) ? `Expediente · ${path}` : "Seleccionar sección"}</option> : null}
         {sections.map(({ href, label }) => <option key={href} value={href}>{label}</option>)}
       </select>

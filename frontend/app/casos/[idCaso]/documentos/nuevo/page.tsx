@@ -40,7 +40,7 @@ export default async function PaginaNuevoDocumento({
         </header>
 
         <main className="px-9 py-9">
-          <section className="mb-[50px] flex h-[90px] w-[340px] items-center gap-2 rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 text-[28px] leading-none">
+          <section className="mb-[50px] flex h-[90px] w-full max-w-[340px] items-center gap-2 rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 text-[28px] leading-none">
             <DocumentIcon className="h-9 w-9" />
             Agregar documentos
           </section>

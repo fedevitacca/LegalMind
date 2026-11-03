@@ -62,10 +62,10 @@ export default function AgendaInteractiva({
         <p className="mt-1 text-[14px] leading-none">Esta semana</p>
       </section>
 
-      <section className="agenda-columns grid min-h-0 grid-cols-[minmax(0,720px)_306px] gap-3">
-        <section className="min-h-0 rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 py-3">
+      <section className="agenda-columns grid min-h-0 grid-cols-1 @min-[1100px]:grid-cols-[minmax(0,720px)_306px] gap-3">
+        <section className="calendar-card min-h-0 rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 py-3">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <h2 className="flex items-center gap-2 text-[23px] leading-none">
+            <h2 className="flex flex-wrap items-center gap-2 text-[23px] leading-none">
               <CalendarIcon />
               {monthNames[visibleMonth.getMonth()]} {visibleMonth.getFullYear()}
               <span className="flex items-center gap-2 text-[22px] font-semibold">
@@ -113,7 +113,7 @@ export default function AgendaInteractiva({
                 return (
                   <button
                     aria-label={`Ver eventos del ${dateKey}`}
-                    className={`relative h-[61px] border-b border-r border-[#88A9C8] px-3 py-2 text-left text-[19px] leading-none transition hover:bg-[#88A9C8]/35 ${
+                    className={`calendar-day relative h-[61px] border-b border-r border-[#88A9C8] px-3 py-2 text-left text-[19px] leading-none transition hover:bg-[#88A9C8]/35 ${
                       day.isCurrentMonth ? "bg-[#F4F7F5]" : "bg-white text-[#0F2044]/48"
                     } ${isSelected ? "bg-[#88A9C8] font-semibold ring-2 ring-inset ring-[#0F2044]" : ""}`}
                     key={dateKey}

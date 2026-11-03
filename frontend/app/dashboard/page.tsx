@@ -80,11 +80,11 @@ export default async function Home() {
           </div>
         </header>
 
-        <main className="mx-auto grid min-h-[calc(100vh-64px)] max-w-[1540px] grid-cols-[minmax(0,1fr)_210px] gap-5 px-9 py-7">
+        <main className="mx-auto grid min-h-[calc(100vh-64px)] max-w-[1540px] grid-cols-1 @min-[1100px]:grid-cols-[minmax(0,1fr)_210px] gap-5 px-9 py-7">
           <section className="flex min-w-0 flex-col gap-4">
             <TodayCard today={today} />
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 @min-[700px]:grid-cols-3 gap-4">
               <MetricCard
                 detail={`${Math.min(cases.length, 3)} actualizados hoy`}
                 icon={<UserIcon className="h-9 w-9" />}
@@ -104,7 +104,7 @@ export default async function Home() {
               />
             </div>
 
-            <div className="grid grid-cols-[minmax(0,1.16fr)_minmax(0,0.92fr)] gap-4">
+            <div className="grid grid-cols-1 @min-[900px]:grid-cols-[minmax(0,1.16fr)_minmax(0,0.92fr)] gap-4">
               <DashboardPanel icon={<HistoryIcon />} title="Actividad reciente">
                 {buildActivity(cases).length ? (
                   <div className="mt-6 grid gap-5">
@@ -160,17 +160,17 @@ export default async function Home() {
               </DashboardPanel>
             </div>
 
-            <div className="grid grid-cols-[minmax(0,1.16fr)_minmax(0,0.92fr)] gap-4">
+            <div className="grid grid-cols-1 @min-[900px]:grid-cols-[minmax(0,1.16fr)_minmax(0,0.92fr)] gap-4">
               <LineLink href="/casos" label="Ver historial completo" />
               <LineLink href="/agenda" label="Ver todos los vencimientos" />
             </div>
 
-            <div className="surface-card flex h-[42px] w-[330px] items-center gap-2 rounded-[14px] border border-[#88A9C8] bg-white px-5 text-[18px]">
+            <div className="surface-card flex h-[42px] w-full max-w-[330px] items-center gap-2 rounded-[14px] border border-[#88A9C8] bg-white px-5 text-[18px]">
               <BoltIcon />
               Accesos rapidos
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 @min-[700px]:grid-cols-3 gap-4">
               {dashboardQuickActions.map((action) => (
                 <QuickAction key={action.title} {...action} />
               ))}
@@ -212,7 +212,7 @@ export default async function Home() {
 
 function TodayCard({ today }: { today: Date }) {
   return (
-    <section className="surface-card w-[310px] rounded-[23px] border border-[#88A9C8] bg-white px-5 py-5">
+    <section className="surface-card w-full max-w-[310px] rounded-[23px] border border-[#88A9C8] bg-white px-5 py-5">
       <p className="flex items-center gap-2 text-[27px] leading-none">
         <CalendarSmallIcon />
         Hoy:

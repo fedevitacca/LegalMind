@@ -31,9 +31,9 @@ export default function DetalleJurisprudenciaCaso({
 
   return (
     <div
-      className={`grid h-full min-h-0 bg-[#F4F7F5] text-[#0F2044] ${
+      className={`case-with-analysis grid h-full min-h-0 bg-[#F4F7F5] text-[#0F2044] ${
         analisisVisible && caso.analisis
-          ? "grid-cols-[minmax(0,1fr)_285px]"
+          ? "grid-cols-1 @min-[1100px]:grid-cols-[minmax(0,1fr)_285px]"
           : "grid-cols-1"
       }`}
     >

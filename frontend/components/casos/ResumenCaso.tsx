@@ -82,10 +82,10 @@ export default function ResumenCaso({
             idCaso={idCaso}
           />
 
-          <section className="mt-8 grid gap-4 md:grid-cols-[minmax(0,1fr)_288px]">
+          <section className="mt-8 grid gap-4 @min-[768px]:grid-cols-[minmax(0,1fr)_288px]">
             <div className="rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5">
               <h2 className="text-[23px] font-semibold leading-none">Estado del caso</h2>
-              <div className="mt-5 grid gap-3 text-[18px] leading-none sm:grid-cols-3">
+              <div className="mt-5 grid gap-3 text-[18px] leading-none @min-[640px]:grid-cols-3">
                 <StatusItem label="Situacion" value={caso.status || "Activa"} />
                 <StatusItem label="Agenda" value={caso.deadline || "Sin vencimiento"} />
                 <StatusItem label="Fechas" value={formatCount(datesCount, "cargada", "cargadas")} />

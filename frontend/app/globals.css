@@ -4,6 +4,78 @@
   container-type: inline-size;
 }
 
+.app-shell > :not(aside) {
+  container-type: inline-size;
+}
+
+.app-shell > section > header {
+  flex-shrink: 0;
+}
+
+.workspace-mobile-navigation {
+  display: none;
+}
+
+.workspace,
+.workspace-panes,
+.app-shell,
+.app-shell :where(section, main, article, aside, form, label),
+.grid > *,
+.flex > * {
+  min-width: 0;
+}
+
+.app-shell,
+.landing-page,
+.auth-page {
+  overflow-wrap: anywhere;
+}
+
+img,
+video,
+canvas {
+  max-width: 100%;
+}
+
+svg {
+  flex-shrink: 0;
+}
+
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+/* The navigation remains available when the desktop sidebar is collapsed. */
+@media (max-width: 1024px) {
+  .workspace-mobile-navigation {
+    display: block;
+  }
+}
+
+@media (max-width: 600px) {
+  .workspace-toolbar > span,
+  .workspace-toolbar .notification-label {
+    display: none;
+  }
+
+  .workspace-toolbar > div {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@container (max-width: 1024px) {
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-shell > aside {
+    display: none;
+  }
+}
+
 .workspace-split .app-shell,
 .workspace-embedded .app-shell {
   grid-template-columns: minmax(0, 1fr);
@@ -15,8 +87,8 @@
 }
 
 /* Cada ventana adapta su contenido al espacio disponible. */
-@container (max-width: 900px) {
-  .app-shell section > header {
+@container (max-width: 1100px) {
+  .app-shell > section > header:not(.chat-header) {
     display: flex;
     height: auto;
     min-height: 46px;
@@ -25,37 +97,194 @@
     padding: 16px;
   }
 
-  .app-shell section > header > label {
-    flex: 1 1 180px;
+  .app-shell > section > header > label {
+    order: 3;
+    flex: 1 0 100%;
     min-width: 0;
   }
 
-  .app-shell section > header > div:last-child {
+  .app-shell > section > header > div:last-child {
     margin-left: auto;
   }
 
-  .app-shell section > main {
+  .app-shell > section > main {
     padding: 20px 16px;
   }
 
-  .agenda-columns {
-    grid-template-columns: minmax(0, 1fr);
+  .app-shell > section > header :is(h1, h2) {
+    font-size: clamp(1.25rem, 3cqi, 1.8rem);
+    line-height: 1.2;
   }
 
-  .event-form > .grid {
-    grid-template-columns: minmax(0, 1fr);
+  .app-shell > section > header > label input {
+    font-size: 1rem;
+    min-height: 44px;
   }
 
+  .responsive-form {
+    padding: 20px 16px;
+  }
+
+  .settings-page main .grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-actions,
+  .settings-actions > div {
+    flex-wrap: wrap;
+  }
+
+  .settings-actions > p {
+    white-space: normal;
+  }
+
+  .case-chat {
+    overflow-y: auto;
+  }
+
+  .chat-layout {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    min-height: 650px;
+  }
+
+  .chat-layout > aside {
+    max-height: 180px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .chat-layout > main {
+    min-height: 500px;
+    flex: 1;
+  }
+
+  .case-with-analysis {
+    height: auto;
+    min-height: 100%;
+  }
+
+  .case-with-analysis > section {
+    height: auto;
+    overflow: visible;
+    padding: 20px 16px;
+  }
+}
+
+@container (max-width: 600px) {
   .settings-page main .grid-cols-3 {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .settings-page main > div:first-child {
+  .settings-actions > div {
+    width: 100%;
+    flex-shrink: 1;
+  }
+
+  .calendar-card {
+    padding: 12px 8px;
+  }
+
+  .calendar-day {
+    height: 48px;
+    padding: 8px 4px;
+    font-size: 1rem;
+  }
+
+  .case-calendar {
+    gap: 2px;
+  }
+
+  .case-calendar > div {
+    padding-inline: 0;
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+
+  .case-calendar-day {
+    min-height: 52px;
+    padding: 2px;
+  }
+
+  .case-calendar-day > span {
+    width: 24px;
+    height: 24px;
+  }
+
+  .calendar-day-events {
+    margin-top: 2px;
+  }
+
+  .calendar-day-events > span {
+    height: 5px;
+    padding: 0;
+    overflow: hidden;
+    font-size: 0;
+    background: var(--accent);
+  }
+
+  .responsive-form > .flex {
     flex-wrap: wrap;
   }
 
-  .settings-page main > div:first-child > div {
+  .landing-nav {
+    display: flex;
     flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .landing-nav > div {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 1rem;
+  }
+
+  .landing-nav > div > button {
+    min-width: 0;
+    margin-left: auto;
+    padding-inline: 12px;
+    font-size: 1rem;
+  }
+
+  .landing-nav > div > button::before {
+    font-size: 1rem;
+  }
+
+  .landing-page > section {
+    padding: 32px 16px;
+    gap: 24px;
+  }
+
+  .dashboard-preview > .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-preview aside,
+  .dashboard-preview strong + span {
+    display: none;
+  }
+
+  .dashboard-preview .grid-cols-4,
+  .dashboard-preview [class*="grid-cols-[1fr_"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .auth-page > section {
+    padding: 64px 16px 32px;
+  }
+
+  .auth-page :is(input, select, textarea),
+  .app-shell :is(input, select, textarea) {
+    font-size: 16px;
+  }
+}
+
+@media (pointer: coarse) {
+  :where(button, select, input:not([type="checkbox"]):not([type="radio"]), a[aria-label]) {
+    min-height: 44px;
   }
 }
 

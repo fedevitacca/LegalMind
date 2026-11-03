@@ -101,7 +101,7 @@ export default function FormularioNuevoEvento({
 
   return (
     <form className="event-form max-w-[920px] rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 py-4" onSubmit={handleSubmit}>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 @min-[800px]:grid-cols-3 gap-4">
         <TextField
           label="Titulo del evento"
           onChange={setTitulo}
@@ -130,7 +130,7 @@ export default function FormularioNuevoEvento({
         />
       </div>
 
-      <div className="mt-4 grid grid-cols-[270px_minmax(0,520px)] gap-4">
+      <div className="mt-4 grid grid-cols-1 @min-[800px]:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-4">
         <label className="block">
           <span className="text-[15px] leading-none">Fecha</span>
           <span className="mt-1.5 flex h-10 items-center rounded-[8px] border-2 border-[#88A9C8] bg-[#F4F7F5] px-4">

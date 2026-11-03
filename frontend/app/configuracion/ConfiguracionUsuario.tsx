@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useSecondaryWindow } from "../../lib/useSecondaryWindow";
+import { secondarySettingsMessage } from "../../lib/workspaceAccess";
 import BotonSesion from "../../components/interfaz/BotonSesion";
 import {
   fetchUserPreferences,
@@ -59,6 +61,7 @@ const defaultPreferences: Pick<UserPreferences, "default_view" | "density"> = {
 };
 
 export default function ConfiguracionUsuario() {
+  const readOnly = useSecondaryWindow();
   const [account, setAccount] = useState<AccountForm>(defaultAccount);
   const [studio, setStudio] = useState<StudioForm>(defaultStudio);
   const [preferences, setPreferences] = useState(defaultPreferences);
@@ -69,6 +72,7 @@ export default function ConfiguracionUsuario() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const canEdit = isEditing && !readOnly;
 
   useEffect(() => {
     let isMounted = true;
@@ -106,6 +110,7 @@ export default function ConfiguracionUsuario() {
   };
 
   const handleSave = async () => {
+    if (readOnly || !isEditing || isSaving) return;
     if (!currentPassword.trim()) {
       setMessage("Ingresa tu contrasena actual para guardar cambios.");
       return;
@@ -180,12 +185,17 @@ export default function ConfiguracionUsuario() {
         </header>
 
         <main className="px-[28px] py-[12px]">
-          <div className="mb-2 flex min-h-[34px] items-center justify-between gap-3">
+          {readOnly ? (
+            <p className="mb-3 rounded-lg border border-[#88A9C8] bg-white p-3 text-sm" role="status">
+              {secondarySettingsMessage}
+            </p>
+          ) : null}
+          <div className="settings-actions mb-2 flex min-h-[34px] items-center justify-between gap-3">
             <p className="min-w-0 truncate text-[14px] font-medium">
-              {message || (isEditing ? "Modo edicion activo. Confirma con tu contrasena." : "Vista de configuracion. Usa Editar para modificar datos.")}
+              {message || (readOnly ? "Configuracion en modo de consulta." : isEditing ? "Modo edicion activo. Confirma con tu contrasena." : "Vista de configuracion. Usa Editar para modificar datos.")}
             </p>
             <div className="flex shrink-0 items-center gap-2">
-              {isEditing ? (
+              {canEdit ? (
                 <input
                   className="h-[32px] w-[220px] rounded-[7px] border-2 border-[#88A9C8] bg-white px-3 text-[14px] outline-none"
                   onChange={(event) => setCurrentPassword(event.target.value)}
@@ -196,8 +206,9 @@ export default function ConfiguracionUsuario() {
               ) : null}
               <button
                 className="h-[32px] rounded-[7px] border-2 border-[#88A9C8] bg-white px-4 text-[14px] font-semibold transition hover:bg-[#F4F7F5]"
-                disabled={isSaving}
+                disabled={readOnly || isSaving}
                 onClick={() => {
+                  if (readOnly) return;
                   setMessage("");
                   setIsEditing((current) => !current);
                   setCurrentPassword("");
@@ -206,7 +217,7 @@ export default function ConfiguracionUsuario() {
               >
                 {isEditing ? "Cancelar" : "Editar"}
               </button>
-              {isEditing ? (
+              {canEdit ? (
                 <button
                   className="h-[32px] rounded-[7px] bg-[#0F2044] px-4 text-[14px] font-semibold text-white transition hover:bg-[#26365F] disabled:opacity-60"
                   disabled={isSaving}
@@ -221,15 +232,15 @@ export default function ConfiguracionUsuario() {
 
           <SettingsSection icon={<UserIcon className="h-6 w-6" />} title="Cuenta">
             <div className="grid grid-cols-3 gap-x-6 gap-y-1.5">
-              <Field disabled={!isEditing} label="Nombre Completo" onChange={(value) => updateAccount("name", value)} value={account.name} />
-              <Field disabled={!isEditing} label="Rol" onChange={(value) => updateAccount("role", value)} value={account.role} />
-              <Field disabled={!isEditing} label="Correo electronico" onChange={(value) => updateAccount("email", value)} type="email" value={account.email} />
-              <Field disabled={!isEditing} label="Telefono" onChange={(value) => updateAccount("phone", value)} value={account.phone} />
+              <Field disabled={!canEdit} label="Nombre Completo" onChange={(value) => updateAccount("name", value)} value={account.name} />
+              <Field disabled={!canEdit} label="Rol" onChange={(value) => updateAccount("role", value)} value={account.role} />
+              <Field disabled={!canEdit} label="Correo electronico" onChange={(value) => updateAccount("email", value)} type="email" value={account.email} />
+              <Field disabled={!canEdit} label="Telefono" onChange={(value) => updateAccount("phone", value)} value={account.phone} />
               <Field
                 action={
                   <button
                     className="ml-2 h-7 rounded-[4px] border-2 border-[#88A9C8] px-2 text-[13px] transition hover:bg-[#F4F7F5]"
-                    disabled={!isEditing}
+                    disabled={!canEdit}
                     type="button"
                   >
                     Cambiar
@@ -240,31 +251,31 @@ export default function ConfiguracionUsuario() {
                 type="password"
                 value={account.password}
               />
-              <Field disabled={!isEditing} label="DNI" onChange={(value) => updateAccount("dni", value)} value={account.dni} />
+              <Field disabled={!canEdit} label="DNI" onChange={(value) => updateAccount("dni", value)} value={account.dni} />
             </div>
           </SettingsSection>
 
           <SettingsSection className="mt-[10px]" icon={<BriefcaseIcon className="h-6 w-6" />} title="Estudio">
             <div className="grid grid-cols-3 gap-x-6 gap-y-1.5">
-              <Field disabled={!isEditing} label="Nombre del estudio" onChange={(value) => updateStudio("name", value)} value={studio.name} />
-              <Field disabled={!isEditing} label="CUIT" onChange={(value) => updateStudio("cuit", value)} value={studio.cuit} />
-              <Field disabled={!isEditing} label="Direccion" onChange={(value) => updateStudio("address", value)} value={studio.address} />
-              <Field disabled={!isEditing} label="Telefono del estudio" onChange={(value) => updateStudio("phone", value)} value={studio.phone} />
-              <Field disabled={!isEditing} label="Correo del estudio" onChange={(value) => updateStudio("email", value)} type="email" value={studio.email} />
-              <Field disabled={!isEditing} label="Sitio" onChange={(value) => updateStudio("site", value)} value={studio.site} />
+              <Field disabled={!canEdit} label="Nombre del estudio" onChange={(value) => updateStudio("name", value)} value={studio.name} />
+              <Field disabled={!canEdit} label="CUIT" onChange={(value) => updateStudio("cuit", value)} value={studio.cuit} />
+              <Field disabled={!canEdit} label="Direccion" onChange={(value) => updateStudio("address", value)} value={studio.address} />
+              <Field disabled={!canEdit} label="Telefono del estudio" onChange={(value) => updateStudio("phone", value)} value={studio.phone} />
+              <Field disabled={!canEdit} label="Correo del estudio" onChange={(value) => updateStudio("email", value)} type="email" value={studio.email} />
+              <Field disabled={!canEdit} label="Sitio" onChange={(value) => updateStudio("site", value)} value={studio.site} />
             </div>
           </SettingsSection>
 
           <div className="mt-[10px] grid grid-cols-3 gap-6">
             <SelectField
-              disabled={!isEditing}
+              disabled={!canEdit}
               label="Zona horaria"
               onChange={setTimeZone}
               options={["(GMT-3:00) Buenos Aires", "(GMT-3:00) Montevideo", "(GMT-5:00) Bogota"]}
               value={timeZone}
             />
-            <SelectField disabled={!isEditing} label="Formato de fecha" onChange={setDateFormat} options={["DD/MM/AAAA", "MM/DD/AAAA", "AAAA-MM-DD"]} value={dateFormat} />
-            <SelectField disabled={!isEditing} label="Moneda" onChange={setCurrency} options={["Peso Argentino (ARS)", "Dolar estadounidense (USD)", "Euro (EUR)"]} value={currency} />
+            <SelectField disabled={!canEdit} label="Formato de fecha" onChange={setDateFormat} options={["DD/MM/AAAA", "MM/DD/AAAA", "AAAA-MM-DD"]} value={dateFormat} />
+            <SelectField disabled={!canEdit} label="Moneda" onChange={setCurrency} options={["Peso Argentino (ARS)", "Dolar estadounidense (USD)", "Euro (EUR)"]} value={currency} />
           </div>
         </main>
       </section>

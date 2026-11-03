@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className="h-full antialiased">
-      <body className="flex h-screen flex-col overflow-hidden">
+      <body className="flex h-dvh min-h-0 flex-col overflow-hidden">
         <Encabezado />
         <main className="min-h-0 flex-1"><EspacioTrabajo>{children}</EspacioTrabajo></main>
         <PieDePagina />

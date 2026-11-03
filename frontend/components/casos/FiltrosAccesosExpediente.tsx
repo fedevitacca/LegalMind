@@ -102,7 +102,7 @@ export default function FiltrosAccesosExpediente({
       </div>
 
       {visibleItems.length ? (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid gap-3 @min-[640px]:grid-cols-2 @min-[1024px]:grid-cols-3">
           {visibleItems.map((item) => (
             <Link
               className="grid min-h-[96px] grid-cols-[minmax(0,1fr)_26px] items-center rounded-[18px] border border-[#88A9C8]/70 bg-[#F4F7F5] px-4 py-3 transition hover:border-[#546FC0] hover:bg-white"

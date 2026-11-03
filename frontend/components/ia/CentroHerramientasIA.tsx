@@ -429,7 +429,7 @@ export default function CentroHerramientasIA({
       >
         <h2 className="mb-4 text-[22px] font-semibold">Herramientas</h2>
         <div
-          className={`grid gap-3 ${compact ? "sm:grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-3"}`}
+          className={`grid gap-3 ${compact ? "@min-[640px]:grid-cols-2" : "@min-[640px]:grid-cols-2 @min-[1280px]:grid-cols-3"}`}
         >
           {tools.map((item) => {
             const itemUi = toolUi[item.id] || toolUi.consulta_rag;
@@ -527,7 +527,7 @@ export default function CentroHerramientasIA({
           {toolId === "comparar_imputados" ? (
             <div className={compact ? "p-4" : "p-6"}>
               <p className="mb-4 text-sm text-[#0F2044]/70">Seleccioná dos personas distintas. Se comparan sus fichas registradas; los documentos del expediente no se incluyen automáticamente.</p>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 @min-[640px]:grid-cols-2">
                 {([0, 1] as const).map((index) => (
                   <label key={index} className="text-sm font-semibold">
                     Imputado {index === 0 ? "A" : "B"}
@@ -565,7 +565,7 @@ export default function CentroHerramientasIA({
             )
           ) : (
             <div
-              className={`grid gap-5 ${compact ? "p-4" : "p-6"} ${tool?.inputs === 2 && !compact ? "lg:grid-cols-2" : ""}`}
+              className={`grid gap-5 ${compact ? "p-4" : "p-6"} ${tool?.inputs === 2 && !compact ? "@min-[1024px]:grid-cols-2" : ""}`}
             >
               <Source
                 key={`${caseId}-${toolId}-a`}
@@ -720,7 +720,7 @@ function ScopeSelector({
       <p className="text-xs font-bold uppercase tracking-[.08em] text-[#0F2044]/60">
         Buscar en
       </p>
-      <div className="mt-3 grid gap-3 md:grid-cols-3">
+      <div className="mt-3 grid gap-3 @min-[768px]:grid-cols-3">
         {scopeOptions.map((option) => (
           <button
             type="button"
@@ -841,7 +841,7 @@ function CaseCorpus({
           </p>
         )}
         {ready.length > 0 && (
-          <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+          <ul className="mt-4 grid gap-2 @min-[640px]:grid-cols-2">
             {ready.map((item) => (
               <li
                 key={item.id}
@@ -1038,7 +1038,7 @@ function Results({
           </p>
         </div>
         {result.desarrollo?.length ? (
-          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+          <div className="mt-5 grid gap-3 @min-[1024px]:grid-cols-2">
             {result.desarrollo.map((section, index) => (
               <section
                 key={`${section.titulo}-${index}`}
@@ -1068,7 +1068,7 @@ function Results({
             </ol>
           </div>
         ) : null}
-        <div className="mt-5 grid gap-3 border-t border-[#88A9C8]/40 pt-4 md:grid-cols-2">
+        <div className="mt-5 grid gap-3 border-t border-[#88A9C8]/40 pt-4 @min-[768px]:grid-cols-2">
           {result.acciones_sugeridas?.length ? (
             <ResultList
               title="Próximos pasos"

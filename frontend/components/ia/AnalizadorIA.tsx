@@ -347,7 +347,7 @@ export default function AnalizadorIA() {
 
   return (
     <div className="grid gap-5">
-      <div className="grid gap-5 xl:grid-cols-[minmax(360px,0.88fr)_minmax(0,1.12fr)]">
+      <div className="grid gap-5 @min-[1280px]:grid-cols-[minmax(360px,0.88fr)_minmax(0,1.12fr)]">
         <form
           className="flex min-h-[680px] flex-col rounded-lg border border-[#84A2BD]/35 bg-white p-5 shadow-[0_10px_28px_rgba(15,32,68,0.06)]"
           onSubmit={handleSubmit}
@@ -556,7 +556,7 @@ function CaseWorkspace({
   ragResult?: RagResult;
 }) {
   return (
-    <section className="grid gap-5 rounded-lg border border-[#84A2BD]/35 bg-white p-5 shadow-[0_10px_28px_rgba(15,32,68,0.06)] xl:grid-cols-[0.9fr_1.1fr]">
+    <section className="grid gap-5 rounded-lg border border-[#84A2BD]/35 bg-white p-5 shadow-[0_10px_28px_rgba(15,32,68,0.06)] @min-[1280px]:grid-cols-[0.9fr_1.1fr]">
       <div>
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#84A2BD]/28 pb-4">
           <div>
@@ -773,7 +773,7 @@ function AnalysisResult({ analysis }: { analysis?: Analysis }) {
 
         <ResultBlock title="Imputados">
           {analysis.imputados.length ? (
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-3 @min-[768px]:grid-cols-2">
               {analysis.imputados.map((defendant) => (
                 <article
                   className="rounded-lg border border-[#84A2BD]/30 bg-white p-3"
@@ -910,7 +910,7 @@ function ResultBlock({ children, title }: { children: React.ReactNode; title: st
 
 function AnalysisInsights({ analysis }: { analysis: Analysis }) {
   return (
-    <section className="grid gap-3 md:grid-cols-4">
+    <section className="grid gap-3 @min-[768px]:grid-cols-4">
       <InsightCard label="Imputados" value={analysis.imputados.length} />
       <InsightCard label="Fechas" value={analysis.fechas_relevantes.length} />
       <InsightCard label="Alertas" value={analysis.alertas.length} tone="alert" />

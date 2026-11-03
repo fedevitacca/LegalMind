@@ -32,9 +32,9 @@ export default function DetalleAgendaCaso({
 
   return (
     <div
-      className={`grid h-full min-h-0 bg-[#F4F7F5] text-[#0F2044] ${
+      className={`case-with-analysis grid h-full min-h-0 bg-[#F4F7F5] text-[#0F2044] ${
         analisisVisible && analisis
-          ? "grid-cols-[minmax(0,1fr)_285px]"
+          ? "grid-cols-1 @min-[1100px]:grid-cols-[minmax(0,1fr)_285px]"
           : "grid-cols-1"
       }`}
     >
@@ -51,7 +51,7 @@ export default function DetalleAgendaCaso({
 
           <NavegacionAreasCaso activeArea="Agenda" caseSlug={idCaso} />
 
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+          <div className="grid gap-4 @min-[768px]:grid-cols-[minmax(0,1fr)_220px]">
             <header className="rounded-lg border border-[#84A2BD]/35 bg-white px-5 py-4 shadow-[0_10px_28px_rgba(15,32,68,0.06)]">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#546FC0]">
                 Expediente abierto

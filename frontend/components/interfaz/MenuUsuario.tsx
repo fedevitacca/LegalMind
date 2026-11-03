@@ -3,6 +3,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { authClient } from "@/lib/authClient";
+import { useSecondaryWindow } from "@/lib/useSecondaryWindow";
+import { secondarySettingsMessage } from "@/lib/workspaceAccess";
 import {
   changeUserPassword,
   fetchUserPreferences,
@@ -58,6 +60,7 @@ export default function MenuUsuario({
   refetchSession: () => Promise<unknown>;
   user: SessionUser;
 }) {
+  const readOnly = useSecondaryWindow();
   const menuRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 8, right: 16, maxHeight: 600 });
@@ -198,6 +201,7 @@ export default function MenuUsuario({
   };
 
   const handleSaveAccount = async () => {
+    if (readOnly) return;
     if (!emailVerification.currentPassword.trim()) {
       setStatus("error");
       setMessage("Ingresa tu contrasena actual para guardar el perfil.");
@@ -239,6 +243,7 @@ export default function MenuUsuario({
   };
 
   const handleSavePreferences = async () => {
+    if (readOnly) return;
     setStatus("saving");
     setMessage("");
 
@@ -256,6 +261,7 @@ export default function MenuUsuario({
   };
 
   const handleChangePassword = async () => {
+    if (readOnly) return;
     setStatus("saving");
     setMessage("");
 
@@ -379,13 +385,18 @@ export default function MenuUsuario({
         </section>
 
         <div className="min-h-0 max-h-[430px] flex-auto overflow-y-auto overscroll-contain border-b border-[#E4D7BE] p-3">
+          {readOnly ? (
+            <p className="mb-3 rounded-md border border-[#84A2BD]/40 p-3 text-xs font-semibold" role="status">
+              {secondarySettingsMessage}
+            </p>
+          ) : null}
           {panel === "perfil" ? (
             <div className="grid gap-3">
               <label className="grid gap-1.5 text-[14px] font-semibold">
                 Nombre
                 <input
                   className="h-[40px] rounded-[7px] border border-[#D7D2BC] bg-[#FFF8EA] px-3 text-[14px] outline-none focus:border-[#88A9C8]"
-                  disabled={isBusy}
+                  disabled={readOnly || isBusy}
                   value={accountForm.name}
                   onChange={(event) =>
                     setAccountForm((current) => ({
@@ -399,7 +410,7 @@ export default function MenuUsuario({
                 Email
                 <input
                   className="h-[40px] rounded-[7px] border border-[#D7D2BC] bg-[#FFF8EA] px-3 text-[14px] outline-none focus:border-[#88A9C8]"
-                  disabled={isBusy}
+                  disabled={readOnly || isBusy}
                   type="email"
                   value={accountForm.email}
                   onChange={(event) =>
@@ -415,7 +426,7 @@ export default function MenuUsuario({
                 Contrasena actual
                 <input
                   className="h-[40px] rounded-[7px] border border-[#D7D2BC] bg-[#FFF8EA] px-3 text-[14px] outline-none focus:border-[#88A9C8]"
-                  disabled={isBusy}
+                  disabled={readOnly || isBusy}
                   type="password"
                   value={emailVerification.currentPassword}
                   onChange={(event) =>
@@ -440,7 +451,7 @@ export default function MenuUsuario({
                     </div>
                     <button
                       className="rounded-md border border-[#84A2BD]/40 bg-white px-2 py-1 text-xs font-semibold text-[#0F2044] transition hover:bg-[#F4F7F5]"
-                      disabled={isBusy}
+                      disabled={readOnly || isBusy}
                       type="button"
                       onClick={() =>
                         setIsEmailVerificationOpen((current) => !current)
@@ -456,7 +467,7 @@ export default function MenuUsuario({
                         Repetir nuevo email
                         <input
                           className="h-10 rounded-md border border-[#84A2BD]/40 bg-white px-3 outline-none focus:border-[#546FC0]"
-                          disabled={isBusy}
+                          disabled={readOnly || isBusy}
                           type="email"
                           value={emailVerification.emailConfirmation}
                           onChange={(event) =>
@@ -474,7 +485,7 @@ export default function MenuUsuario({
 
               <button
                 className="h-[40px] rounded-[7px] bg-[#B69042] px-3 text-[14px] font-semibold text-white transition hover:bg-[#8F6F3B] disabled:opacity-60"
-                disabled={isBusy}
+                disabled={readOnly || isBusy}
                 type="button"
                 onClick={handleSaveAccount}
               >
@@ -491,7 +502,7 @@ export default function MenuUsuario({
                 Vista inicial
                 <select
                   className="h-10 rounded-md border border-[#84A2BD]/40 bg-[#F4F7F5] px-3 outline-none focus:border-[#546FC0]"
-                  disabled={isBusy}
+                  disabled={readOnly || isBusy}
                   value={preferences.default_view}
                   onChange={(event) =>
                     setPreferences((current) => ({
@@ -518,7 +529,7 @@ export default function MenuUsuario({
                         ? "bg-white text-[#0F2044] shadow-sm"
                         : "text-[#355070] hover:bg-white/70"
                     }`}
-                    disabled={isBusy}
+                    disabled={readOnly || isBusy}
                     key={value}
                     type="button"
                     onClick={() =>
@@ -542,7 +553,7 @@ export default function MenuUsuario({
                     <input
                       checked={preferences[field]}
                       className="h-4 w-4 accent-[#546FC0]"
-                      disabled={isBusy}
+                      disabled={readOnly || isBusy}
                       type="checkbox"
                       onChange={() =>
                         setPreferences((current) => ({
@@ -556,7 +567,7 @@ export default function MenuUsuario({
               )}
               <button
                 className="rounded-md bg-[#A68147] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#8F6F3B] disabled:opacity-60"
-                disabled={isBusy}
+                disabled={readOnly || isBusy}
                 type="button"
                 onClick={handleSavePreferences}
               >
@@ -571,7 +582,7 @@ export default function MenuUsuario({
                 Contrasena actual
                 <input
                   className="h-10 rounded-md border border-[#84A2BD]/40 bg-[#F4F7F5] px-3 outline-none focus:border-[#546FC0]"
-                  disabled={isBusy}
+                  disabled={readOnly || isBusy}
                   type="password"
                   value={passwordForm.currentPassword}
                   onChange={(event) =>
@@ -586,7 +597,7 @@ export default function MenuUsuario({
                 Nueva contrasena
                 <input
                   className="h-10 rounded-md border border-[#84A2BD]/40 bg-[#F4F7F5] px-3 outline-none focus:border-[#546FC0]"
-                  disabled={isBusy}
+                  disabled={readOnly || isBusy}
                   type="password"
                   value={passwordForm.newPassword}
                   onChange={(event) =>
@@ -599,7 +610,7 @@ export default function MenuUsuario({
               </label>
               <button
                 className="rounded-md bg-[#A68147] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#8F6F3B] disabled:opacity-60"
-                disabled={isBusy}
+                disabled={readOnly || isBusy}
                 type="button"
                 onClick={handleChangePassword}
               >

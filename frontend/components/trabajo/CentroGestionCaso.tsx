@@ -189,7 +189,7 @@ function WorkTab({
     items: "",
   });
   return (
-    <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
+    <div className="grid gap-5 @min-[1024px]:grid-cols-[360px_1fr]">
       <Panel title="Nueva tarea">
         <form
           className="space-y-3"
@@ -327,7 +327,7 @@ function WorkTab({
           </div>
         </details>
       </Panel>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 @min-[768px]:grid-cols-2">
         {data.tasks.map((task) => (
           <TaskCard key={task.id} task={task} run={run} />
         ))}
@@ -529,7 +529,7 @@ function HearingTab({
       ? setSelected({ ...selected, [key]: value })
       : setForm({ ...form, [key]: value });
   return (
-    <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
+    <div className="grid gap-5 @min-[1024px]:grid-cols-[320px_1fr]">
       <Panel title="Audiencias">
         <div className="space-y-2">
           <button
@@ -557,7 +557,7 @@ function HearingTab({
       </Panel>
       <Panel title={selected ? "Ficha de audiencia" : "Nueva audiencia"}>
         <form
-          className="grid gap-3 md:grid-cols-2"
+          className="grid gap-3 @min-[768px]:grid-cols-2"
           onSubmit={(e) => {
             e.preventDefault();
             const path = selected
@@ -683,7 +683,7 @@ function PeopleTab({
     }
   }
   return (
-    <div className="grid gap-5 lg:grid-cols-[380px_1fr]">
+    <div className="grid gap-5 @min-[1024px]:grid-cols-[380px_1fr]">
       <div className="space-y-5">
         <Panel title="Nuevo contacto">
           <form
@@ -771,7 +771,7 @@ function PeopleTab({
       </div>
       <Panel title="Personas vinculadas">
         {data.contacts.length ? (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 @min-[768px]:grid-cols-2">
             {data.contacts.map((item) => (
               <article
                 key={`${item.id}-${item.rol}`}
@@ -820,7 +820,7 @@ function CommunicationsTab({
     contacto_id: "",
   });
   return (
-    <div className="grid gap-5 lg:grid-cols-[380px_1fr]">
+    <div className="grid gap-5 @min-[1024px]:grid-cols-[380px_1fr]">
       <Panel title="Registrar comunicacion">
         <form
           className="space-y-3"
@@ -950,7 +950,7 @@ function MoneyTab({
   });
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-3 @min-[640px]:grid-cols-4">
         <Metric
           label="Honorarios"
           value={formatMoney(data.finance.honorarios)}
@@ -962,10 +962,10 @@ function MoneyTab({
           value={`${Math.floor(data.finance.minutos / 60)} h ${data.finance.minutos % 60} min`}
         />
       </div>
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-5 @min-[1024px]:grid-cols-2">
         <Panel title="Nuevo movimiento">
           <form
-            className="grid gap-3 sm:grid-cols-2"
+            className="grid gap-3 @min-[640px]:grid-cols-2"
             onSubmit={(e) => {
               e.preventDefault();
               void run(
@@ -1016,7 +1016,7 @@ function MoneyTab({
         </Panel>
         <Panel title="Registrar tiempo">
           <form
-            className="grid gap-3 sm:grid-cols-2"
+            className="grid gap-3 @min-[640px]:grid-cols-2"
             onSubmit={(e) => {
               e.preventDefault();
               void run(
@@ -1114,7 +1114,7 @@ function WritingTab({
   const [selected, setSelected] = useState<number | null>(null);
   const writing = data.writings.find((item) => item.id === selected);
   return (
-    <div className="grid gap-5 lg:grid-cols-[380px_1fr]">
+    <div className="grid gap-5 @min-[1024px]:grid-cols-[380px_1fr]">
       <div className="space-y-5">
         <Panel title="Nueva plantilla">
           <form
@@ -1370,7 +1370,7 @@ function PortalTab({
     }
   }
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
+    <div className="grid gap-5 @min-[1024px]:grid-cols-2">
       <div className="space-y-5">
         <Panel title="Crear acceso para cliente">
           <Input
@@ -1592,9 +1592,9 @@ function ReviewTab({
     },
   ];
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_420px]">
+    <div className="grid gap-5 @min-[1024px]:grid-cols-[1fr_420px]">
       <Panel title="Control del expediente">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 @min-[640px]:grid-cols-2">
           {checks.map((item) => (
             <div
               key={item.label}

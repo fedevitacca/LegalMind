@@ -156,7 +156,7 @@ export default function EspacioAgenda({
   }
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[minmax(280px,0.78fr)_minmax(0,1.22fr)]">
+    <section className="grid gap-5 @min-[1280px]:grid-cols-[minmax(280px,0.78fr)_minmax(0,1.22fr)]">
       <aside className="rounded-lg border border-[#84A2BD]/35 bg-white p-5 shadow-[0_10px_28px_rgba(15,32,68,0.06)]">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#546FC0]">
           Proximas entregas
@@ -169,7 +169,7 @@ export default function EspacioAgenda({
               className="rounded-lg bg-[#F4F7F5] px-4 py-3"
               key={fecha.id}
             >
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+              <div className="grid grid-cols-1 @min-[600px]:grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                 <div className="min-w-0">
                   <h3 className="text-base font-semibold">{fecha.descripcion}</h3>
                   <p className="mt-1 text-sm font-medium text-[#0F2044]/60">
@@ -254,7 +254,7 @@ export default function EspacioAgenda({
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-7 gap-1.5">
+        <div className="case-calendar mt-4 grid grid-cols-7 gap-1.5">
           {weekDays.map((day) => (
             <div
               className="px-2 py-1 text-center text-xs font-semibold uppercase tracking-[0.1em] text-[#0F2044]/48"
@@ -271,7 +271,7 @@ export default function EspacioAgenda({
 
             return (
               <button
-                className={`min-h-24 rounded-lg border p-2 text-left transition ${
+                className={`case-calendar-day min-h-24 rounded-lg border p-2 text-left transition ${
                   isSelected
                     ? "border-[#546FC0] bg-[#84A2BD]/20 ring-4 ring-[#84A2BD]/18"
                     : day.isCurrentMonth
@@ -289,7 +289,7 @@ export default function EspacioAgenda({
                 >
                   {day.date.getDate()}
                 </span>
-                <div className="mt-2 grid gap-1">
+                <div className="calendar-day-events mt-2 grid gap-1">
                   {dayEvents.slice(0, 2).map((event) => (
                     <span
                       className="truncate rounded-md bg-white px-2 py-1 text-xs font-semibold text-[#0F2044]/72"
@@ -344,7 +344,7 @@ export default function EspacioAgenda({
 
           {editable && formVisible ? (
             <form
-              className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_120px_140px_auto]"
+              className="mt-4 grid gap-3 @min-[1024px]:grid-cols-[minmax(0,1fr)_120px_140px_auto]"
               onSubmit={handleSubmit}
             >
               <label>

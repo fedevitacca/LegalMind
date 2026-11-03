@@ -85,7 +85,7 @@ export default function CentroNotificaciones() {
     <>
       <button type="button" aria-label={`Notificaciones${inbox?.no_leidas ? `: ${inbox.no_leidas} sin leer` : ""}`} className="relative flex items-center gap-2 rounded-lg border border-[#88A9C8] px-3 py-2 font-semibold hover:bg-[#F3F6F5]" onClick={() => { dialog.current?.showModal(); setSuccess(""); void reload().catch(() => setError("No se pudieron actualizar las notificaciones.")); }}>
         <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        <span>Notificaciones</span>
+        <span className="notification-label">Notificaciones</span>
         {inbox?.no_leidas ? <span className="rounded-full bg-[#546FC0] px-2 text-xs text-white">{inbox.no_leidas > 99 ? "99+" : inbox.no_leidas}</span> : null}
       </button>
       <dialog ref={dialog} aria-labelledby="notifications-title" className="m-auto max-h-[90dvh] w-[min(680px,calc(100%-24px))] overflow-y-auto rounded-2xl border border-[#88A9C8] bg-[#F3F6F5] p-5 text-[#0F2044] shadow-xl backdrop:bg-[#0F2044]/45">

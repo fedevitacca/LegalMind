@@ -53,7 +53,7 @@ export default function EspacioImputados({
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="mt-4 grid gap-3 @min-[768px]:grid-cols-2">
           {defendants.map((defendant) => (
             <section
               className="rounded-lg bg-[#F4F7F5] p-4"
