@@ -5,6 +5,9 @@ const {
   embedTextsWithLocalAI,
   getLocalAIConfig,
   probeLocalAI,
+  resetLocalAIClientFactoryForTests,
+  runCaseChatWithLocalAI,
+  setLocalAIClientFactoryForTests,
 } = require("./analizadorLocal");
 
 const originalFetch = global.fetch;
@@ -18,7 +21,26 @@ const originalEnvironment = {
 describe("cliente Ollama", () => {
   afterEach(() => {
     global.fetch = originalFetch;
+    resetLocalAIClientFactoryForTests();
     restoreEnvironment();
+  });
+
+  it("envia memoria y fuentes al chat del expediente con salida estructurada", async () => {
+    let payload;
+    setLocalAIClientFactoryForTests(() => ({ chat: async (value) => {
+      payload = value;
+      return JSON.stringify({ answer: "La audiencia figura para el 12 de mayo [FUENTE 1].",
+        suggested_questions: ["¿Quiénes participan?"], limitations: [] });
+    } }));
+
+    const result = await runCaseChatWithLocalAI({ question: "¿Cuándo es la audiencia?",
+      history: [{ role: "usuario", content: "Revisemos las próximas fechas" }],
+      context: [{ documentName: "Agenda", location: "Fragmento 1", text: "Audiencia: 12 de mayo." }] });
+
+    assert.match(payload.messages.at(-1).content, /Audiencia: 12 de mayo/);
+    assert.ok(payload.messages.some((message) => message.content.includes("Revisemos las próximas fechas")));
+    assert.match(result.answer, /12 de mayo/);
+    assert.deepEqual(result.suggestedQuestions, ["¿Quiénes participan?"]);
   });
 
   it("envia la API key a Ollama Cloud sin exponerla en la configuracion", async () => {

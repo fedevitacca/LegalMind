@@ -119,6 +119,21 @@ describe("IA file routes", () => {
     assert.ok(body.tools.every((tool) => !removedTools.includes(tool.id)));
   });
 
+  it("valida mensajes y herramientas del chat antes de consultar el expediente", async () => {
+    const empty = await fetch(`${baseUrl}/api/ia/cases/1/chats/1/messages`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: "" }),
+    });
+    assert.equal(empty.status, 400);
+    assert.match((await empty.json()).error, /mensaje/i);
+
+    const invalidTool = await fetch(`${baseUrl}/api/ia/cases/1/chats/1/messages`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: "Resumi el caso", tool_id: "herramienta_inexistente" }),
+    });
+    assert.equal(invalidTool.status, 400);
+    assert.match((await invalidTool.json()).error, /herramienta/i);
+  });
+
   it("ejecuta una herramienta con presupuesto de tiempo y Ollama local", async () => {
     const response = await fetch(`${baseUrl}/api/ia/tools/resumen_expediente/run`, {
       body: JSON.stringify({ primary_text: "Expediente 42/2026. Audiencia el 12/08/2026.", query: "fecha importante" }),

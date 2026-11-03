@@ -35,6 +35,8 @@ const { hybridSearch } = require("../modelos/repositorioRagVectorial");
 const { listDatesByCase, listDefendantsByCase } = require("../modelos/repositorioCasos");
 const { listCaseRecords, listTasks } = require("../modelos/repositorioTrabajoJuridico");
 const { assessEvidence, buildLegalCitations, verifyResultClaims } = require("../servicios/citasJuridicas");
+const { appendExchange, createConversation, deleteConversation, getConversation, listConversations } = require("../modelos/repositorioChatIA");
+const { answerCaseChat, CHAT_TOOL_IDS } = require("../servicios/servicioChatExpediente");
 
 const router = express.Router();
 const { requireSession } = require("../autenticacion/sesion");
@@ -61,6 +63,8 @@ router.get("/health", (req, res) => {
       "analizador_estrategico",
       "alertas_inteligentes",
       "scoring_confianza",
+      "chat_conversacional_por_expediente",
+      "memoria_y_herramientas_en_chat",
     ],
   });
 });
@@ -84,6 +88,63 @@ router.post("/extract-file", requireSession, attachSecurityContext, (req, res) =
 });
 
 router.use(requireSession, attachSecurityContext);
+
+router.get("/cases/:caseId/chats", requireCaseAccess, async (req, res, next) => {
+  try {
+    const conversations = await listConversations({ organizationId: req.security.organizationId,
+      caseId: parseRequiredNumericId(req.params.caseId), userId: req.user.id });
+    return res.json({ conversations });
+  } catch (error) { return next(error); }
+});
+
+router.post("/cases/:caseId/chats", requireCaseAccess, requireRole("asistente"), async (req, res, next) => {
+  try {
+    const conversation = await createConversation({ organizationId: req.security.organizationId,
+      caseId: parseRequiredNumericId(req.params.caseId), userId: req.user.id, title: req.body?.title });
+    await recordAudit(req, { action: "ia.chat_creado", resourceType: "conversacion_ia", resourceId: conversation.id,
+      metadata: { causa_id: conversation.case_id } });
+    return res.status(201).json({ conversation });
+  } catch (error) { return next(error); }
+});
+
+router.get("/cases/:caseId/chats/:chatId", requireCaseAccess, async (req, res, next) => {
+  try {
+    const conversation = await getConversation({ organizationId: req.security.organizationId,
+      caseId: parseRequiredNumericId(req.params.caseId), userId: req.user.id,
+      conversationId: parseRequiredNumericId(req.params.chatId) });
+    return conversation ? res.json({ conversation }) : res.status(404).json({ error: "Conversacion no encontrada." });
+  } catch (error) { return next(error); }
+});
+
+router.delete("/cases/:caseId/chats/:chatId", requireCaseAccess, requireRole("abogado"), async (req, res, next) => {
+  try {
+    const deleted = await deleteConversation({ organizationId: req.security.organizationId,
+      caseId: parseRequiredNumericId(req.params.caseId), userId: req.user.id,
+      conversationId: parseRequiredNumericId(req.params.chatId) });
+    return deleted ? res.status(204).send() : res.status(404).json({ error: "Conversacion no encontrada." });
+  } catch (error) { return next(error); }
+});
+
+router.post("/cases/:caseId/chats/:chatId/messages", requireCaseAccess, requireRole("asistente"), async (req, res, next) => {
+  const content = typeof req.body?.content === "string" ? req.body.content.replace(/\s+/g, " ").trim() : "";
+  const toolId = req.body?.tool_id == null ? null : String(req.body.tool_id);
+  if (!content || content.length > 4000) return res.status(400).json({ error: "Escribi un mensaje de hasta 4000 caracteres." });
+  if (toolId && !CHAT_TOOL_IDS.has(toolId)) return res.status(400).json({ error: "La herramienta no esta habilitada en el chat." });
+  try {
+    const ids = { organizationId: req.security.organizationId, caseId: parseRequiredNumericId(req.params.caseId),
+      userId: req.user.id, conversationId: parseRequiredNumericId(req.params.chatId) };
+    const conversation = await getConversation(ids);
+    if (!conversation) return res.status(404).json({ error: "Conversacion no encontrada." });
+    const generated = await answerCaseChat({ organizationId: ids.organizationId, caseId: ids.caseId,
+      question: content, history: conversation.messages, toolId });
+    const saved = await appendExchange({ ...ids, userContent: content, assistantContent: generated.answer,
+      retrievalQuery: generated.retrievalQuery, toolId, citations: generated.citations, metadata: generated.metadata });
+    await recordAudit(req, { action: "ia.chat_mensaje", resourceType: "conversacion_ia", resourceId: ids.conversationId,
+      metadata: { causa_id: ids.caseId, herramienta: toolId, citas: generated.citations.length } });
+    return res.status(201).json({ title: saved.title, user_message: saved.userMessage,
+      assistant_message: saved.assistantMessage });
+  } catch (error) { return next(error); }
+});
 
 router.get("/cases/:caseId/queries", requireCaseAccess, async (req, res, next) => {
   try { return res.json({ queries: await listAIQueries(parseRequiredNumericId(req.params.caseId), req.user.id) }); }

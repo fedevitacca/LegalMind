@@ -1,0 +1,58 @@
+# Chat conversacional por expediente
+
+## Objetivo
+
+El chat permite continuar preguntas sobre un expediente sin reenviar manualmente sus documentos. No funciona como un chat juridico general: cada respuesta se limita al expediente autorizado y a la biblioteca juridica nacional/federal disponible.
+
+## Aporte tecnico propio
+
+La respuesta no surge de enviar directamente la pregunta a un modelo. LegalMind ejecuta esta cadena:
+
+1. valida sesion, rol, organizacion y acceso al expediente;
+2. recupera documentos, imputados, tareas, audiencias, fechas y comunicaciones no privadas;
+3. transforma una pregunta dependiente del dialogo en una consulta recuperable usando memoria reciente;
+4. expande terminologia juridica equivalente;
+5. combina ranking BM25/trigramas, embeddings y el indice `pgvector`;
+6. fusiona resultados sin duplicar fragmentos;
+7. consulta por separado la biblioteca juridica oficial;
+8. entrega al modelo solo los fragmentos mejor posicionados;
+9. valida los marcadores de fuente y calcula el nivel de respaldo;
+10. persiste conversacion, mensajes, citas, herramienta usada y metadatos de recuperacion.
+
+Si el modelo no responde, el sistema conserva una respuesta extractiva basada en los fragmentos recuperados. Los saludos y consultas sobre capacidades se resuelven sin invocar al modelo.
+
+## Persistencia
+
+La migracion `020_chat_expediente.sql` incorpora:
+
+- `conversaciones_ia`: propietario, organizacion, expediente, titulo y fechas;
+- `mensajes_chat_ia`: rol, contenido, consulta recuperada, herramienta, citas y metadatos.
+
+Cada lectura y escritura filtra simultaneamente por organizacion, expediente y usuario.
+
+## API
+
+- `GET /api/ia/cases/:caseId/chats`
+- `POST /api/ia/cases/:caseId/chats`
+- `GET /api/ia/cases/:caseId/chats/:chatId`
+- `DELETE /api/ia/cases/:caseId/chats/:chatId`
+- `POST /api/ia/cases/:caseId/chats/:chatId/messages`
+
+Las herramientas habilitadas dentro del chat son resumen del expediente, cronologia y teoria del caso. La eleccion se valida en el backend; el cliente no puede ejecutar una herramienta arbitraria.
+
+## Interfaz
+
+Cada expediente incorpora el acceso `Chat del expediente`. La pantalla contiene historial, memoria por conversacion, preguntas sugeridas, selector de herramienta, indicador de respaldo y fuentes expandibles con enlace al documento original.
+
+## Verificacion
+
+Los tests cubren:
+
+- envio de memoria y fuentes con salida estructurada;
+- aislamiento por organizacion, expediente y usuario;
+- consultas dependientes de mensajes anteriores;
+- fusion de ranking lexico y vectorial sin duplicados;
+- validacion de marcadores de fuente;
+- validacion de mensajes y herramientas antes de acceder a datos.
+
+Para evaluar calidad funcional conviene mantener un conjunto fijo de preguntas por expediente y medir recuperacion de la fuente esperada, respaldo de la respuesta, latencia y comportamiento ante falta de evidencia.

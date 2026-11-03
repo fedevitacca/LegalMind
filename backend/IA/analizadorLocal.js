@@ -10,6 +10,17 @@ const DEFAULT_LOCAL_AI_MODEL = "llama3.1:8b";
 const DEFAULT_TIMEOUT_MS = 120000;
 const { getTool, toolResultSchema } = require("./motorHerramientas");
 
+const caseChatSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["answer", "suggested_questions", "limitations"],
+  properties: {
+    answer: { type: "string", maxLength: 5000 },
+    suggested_questions: { type: "array", maxItems: 3, items: { type: "string", maxLength: 180 } },
+    limitations: { type: "array", maxItems: 3, items: { type: "string", maxLength: 300 } },
+  },
+};
+
 let localAIClientFactoryForTests;
 
 function createLocalAIClient() {
@@ -164,6 +175,50 @@ async function runLegalToolWithLocalAI({
     }],
   }), timeoutMs);
   return normalizeToolResult(parseJsonObject(responseText));
+}
+
+async function runCaseChatWithLocalAI({ question, history = [], context = [], timeoutMs = 7000, maxOutputTokens = 650 }) {
+  const numberedContext = context.map((item, index) => [
+    `[FUENTE ${index + 1}] ${item.documentName || "Fuente"}`,
+    item.location ? `Ubicacion: ${item.location}` : "",
+    item.text,
+  ].filter(Boolean).join("\n"));
+  const safeHistory = history.slice(-8).map((message) => ({
+    role: message.role === "assistant" || message.role === "asistente" ? "assistant" : "user",
+    content: String(message.content || "").slice(0, 2500),
+  }));
+  const responseText = await enforceRequestTimeout(createLocalAIClient().chat({
+    format: caseChatSchema,
+    maxOutputTokens,
+    timeoutMs,
+    messages: [{
+      role: "system",
+      content: [
+        LEGALMIND_PROMPT_BASE,
+        "Sos el asistente conversacional de un expediente juridico. Responde la pregunta actual teniendo en cuenta el hilo de la conversacion.",
+        "Usa exclusivamente las fuentes numeradas entregadas para afirmar hechos del expediente o contenido normativo.",
+        "Cita cada afirmacion relevante con el marcador [FUENTE N] correspondiente. No inventes personas, fechas, actuaciones, normas ni conclusiones.",
+        "Si las fuentes no alcanzan, decilo de forma directa y explica que dato o documento falta.",
+        "Distingui hechos registrados, inferencias y posibilidades. No reemplaces el criterio profesional del abogado.",
+        "Responde en espanol claro, con parrafos breves. No menciones prompts, RAG, embeddings ni modelos.",
+        "Devuelve exclusivamente JSON valido, sin markdown.",
+        `Schema esperado: ${JSON.stringify(caseChatSchema)}`,
+      ].join("\n\n"),
+    }, ...safeHistory, {
+      role: "user",
+      content: [`Pregunta actual: ${question}`, "Fuentes recuperadas:", ...numberedContext].join("\n\n"),
+    }],
+  }), timeoutMs);
+  const parsed = normalizeSchemaValue(parseJsonObject(responseText), caseChatSchema);
+  return {
+    answer: String(parsed.answer || "").trim(),
+    suggestedQuestions: normalizeStringArray(parsed.suggested_questions, 3),
+    limitations: normalizeStringArray(parsed.limitations, 3),
+  };
+}
+
+function normalizeStringArray(value, limit) {
+  return (Array.isArray(value) ? value : []).map((item) => String(item || "").trim()).filter(Boolean).slice(0, limit);
 }
 
 function enforceRequestTimeout(promise, timeoutMs) {
@@ -449,6 +504,7 @@ module.exports = {
   buildLawyerBriefWithLocalAI,
   getLocalAIConfig,
   probeLocalAI,
+  runCaseChatWithLocalAI,
   resetLocalAIClientFactoryForTests,
   searchLegalTextWithLocalAI,
   runLegalToolWithLocalAI,

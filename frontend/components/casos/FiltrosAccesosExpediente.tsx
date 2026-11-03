@@ -182,6 +182,13 @@ function buildAccessItems(
       status: "accion",
     },
     {
+      detail: "Conversá con el expediente y verificá cada respuesta en sus fuentes",
+      href: `/casos/${idCaso}/chat`,
+      keywords: "chat asistente preguntas expediente fuentes herramientas",
+      label: "Chat del expediente",
+      status: "ia",
+    },
+    {
       detail: "Consultas guardadas del expediente",
       href: `/casos/${idCaso}/consultas`,
       keywords: "ia consultas analisis inteligencia artificial",
