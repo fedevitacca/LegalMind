@@ -167,15 +167,9 @@ export default function ChatExpediente({ caseId, caseName, embedded = false }: {
   const canSend = !sending && comparisonReady && Boolean(content.trim() || selectedTool.id);
 
   return (
-<<<<<<< HEAD
-    <section className="case-chat flex h-full min-h-0 flex-col bg-[#F4F7F5] text-[#0F2044]">
+    <section className={`case-chat flex h-full min-h-0 flex-col bg-[#F4F7F5] text-[#0F2044] ${embedded ? "overflow-hidden rounded-[23px] border-2 border-[#88A9C8]" : ""}`}>
       <header className="chat-header border-b-2 border-[#88A9C8] bg-white px-6 py-4">
-        <NavegacionAreasCaso activeArea="Chat" caseSlug={caseId} />
-=======
-    <section className={`flex h-full min-h-0 flex-col bg-[#F4F7F5] text-[#0F2044] ${embedded ? "overflow-hidden rounded-[23px] border-2 border-[#88A9C8]" : ""}`}>
-      <header className="border-b-2 border-[#88A9C8] bg-white px-6 py-4">
         {!embedded && <NavegacionAreasCaso activeArea="Chat" caseSlug={caseId} />}
->>>>>>> 32e3368dd1fb22aef79167d5dce23472d6e0f631
         <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
           <div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#546FC0]">Consulta y herramientas</p>
             <h1 className="mt-1 text-2xl font-semibold">{caseName}</h1></div>
@@ -203,13 +197,8 @@ export default function ChatExpediente({ caseId, caseName, embedded = false }: {
             {!messages.length && !loading ? (
               <div className="mx-auto mt-8 max-w-3xl rounded-[23px] border-2 border-[#88A9C8] bg-white p-7">
                 <h2 className="text-xl font-semibold">Consultá este expediente</h2>
-<<<<<<< HEAD
-                <p className="mt-2 text-sm text-[#0F2044]/65">Podés continuar la conversación, pedir una herramienta o abrir las fuentes de cada respuesta.</p>
-                <div className="mt-5 grid gap-3 @min-[640px]:grid-cols-3">{examples.map((example) => (
-=======
                 <p className="mt-2 text-sm text-[#0F2044]/65">Escribí una pregunta o elegí una herramienta. Todo se guarda en esta conversación.</p>
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">{examples.map((example) => (
->>>>>>> 32e3368dd1fb22aef79167d5dce23472d6e0f631
+                <div className="mt-5 grid gap-3 @min-[640px]:grid-cols-3">{examples.map((example) => (
                   <button type="button" key={example} onClick={() => void sendMessage(example)} className="rounded-xl border border-[#88A9C8] bg-[#F4F7F5] p-3 text-left text-sm font-medium hover:border-[#546FC0]">{example}</button>
                 ))}</div>
               </div>
@@ -236,13 +225,8 @@ export default function ChatExpediente({ caseId, caseName, embedded = false }: {
               <div className="flex items-end gap-3 rounded-2xl border-2 border-[#88A9C8] bg-[#F4F7F5] p-2 focus-within:border-[#546FC0]">
                 <textarea rows={2} maxLength={4000} value={content} onChange={(event) => setContent(event.target.value)}
                   onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void sendMessage(); } }}
-<<<<<<< HEAD
-                  placeholder="Preguntá sobre hechos, documentos, personas, fechas o estrategia…" className="min-h-12 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none" />
-                <button type="button" disabled={!content.trim() || sending} onClick={() => void sendMessage()} className="rounded-xl bg-[#0F2044] px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">Enviar</button>
-=======
-                  placeholder={selectedTool.id ? "Agregá un enfoque opcional o ejecutá la herramienta" : "Preguntá sobre hechos, documentos, personas, fechas o estrategia"} className="min-h-12 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none" />
+                  placeholder={selectedTool.id ? "Agregá un enfoque opcional o ejecutá la herramienta" : "Preguntá sobre hechos, documentos, personas, fechas o estrategia"} className="min-h-12 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none" />
                 <button type="button" disabled={!canSend} onClick={() => void sendMessage()} className="rounded-xl bg-[#0F2044] px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">{selectedTool.id ? "Aplicar" : "Enviar"}</button>
->>>>>>> 32e3368dd1fb22aef79167d5dce23472d6e0f631
               </div>
             </div>
           </div>

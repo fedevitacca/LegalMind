@@ -5,6 +5,7 @@ const sideItems = [
   { icon: HomeIcon, label: "Dashboard", href: "/dashboard" },
   { icon: FolderIcon, label: "Casos", href: "/casos" },
   { icon: SparkIcon, label: "Analisis", href: "/analisis" },
+  { icon: BookIcon, label: "Biblioteca", href: "/biblioteca" },
   { icon: CalendarIcon, label: "Agenda", href: "/agenda" },
   { icon: SettingsIcon, label: "Configuracion", href: "/configuracion" },
 ];
@@ -122,6 +123,14 @@ function SparkIcon() {
         strokeLinejoin="round"
         strokeWidth="2"
       />
+    </svg>
+  );
+}
+
+function BookIcon() {
+  return (
+    <svg aria-hidden="true" className="h-[32px] w-[32px]" viewBox="0 0 24 24" fill="none">
+      <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H11v17H6.5A2.5 2.5 0 0 0 4 21.5v-17ZM20 4.5A2.5 2.5 0 0 0 17.5 2H13v17h4.5a2.5 2.5 0 0 1 2.5 2.5v-17Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
     </svg>
   );
 }
