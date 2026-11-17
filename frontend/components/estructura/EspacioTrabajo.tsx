@@ -9,7 +9,6 @@ const sections = [
   { href: "/casos", label: "Casos" },
   { href: "/nuevo", label: "Nuevo caso" },
   { href: "/analisis", label: "Análisis" },
-  { href: "/biblioteca", label: "Biblioteca jurídica" },
   { href: "/agenda", label: "Agenda / Calendario" },
   { href: "/configuracion", label: "Configuración" },
 ];
