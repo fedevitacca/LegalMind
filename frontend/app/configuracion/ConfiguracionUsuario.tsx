@@ -1,380 +1,147 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
+import BotonSesion from "../../components/interfaz/BotonSesion";
+import { authClient } from "../../lib/authClient";
 import { useSecondaryWindow } from "../../lib/useSecondaryWindow";
 import { secondarySettingsMessage } from "../../lib/workspaceAccess";
-import BotonSesion from "../../components/interfaz/BotonSesion";
-import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
 import {
-  fetchUserPreferences,
-  saveUserAccount,
-  saveUserPreferences,
+  changeUserPassword, fetchUserPreferences, saveUserAccount, saveUserPreferences,
   type UserPreferences,
 } from "../../lib/userPreferencesApi";
 
-type AccountForm = {
-  dni: string;
-  email: string;
-  name: string;
-  password: string;
-  phone: string;
-  role: string;
-};
-
-type StudioForm = {
-  address: string;
-  cuit: string;
-  email: string;
-  name: string;
-  phone: string;
-  site: string;
-};
-
-const defaultAccount: AccountForm = {
-  dni: "12.345.678",
-  email: "anarodriguez@gmail.com",
-  name: "Ana Rodriguez",
-  password: "********",
-  phone: "+54 11 1234 5678",
-  role: "Abogada titular",
-};
-
-const defaultStudio: StudioForm = {
-  address: "Av. Corrientes 1234",
-  cuit: "30-12345678-9",
-  email: "estudio@gmail.com",
-  name: "Estudio Rodriguez & Asociados",
-  phone: "+54 11 1234 5678",
-  site: "www.estudiorodriguez.com",
-};
-
-const defaultPreferences: Pick<UserPreferences, "default_view" | "density"> = {
-  default_view: "dashboard",
-  density: "comfortable",
-};
+type Account = { name: string; email: string };
+const inputClass = "mt-1 min-h-11 w-full rounded-xl border border-[#88A9C8] bg-white px-3 py-2 text-base outline-none focus:ring-2 focus:ring-[#546FC0] disabled:bg-slate-100 disabled:text-slate-500";
+const buttonClass = "min-h-11 rounded-xl bg-[#0F2044] px-5 py-2 font-semibold text-white hover:bg-[#26365F] disabled:cursor-not-allowed disabled:opacity-50";
 
 export default function ConfiguracionUsuario() {
   const readOnly = useSecondaryWindow();
-  const [account, setAccount] = useState<AccountForm>(defaultAccount);
-  const [studio, setStudio] = useState<StudioForm>(defaultStudio);
-  const [preferences, setPreferences] = useState(defaultPreferences);
-  const [dateFormat, setDateFormat] = useState("DD/MM/AAAA");
-  const [currency, setCurrency] = useState("Peso Argentino (ARS)");
-  const [timeZone, setTimeZone] = useState("(GMT-3:00) Buenos Aires");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const { refetch } = authClient.useSession();
+  const [account, setAccount] = useState<Account>({ name: "", email: "" });
+  const [savedAccount, setSavedAccount] = useState<Account>({ name: "", email: "" });
+  const [preferences, setPreferences] = useState<UserPreferences | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const canEdit = isEditing && !readOnly;
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [emailConfirmation, setEmailConfirmation] = useState("");
+  const [password, setPassword] = useState({ currentPassword: "", newPassword: "", confirmation: "" });
+  const disabled = readOnly || loading || !preferences || saving !== null;
+  const emailChanged = account.email.trim().toLowerCase() !== savedAccount.email.trim().toLowerCase();
 
   useEffect(() => {
-    let isMounted = true;
-
-    fetchUserPreferences()
-      .then((data) => {
-        if (!isMounted) return;
-
-        setAccount((current) => ({
-          ...current,
-          email: data.user.email || current.email,
-          name: data.user.name || current.name,
-        }));
-        setPreferences({
-          default_view: data.preferences.default_view,
-          density: data.preferences.density,
-        });
-      })
-      .catch((error) => {
-        if (!isMounted) return;
-        setMessage(error instanceof Error ? error.message : "No se pudo cargar la cuenta.");
-      });
-
-    return () => {
-      isMounted = false;
-    };
+    let active = true;
+    fetchUserPreferences().then((data) => {
+      if (!active) return;
+      const loaded = { name: data.user.name || "", email: data.user.email || "" };
+      setAccount(loaded);
+      setSavedAccount(loaded);
+      setPreferences(data.preferences);
+    }).catch((cause) => {
+      if (active) setError(cause instanceof Error ? cause.message : "No se pudo cargar la configuración.");
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
 
-  const updateAccount = (field: keyof AccountForm, value: string) => {
-    setAccount((current) => ({ ...current, [field]: value }));
-  };
-
-  const updateStudio = (field: keyof StudioForm, value: string) => {
-    setStudio((current) => ({ ...current, [field]: value }));
-  };
-
-  const handleSave = async () => {
-    if (readOnly || !isEditing || isSaving) return;
-    if (!currentPassword.trim()) {
-      setMessage("Ingresa tu contrasena actual para guardar cambios.");
-      return;
-    }
-
-    setIsSaving(true);
-    setMessage("");
-
+  async function saveAccount(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (disabled) return;
+    setSaving("account"); setMessage(""); setError("");
     try {
-      await saveUserAccount({
-        currentPassword,
-        email: account.email,
-        emailConfirmation: account.email,
-        name: account.name,
-      });
-      await saveUserPreferences(preferences);
-      setIsEditing(false);
-      setCurrentPassword("");
-      setMessage("Configuracion guardada.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "No se pudo guardar la configuracion.");
-    } finally {
-      setIsSaving(false);
+      const result = await saveUserAccount({ ...account, currentPassword,
+        emailConfirmation: emailChanged ? emailConfirmation : undefined });
+      const updated = { name: result.user.name || "", email: result.user.email || "" };
+      setAccount(updated); setSavedAccount(updated);
+      setCurrentPassword(""); setEmailConfirmation("");
+      await refetch();
+      setMessage("Datos de la cuenta guardados.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo guardar la cuenta.");
+    } finally { setSaving(null); }
+  }
+
+  async function saveNotifications(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (disabled || !preferences) return;
+    setSaving("preferences"); setMessage(""); setError("");
+    try {
+      const data = await saveUserPreferences({ deadline_notifications: preferences.deadline_notifications });
+      setPreferences(data.preferences);
+      setMessage("Preferencias de notificaciones guardadas.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudieron guardar las preferencias.");
+    } finally { setSaving(null); }
+  }
+
+  async function savePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (disabled) return;
+    setMessage(""); setError("");
+    if (password.newPassword !== password.confirmation) {
+      setError("Las contraseñas nuevas no coinciden."); return;
     }
-  };
+    setSaving("password");
+    try {
+      await changeUserPassword({ currentPassword: password.currentPassword, newPassword: password.newPassword });
+      setPassword({ currentPassword: "", newPassword: "", confirmation: "" });
+      setMessage("Contraseña actualizada.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo cambiar la contraseña.");
+    } finally { setSaving(null); }
+  }
 
-  return (
-    <MarcoAplicacion activeSection="Configuracion">
-      <section className="settings-page min-w-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
-        <header className="grid h-[46px] grid-cols-[minmax(180px,1fr)_minmax(260px,420px)_48px_190px] items-center gap-5 border-b-4 border-[#88A9C8] bg-[#F4F7F5] px-10">
-          <h1 className="text-[26px] font-semibold leading-none">Configuracion</h1>
-          <label className="relative block">
-            <SearchIcon className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2" />
-            <input
-              className="h-[32px] w-full rounded-full border-2 border-[#88A9C8] bg-white pl-[48px] pr-4 text-[20px] leading-none outline-none placeholder:text-[#0F2044]"
-              placeholder="Buscar..."
-              type="search"
-            />
-          </label>
-          <Link
-            aria-label="Configuracion"
-            className="grid h-9 w-9 place-items-center justify-self-center rounded-md"
-            href="/configuracion"
-          >
-            <SettingsIcon className="h-8 w-8" />
-          </Link>
-          <div className="justify-self-end">
-            <BotonSesion className="h-9 w-9" />
-          </div>
-        </header>
+  return <MarcoAplicacion activeSection="Configuracion">
+    <section className="settings-page h-full min-h-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
+      <header className="app-header flex min-h-16 items-center justify-between gap-4 border-b border-[#88A9C8] px-8 py-3">
+        <h1 className="brand-font text-[29px] font-semibold">Configuración</h1>
+        <div><BotonSesion /></div>
+      </header>
+      <main className="mx-auto grid max-w-5xl gap-5 px-8 py-6">
+        {readOnly && <p role="status" className="rounded-xl border border-[#88A9C8] bg-white p-4">{secondarySettingsMessage}</p>}
+        {loading && <p role="status">Cargando configuración...</p>}
+        {error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-red-800">{error}</p>}
+        {message && <p role="status" className="rounded-xl border border-green-300 bg-green-50 p-4 text-green-900">{message}</p>}
 
-        <main className="px-[28px] py-[12px]">
-          {readOnly ? (
-            <p className="mb-3 rounded-lg border border-[#88A9C8] bg-white p-3 text-sm" role="status">
-              {secondarySettingsMessage}
-            </p>
-          ) : null}
-          <div className="settings-actions mb-2 flex min-h-[34px] items-center justify-between gap-3">
-            <p className="min-w-0 truncate text-[14px] font-medium">
-              {message || (readOnly ? "Configuracion en modo de consulta." : isEditing ? "Modo edicion activo. Confirma con tu contrasena." : "Vista de configuracion. Usa Editar para modificar datos.")}
-            </p>
-            <div className="flex shrink-0 items-center gap-2">
-              {canEdit ? (
-                <input
-                  className="h-[32px] w-[220px] rounded-[7px] border-2 border-[#88A9C8] bg-white px-3 text-[14px] outline-none"
-                  onChange={(event) => setCurrentPassword(event.target.value)}
-                  placeholder="Contrasena actual"
-                  type="password"
-                  value={currentPassword}
-                />
-              ) : null}
-              <button
-                className="h-[32px] rounded-[7px] border-2 border-[#88A9C8] bg-white px-4 text-[14px] font-semibold transition hover:bg-[#F4F7F5]"
-                disabled={readOnly || isSaving}
-                onClick={() => {
-                  if (readOnly) return;
-                  setMessage("");
-                  setIsEditing((current) => !current);
-                  setCurrentPassword("");
-                }}
-                type="button"
-              >
-                {isEditing ? "Cancelar" : "Editar"}
-              </button>
-              {canEdit ? (
-                <button
-                  className="h-[32px] rounded-[7px] bg-[#0F2044] px-4 text-[14px] font-semibold text-white transition hover:bg-[#26365F] disabled:opacity-60"
-                  disabled={isSaving}
-                  onClick={handleSave}
-                  type="button"
-                >
-                  {isSaving ? "Guardando..." : "Guardar"}
-                </button>
-              ) : null}
+        <form onSubmit={saveAccount} className="surface-card rounded-2xl border border-[#88A9C8] bg-white p-5">
+          <h2 className="text-xl font-semibold">Cuenta</h2>
+          <p className="mt-2 text-sm text-[#0F2044]/70">Los cambios de perfil se confirman con tu contraseña actual. Si ingresás con Google y no tenés contraseña local, administrá estos datos desde tu proveedor de acceso.</p>
+          <fieldset disabled={disabled} className="mt-4 grid grid-cols-1 gap-4 @min-[650px]:grid-cols-2">
+            <label>Nombre completo<input autoComplete="name" className={inputClass} minLength={2} required value={account.name} onChange={(event) => setAccount({ ...account, name: event.target.value })} /></label>
+            <label>Correo electrónico<input autoComplete="email" className={inputClass} required type="email" value={account.email} onChange={(event) => setAccount({ ...account, email: event.target.value })} /></label>
+            {emailChanged && <label>Confirmar nuevo correo<input autoComplete="off" className={inputClass} required type="email" value={emailConfirmation} onChange={(event) => setEmailConfirmation(event.target.value)} /></label>}
+            <label>Contraseña actual<input autoComplete="current-password" className={inputClass} required type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
+            <div className="flex flex-wrap items-end gap-3 @min-[650px]:col-span-2">
+              <button className={buttonClass} type="submit">{saving === "account" ? "Guardando..." : "Guardar cuenta"}</button>
+              <button className="min-h-11 rounded-xl border border-[#88A9C8] px-5 py-2" type="button" onClick={() => {
+                setAccount(savedAccount); setCurrentPassword(""); setEmailConfirmation(""); setMessage(""); setError("");
+              }}>Descartar cambios</button>
             </div>
-          </div>
+          </fieldset>
+        </form>
 
-          <SettingsSection icon={<UserIcon className="h-6 w-6" />} title="Cuenta">
-            <div className="grid grid-cols-3 gap-x-6 gap-y-1.5">
-              <Field disabled={!canEdit} label="Nombre Completo" onChange={(value) => updateAccount("name", value)} value={account.name} />
-              <Field disabled={!canEdit} label="Rol" onChange={(value) => updateAccount("role", value)} value={account.role} />
-              <Field disabled={!canEdit} label="Correo electronico" onChange={(value) => updateAccount("email", value)} type="email" value={account.email} />
-              <Field disabled={!canEdit} label="Telefono" onChange={(value) => updateAccount("phone", value)} value={account.phone} />
-              <Field
-                action={
-                  <button
-                    className="ml-2 h-7 rounded-[4px] border-2 border-[#88A9C8] px-2 text-[13px] transition hover:bg-[#F4F7F5]"
-                    disabled={!canEdit}
-                    type="button"
-                  >
-                    Cambiar
-                  </button>
-                }
-                disabled
-                label="Contrasena"
-                type="password"
-                value={account.password}
-              />
-              <Field disabled={!canEdit} label="DNI" onChange={(value) => updateAccount("dni", value)} value={account.dni} />
-            </div>
-          </SettingsSection>
+        <form onSubmit={savePassword} className="surface-card rounded-2xl border border-[#88A9C8] bg-white p-5">
+          <h2 className="text-xl font-semibold">Cambiar contraseña</h2>
+          <fieldset disabled={disabled} className="mt-4 grid grid-cols-1 gap-4 @min-[650px]:grid-cols-2">
+            <label>Contraseña actual<input autoComplete="current-password" className={inputClass} required type="password" value={password.currentPassword} onChange={(event) => setPassword({ ...password, currentPassword: event.target.value })} /></label>
+            <label>Nueva contraseña<input autoComplete="new-password" className={inputClass} minLength={8} required type="password" value={password.newPassword} onChange={(event) => setPassword({ ...password, newPassword: event.target.value })} /></label>
+            <label>Confirmar nueva contraseña<input autoComplete="new-password" className={inputClass} minLength={8} required type="password" value={password.confirmation} onChange={(event) => setPassword({ ...password, confirmation: event.target.value })} /></label>
+            <div className="flex items-end"><button className={buttonClass} type="submit">{saving === "password" ? "Actualizando..." : "Cambiar contraseña"}</button></div>
+          </fieldset>
+        </form>
 
-          <SettingsSection className="mt-[10px]" icon={<BriefcaseIcon className="h-6 w-6" />} title="Estudio">
-            <div className="grid grid-cols-3 gap-x-6 gap-y-1.5">
-              <Field disabled={!canEdit} label="Nombre del estudio" onChange={(value) => updateStudio("name", value)} value={studio.name} />
-              <Field disabled={!canEdit} label="CUIT" onChange={(value) => updateStudio("cuit", value)} value={studio.cuit} />
-              <Field disabled={!canEdit} label="Direccion" onChange={(value) => updateStudio("address", value)} value={studio.address} />
-              <Field disabled={!canEdit} label="Telefono del estudio" onChange={(value) => updateStudio("phone", value)} value={studio.phone} />
-              <Field disabled={!canEdit} label="Correo del estudio" onChange={(value) => updateStudio("email", value)} type="email" value={studio.email} />
-              <Field disabled={!canEdit} label="Sitio" onChange={(value) => updateStudio("site", value)} value={studio.site} />
-            </div>
-          </SettingsSection>
-
-          <div className="mt-[10px] grid grid-cols-3 gap-6">
-            <SelectField
-              disabled={!canEdit}
-              label="Zona horaria"
-              onChange={setTimeZone}
-              options={["(GMT-3:00) Buenos Aires", "(GMT-3:00) Montevideo", "(GMT-5:00) Bogota"]}
-              value={timeZone}
-            />
-            <SelectField disabled={!canEdit} label="Formato de fecha" onChange={setDateFormat} options={["DD/MM/AAAA", "MM/DD/AAAA", "AAAA-MM-DD"]} value={dateFormat} />
-            <SelectField disabled={!canEdit} label="Moneda" onChange={setCurrency} options={["Peso Argentino (ARS)", "Dolar estadounidense (USD)", "Euro (EUR)"]} value={currency} />
-          </div>
-        </main>
-      </section>
-    </MarcoAplicacion>
-  );
-}
-
-function SettingsSection({
-  children,
-  className = "",
-  icon,
-  title,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  icon: React.ReactNode;
-  title: string;
-}) {
-  return (
-    <section className={`${className} rounded-[18px] border-2 border-[#88A9C8] bg-white/35 px-[14px] pb-[12px] pt-[12px]`}>
-      <h2 className="flex items-center gap-3 text-[22px] font-normal leading-none">
-        {icon}
-        {title}
-      </h2>
-      <div className="mt-2">{children}</div>
+        <form onSubmit={saveNotifications} className="surface-card rounded-2xl border border-[#88A9C8] bg-white p-5">
+          <h2 className="text-xl font-semibold">Notificaciones</h2>
+          <fieldset disabled={disabled} className="mt-4 flex flex-wrap items-center justify-between gap-4">
+            <label className="flex items-center gap-3"><input className="h-5 w-5 accent-[#0F2044]" type="checkbox" checked={preferences?.deadline_notifications ?? false} onChange={(event) => {
+              const checked = event.target.checked;
+              setPreferences((current) => current ? { ...current, deadline_notifications: checked } : current);
+            }} />Recibir notificaciones de vencimientos</label>
+            <button className={buttonClass} type="submit">{saving === "preferences" ? "Guardando..." : "Guardar notificaciones"}</button>
+          </fieldset>
+        </form>
+      </main>
     </section>
-  );
-}
-
-function Field({
-  action,
-  disabled = false,
-  label,
-  onChange,
-  type = "text",
-  value,
-}: {
-  action?: React.ReactNode;
-  disabled?: boolean;
-  label: string;
-  onChange?: (value: string) => void;
-  type?: string;
-  value: string;
-}) {
-  return (
-    <label className="block">
-      <span className="text-[14px] leading-none">{label}</span>
-      <span className="mt-1 flex h-[38px] items-center rounded-[10px] border-2 border-[#88A9C8] bg-white/75 px-[14px]">
-        <input
-          className={`min-w-0 flex-1 bg-transparent text-[15px] leading-none outline-none ${disabled ? "cursor-default" : ""}`}
-          onChange={(event) => onChange?.(event.target.value)}
-          readOnly={disabled}
-          type={type}
-          value={value}
-        />
-        {action}
-      </span>
-    </label>
-  );
-}
-
-function SelectField({
-  disabled,
-  label,
-  onChange,
-  options,
-  value,
-}: {
-  disabled: boolean;
-  label: string;
-  onChange: (value: string) => void;
-  options: string[];
-  value: string;
-}) {
-  return (
-    <label className="block">
-      <span className="text-[14px] leading-none">{label}</span>
-      <span className="relative mt-1 block">
-        <select
-          className="h-[40px] w-full appearance-none rounded-[7px] border-2 border-[#88A9C8] bg-white/75 px-[14px] pr-10 text-[15px] leading-none outline-none"
-          disabled={disabled}
-          onChange={(event) => onChange(event.target.value)}
-          value={value}
-        >
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[18px] leading-none">
-          ▼
-        </span>
-      </span>
-    </label>
-  );
-}
-
-function SettingsIcon({ className = "h-8 w-8" }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path fillRule="evenodd" d="M10.7 2h2.6l.7 2.8c.5.1 1 .3 1.5.6L18 3.9l1.9 1.9-1.5 2.5c.3.5.5 1 .6 1.5l2.8.7v2.6l-2.8.7c-.1.5-.3 1-.6 1.5l1.5 2.5-1.9 1.9-2.5-1.5c-.5.3-1 .5-1.5.6l-.7 2.8h-2.6l-.7-2.8c-.5-.1-1-.3-1.5-.6L6 20.1l-1.9-1.9 1.5-2.5c-.3-.5-.5-1-.6-1.5l-2.8-.7v-2.6l2.8-.7c.1-.5.3-1 .6-1.5L4.1 5.8 6 3.9l2.5 1.5c.5-.3 1-.5 1.5-.6l.7-2.8ZM12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" clipRule="evenodd" />
-    </svg>
-  );
-}
-
-function UserIcon({ className = "h-8 w-8" }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 12.2a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4ZM3.4 21.1c.8-4.3 4-6.7 8.6-6.7s7.8 2.4 8.6 6.7H3.4Z" />
-    </svg>
-  );
-}
-
-function BriefcaseIcon({ className = "h-8 w-8" }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M9 3h6a1 1 0 0 1 1 1v3h4a1.5 1.5 0 0 1 1.5 1.5V20H2.5V8.5A1.5 1.5 0 0 1 4 7h4V4a1 1 0 0 1 1-1Zm1.5 4h3V5.5h-3V7ZM6 10h2.5v7H6v-7Zm9.5 0H18v7h-2.5v-7Z" />
-    </svg>
-  );
-}
-
-function SearchIcon({ className = "h-6 w-6" }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none">
-      <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="2.2" />
-      <path d="m15.5 15.5 5 5" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
-    </svg>
-  );
+  </MarcoAplicacion>;
 }

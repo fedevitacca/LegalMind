@@ -17,12 +17,18 @@ const caseSections = [
 export default function CasesPage() {
   const [cases, setCases] = useState<CaseListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     let active = true;
+    setSearch(new URLSearchParams(window.location.search).get("q") || "");
     fetchCases()
       .then((items) => {
         if (active) setCases(items);
+      })
+      .catch((cause) => {
+        if (active) setError(cause instanceof Error ? cause.message : "No se pudieron cargar los casos.");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -31,12 +37,13 @@ export default function CasesPage() {
       active = false;
     };
   }, []);
-  const activeCases = cases.filter((legalCase) => legalCase.estado !== "archivada");
+  const activeCases = cases.filter((legalCase) => legalCase.estado === "activa");
+  const filteredCases = cases.filter((item) => `${item.name} ${item.identificador || ""} ${item.descripcion || ""}`.toLocaleLowerCase("es").includes(search.trim().toLocaleLowerCase("es")));
 
   return (
     <MarcoAplicacion activeSection="Casos">
       <section className="app-page h-full min-h-0 overflow-y-auto text-[#0F2044]">
-        <PageHeader />
+        <PageHeader search={search} onSearch={setSearch} />
 
         <main className="mx-auto max-w-[1540px] px-9 py-9">
           <section className="surface-card w-full max-w-[288px] rounded-[23px] border border-[#88A9C8] bg-white px-5 py-5">
@@ -45,18 +52,20 @@ export default function CasesPage() {
               Casos activos
             </p>
             <p className="mt-5 text-[38px] font-semibold leading-none">
-              {String(activeCases.length).padStart(2, "0")}
+              {loading || error ? "—" : String(activeCases.length).padStart(2, "0")}
             </p>
             <p className="mt-1 text-[18px] leading-none">
-              {Math.min(cases.length, 3)} actualizados hoy
+              {loading ? "Cargando..." : error ? "Datos no disponibles" : `${cases.length} casos registrados`}
             </p>
           </section>
 
           <section className="mt-5 grid max-w-[792px] gap-[20px]">
             {loading ? (
               <p className="rounded-2xl border border-[#88A9C8] bg-white p-6">Cargando casos...</p>
-            ) : cases.length ? (
-              cases.map((legalCase, index) => (
+            ) : error ? (
+              <p role="alert" className="rounded-2xl border border-red-300 bg-red-50 p-6 text-red-800">{error}</p>
+            ) : filteredCases.length ? (
+              filteredCases.map((legalCase, index) => (
                 <CaseRow
                   key={legalCase.slug}
                   legalCase={legalCase}
@@ -64,7 +73,7 @@ export default function CasesPage() {
                 />
               ))
             ) : (
-              <EmptyState />
+              search.trim() ? <p role="status" className="rounded-2xl border border-[#88A9C8] bg-white p-6">No hay casos que coincidan con la búsqueda.</p> : <EmptyState />
             )}
 
             <NewCaseCard />
@@ -75,7 +84,7 @@ export default function CasesPage() {
   );
 }
 
-function PageHeader() {
+function PageHeader({ search, onSearch }: { search: string; onSearch: (value: string) => void }) {
   return (
     <header className="app-header sticky top-0 z-30 grid min-h-[64px] grid-cols-[minmax(180px,1fr)_minmax(300px,464px)_minmax(286px,auto)] items-center gap-6 px-12">
       <h1 className="brand-font text-[34px] font-semibold leading-none">
@@ -88,6 +97,9 @@ function PageHeader() {
         <input
           className="h-10 w-full rounded-full border border-[#88A9C8]/60 bg-white/90 pl-[52px] pr-5 text-[18px] leading-none shadow-[0_5px_16px_rgba(15,32,68,0.05)] outline-none placeholder:text-[#0F2044]/45"
           placeholder="Buscar..."
+          aria-label="Buscar casos por nombre o identificador"
+          value={search}
+          onChange={(event) => onSearch(event.target.value)}
           type="search"
         />
       </label>

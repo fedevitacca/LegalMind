@@ -159,51 +159,41 @@ export const caseAreas: CaseArea[] = [
 ];
 
 export async function fetchCases(cookieHeader?: string): Promise<CaseListItem[]> {
-  try {
-    const response = await fetch(`${getApiUrl()}/api/casos`, {
-      cache: "no-store",
-      credentials: "include",
-      headers: cookieHeader ? { cookie: cookieHeader } : undefined,
-    });
+  const response = await fetch(`${getApiUrl()}/api/casos`, {
+    cache: "no-store",
+    credentials: "include",
+    headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+  });
 
-    if (!response.ok) {
-      throw new Error("No se pudieron cargar los casos.");
-    }
-
-    const body = (await response.json()) as { cases?: CaseListItem[] };
-    return (body.cases || []).map((legalCase) => ({
-      ...legalCase,
-      areas: caseAreas,
-    }));
-  } catch {
-    return [];
+  if (!response.ok) {
+    throw new Error("No se pudieron cargar los casos.");
   }
+
+  const body = (await response.json()) as { cases?: CaseListItem[] };
+  return (body.cases || []).map((legalCase) => ({
+    ...legalCase,
+    areas: caseAreas,
+  }));
 }
 
 export async function fetchCaseDetail(idCaso: string, cookieHeader?: string): Promise<CaseDetail> {
-  if (/^\d+$/.test(idCaso)) {
-    try {
-      const response = await fetch(`${getApiUrl()}/api/casos/${idCaso}`, {
-        cache: "no-store",
-        credentials: "include",
-        headers: cookieHeader ? { cookie: cookieHeader } : undefined,
-      });
+  if (!/^\d+$/.test(idCaso)) throw new Error("El identificador del expediente no es valido.");
+  const response = await fetch(`${getApiUrl()}/api/casos/${idCaso}`, {
+    cache: "no-store",
+    credentials: "include",
+    headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+  });
 
-      if (!response.ok) {
-        throw new Error("No se pudo cargar el caso.");
-      }
-
-      const body = (await response.json()) as { case?: CaseDetail };
-
-      if (body.case) {
-        return body.case;
-      }
-    } catch {
-      return buildSampleCaseFromSlug(idCaso);
-    }
+  if (!response.ok) {
+    throw new Error("No se pudo cargar el caso.");
   }
 
-  return buildSampleCaseFromSlug(idCaso);
+  const body = (await response.json()) as { case?: CaseDetail };
+
+  if (body.case) {
+    return body.case;
+  }
+  throw new Error("No se pudo cargar el expediente.");
 }
 
 export async function fetchAuthenticatedCaseDetail(idCaso: string): Promise<CaseDetail> {
@@ -278,23 +268,19 @@ export async function createCaseDefendant(
 }
 
 export async function fetchDeadlines(cookieHeader?: string): Promise<CaseDeadline[]> {
-  try {
-    const today = formatDateForQuery(new Date());
-    const response = await fetch(`${getApiUrl()}/api/casos/vencimientos/proximos?desde=${today}&limit=20`, {
-      cache: "no-store",
-      credentials: "include",
-      headers: cookieHeader ? { cookie: cookieHeader } : undefined,
-    });
+  const today = formatDateForQuery(new Date());
+  const response = await fetch(`${getApiUrl()}/api/casos/vencimientos/proximos?desde=${today}&limit=20`, {
+    cache: "no-store",
+    credentials: "include",
+    headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+  });
 
-    if (!response.ok) {
-      throw new Error("No se pudieron cargar los vencimientos.");
-    }
-
-    const body = (await response.json()) as { vencimientos?: CaseDeadline[] };
-    return body.vencimientos || [];
-  } catch {
-    return [];
+  if (!response.ok) {
+    throw new Error("No se pudieron cargar los vencimientos.");
   }
+
+  const body = (await response.json()) as { vencimientos?: CaseDeadline[] };
+  return body.vencimientos || [];
 }
 
 export async function createCaseDate(
@@ -412,34 +398,6 @@ export async function uploadCaseDocument(caseId: number | string, file: File): P
     nombre_archivo: file.name,
     tipo_archivo: "oficial",
   });
-}
-
-function buildSampleCaseFromSlug(slug: string): CaseDetail {
-  const name = slug
-    .split("-")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-
-  return {
-    analisis: {
-      datosClave: [
-        "Caso no encontrado en la base de datos.",
-        "Volver al listado para abrir un expediente guardado.",
-      ],
-      documentosBase: [],
-      generado: "desde la pantalla de nuevo caso",
-      observacion:
-        "Esta ficha se muestra como respaldo cuando no se pudo cargar el expediente.",
-      resumen:
-        "No hay datos guardados para este identificador.",
-    },
-    deadline: "Sin vencimiento cargado",
-    defendants: [],
-    name: name || "Caso nuevo",
-    slug,
-    status: "Borrador",
-  };
 }
 
 function getApiUrl() {

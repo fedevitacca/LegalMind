@@ -81,6 +81,7 @@ Para frontend en Vercel y API en Render, consultar
 
 ```bash
 npm test
+npm --prefix frontend test
 npm run build
 npm run lint
 ```

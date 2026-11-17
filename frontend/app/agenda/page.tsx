@@ -10,6 +10,9 @@ import { fetchCases, fetchDeadlines, type CaseDeadline, type CaseListItem } from
 export default function AgendaPage() {
   const [cases, setCases] = useState<CaseListItem[]>([]);
   const [deadlines, setDeadlines] = useState<CaseDeadline[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -18,7 +21,9 @@ export default function AgendaPage() {
         setCases(nextCases);
         setDeadlines(nextDeadlines);
       }
-    });
+    }).catch((cause) => {
+      if (active) setError(cause instanceof Error ? cause.message : "No se pudo cargar la agenda.");
+    }).finally(() => { if (active) setLoading(false); });
     return () => {
       active = false;
     };
@@ -40,7 +45,10 @@ export default function AgendaPage() {
             </span>
             <input
               className="h-8 w-full rounded-full border-2 border-[#88A9C8] bg-white pl-11 pr-4 text-[18px] leading-none outline-none placeholder:text-[#0F2044]"
-              placeholder="Buscar..."
+              placeholder="Buscar eventos..."
+              aria-label="Buscar eventos por caso o descripción"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
               type="search"
             />
           </label>
@@ -56,7 +64,9 @@ export default function AgendaPage() {
           </div>
         </header>
 
-        <AgendaInteractiva addEventHref={addEventHref} deadlines={deadlines} />
+        {loading ? <p role="status" className="p-6">Cargando agenda...</p> : error ?
+          <p role="alert" className="m-6 rounded-xl border border-red-300 bg-red-50 p-4 text-red-800">{error}</p> :
+          <AgendaInteractiva addEventHref={addEventHref} deadlines={deadlines} search={search} />}
       </section>
     </MarcoAplicacion>
   );

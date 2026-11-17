@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
 import BotonSesion from "../../components/interfaz/BotonSesion";
@@ -27,8 +28,11 @@ const quickActions = [
 ];
 
 export default function Home() {
+  const router = useRouter();
   const [cases, setCases] = useState<CaseListItem[]>([]);
   const [deadlines, setDeadlines] = useState<CaseDeadline[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -37,14 +41,16 @@ export default function Home() {
         setCases(nextCases);
         setDeadlines(nextDeadlines);
       }
-    });
+    }).catch((cause) => {
+      if (active) setError(cause instanceof Error ? cause.message : "No se pudo cargar el dashboard.");
+    }).finally(() => { if (active) setLoading(false); });
     return () => {
       active = false;
     };
   }, []);
   const today = new Date();
   const activeCases = cases.filter(
-    (legalCase) => legalCase.estado !== "archivada",
+    (legalCase) => legalCase.estado === "activa",
   );
   const todayDeadlines = deadlines.filter(
     (deadline) => deadline.dias_restantes === 0,
@@ -57,10 +63,10 @@ export default function Home() {
   const dashboardQuickActions = [
     ...quickActions,
     {
-      detail: "Abrir ultimo caso abierto",
+      detail: "Abrir el caso actualizado más recientemente",
       href: latestCase ? `/casos/${latestCase.slug}` : "/casos",
       icon: "<",
-      title: "Ultimo caso abierto",
+      title: "Caso más reciente",
     },
   ];
 
@@ -71,16 +77,22 @@ export default function Home() {
           <h1 className="brand-font text-[29px] font-semibold leading-none">
             Dashboard
           </h1>
-          <label className="relative block">
+          <form role="search" className="relative block" onSubmit={(event) => {
+            event.preventDefault();
+            const query = String(new FormData(event.currentTarget).get("q") || "").trim();
+            router.push(`/casos${query ? `?q=${encodeURIComponent(query)}` : ""}`);
+          }}>
             <span className="absolute left-5 top-1/2 -translate-y-1/2">
               <SearchIcon />
             </span>
             <input
               className="h-10 w-full rounded-full border border-[#88A9C8]/60 bg-white/90 pl-[52px] pr-5 text-[18px] leading-none shadow-[0_5px_16px_rgba(15,32,68,0.05)] outline-none placeholder:text-[#0F2044]/45"
               placeholder="Buscar..."
+              aria-label="Buscar casos"
+              name="q"
               type="search"
             />
-          </label>
+          </form>
           <div className="flex items-center justify-end gap-5">
             <Link
               aria-label="Configuracion"
@@ -95,30 +107,32 @@ export default function Home() {
 
         <main className="mx-auto grid min-h-[calc(100vh-64px)] max-w-[1540px] grid-cols-1 @min-[1100px]:grid-cols-[minmax(0,1fr)_210px] gap-5 px-9 py-7">
           <section className="flex min-w-0 flex-col gap-4">
+            {loading && <p role="status">Cargando datos...</p>}
+            {error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-red-800">{error}</p>}
             <TodayCard today={today} />
 
             <div className="grid grid-cols-1 @min-[700px]:grid-cols-3 gap-4">
               <MetricCard
-                detail={`${Math.min(cases.length, 3)} actualizados hoy`}
+                detail="Casos en estado activo"
                 icon={<UserIcon className="h-9 w-9" />}
                 label="Casos activos"
-                value={String(activeCases.length).padStart(2, "0")}
+                value={loading || error ? "—" : String(activeCases.length).padStart(2, "0")}
               />
               <MetricCard
                 detail={`${urgentDeadlines.length} vencimientos urgentes`}
                 icon={<ClockIcon className="h-9 w-9" />}
                 label="Vencimientos hoy"
-                value={String(todayDeadlines.length).padStart(2, "0")}
+                value={loading || error ? "—" : String(todayDeadlines.length).padStart(2, "0")}
               />
               <MetricCard
-                detail="Sin analisis pendientes"
-                label="Analisis pendientes"
-                value="00"
+                detail="Archivos registrados en los casos"
+                label="Documentos"
+                value={loading || error ? "—" : String(cases.reduce((total, item) => total + (item.documentos_count || 0), 0)).padStart(2, "0")}
               />
             </div>
 
             <div className="grid grid-cols-1 @min-[900px]:grid-cols-[minmax(0,1.16fr)_minmax(0,0.92fr)] gap-4">
-              <DashboardPanel icon={<HistoryIcon />} title="Actividad reciente">
+              <DashboardPanel icon={<HistoryIcon />} title="Casos recientes">
                 {buildActivity(cases).length ? (
                   <div className="mt-6 grid gap-5">
                     {buildActivity(cases).map((item) => (
@@ -148,7 +162,7 @@ export default function Home() {
 
               <DashboardPanel
                 icon={<ClockIcon className="h-9 w-9" />}
-                title="Vencimientos esta semana"
+                title="Vencimientos en los próximos 7 días"
               >
                 {buildWeekDeadlines(deadlines).length ? (
                   <div className="mt-6 grid gap-5">
@@ -359,7 +373,7 @@ function buildWeekDeadlines(deadlines: CaseDeadline[]) {
     return [];
   }
 
-  return deadlines.slice(0, 2).map((deadline) => ({
+  return deadlines.filter((deadline) => deadline.dias_restantes !== null && deadline.dias_restantes >= 0 && deadline.dias_restantes < 7).slice(0, 2).map((deadline) => ({
     detail: deadline.evento,
     href: `/casos/${deadline.causa_id}/agenda`,
     title: `${deadline.caratula} - ${formatDeadlineDay(deadline)}`,

@@ -97,7 +97,7 @@ textarea {
     padding: 16px;
   }
 
-  .app-shell > section > header > label {
+  .app-shell > section > header > :is(label, form[role="search"]) {
     order: 3;
     flex: 1 0 100%;
     min-width: 0;
@@ -116,7 +116,7 @@ textarea {
     line-height: 1.2;
   }
 
-  .app-shell > section > header > label input {
+  .app-shell > section > header > :is(label, form[role="search"]) input {
     font-size: 1rem;
     min-height: 44px;
   }

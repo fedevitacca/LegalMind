@@ -8,6 +8,7 @@ export default function CentroIAUnificado() {
   const [cases, setCases] = useState<CaseListItem[]>([]);
   const [caseId, setCaseId] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -17,6 +18,8 @@ export default function CentroIAUnificado() {
       setCases(items);
       const available = items.some((item) => String(item.id) === requested);
       setCaseId(available ? requested : items[0] ? String(items[0].id) : "");
+    }).catch((cause) => {
+      if (active) setError(cause instanceof Error ? cause.message : "No se pudieron cargar los expedientes.");
     }).finally(() => {
       if (active) setLoading(false);
     });
@@ -53,11 +56,12 @@ export default function CentroIAUnificado() {
         </label>
       </header>
 
+      {error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-red-800">{error}</p>}
       <div className="min-h-0 flex-1">
         {selectedCase ? <ChatExpediente key={caseId} caseId={caseId} caseName={selectedCase.name} embedded /> : (
           <div className="grid h-full min-h-[420px] place-items-center rounded-[23px] border-2 border-[#88A9C8] bg-white p-8 text-center">
             <div><h2 className="text-xl font-semibold">{loading ? "Cargando expedientes..." : "No hay un expediente seleccionado"}</h2>
-              {!loading && <p className="mt-2 text-sm text-[#0F2044]/60">Creá o seleccioná un caso para consultar sus documentos y usar las herramientas.</p>}</div>
+              {!loading && !error && <p className="mt-2 text-sm text-[#0F2044]/60">Creá o seleccioná un caso para consultar sus documentos y usar las herramientas.</p>}</div>
           </div>
         )}
       </div>

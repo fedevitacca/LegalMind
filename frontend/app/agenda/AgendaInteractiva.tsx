@@ -23,13 +23,15 @@ const monthNames = [
 export default function AgendaInteractiva({
   addEventHref,
   deadlines,
+  search = "",
 }: {
   addEventHref: string;
   deadlines: CaseDeadline[];
+  search?: string;
 }) {
   const datedDeadlines = useMemo(
-    () => deadlines.filter((deadline) => deadline.fecha),
-    [deadlines],
+    () => deadlines.filter((deadline) => deadline.fecha && `${deadline.caratula} ${deadline.evento} ${deadline.expediente || ""}`.toLocaleLowerCase("es").includes(search.trim().toLocaleLowerCase("es"))),
+    [deadlines, search],
   );
   const initialDate = useMemo(() => getSelectedDate(datedDeadlines), [datedDeadlines]);
   const [selectedDate, setSelectedDate] = useState(initialDate);
@@ -39,7 +41,7 @@ export default function AgendaInteractiva({
   const calendarDays = useMemo(() => getCalendarDays(visibleMonth), [visibleMonth]);
   const selectedKey = toDateKey(selectedDate);
   const eventsByDate = useMemo(() => groupEventsByDate(datedDeadlines), [datedDeadlines]);
-  const displayEvents = eventsByDate.get(selectedKey) || [];
+  const displayEvents = search.trim() ? datedDeadlines : eventsByDate.get(selectedKey) || [];
   const upcomingThisWeek = countUpcomingThisWeek(datedDeadlines);
 
   function selectDay(date: Date) {
@@ -59,7 +61,7 @@ export default function AgendaInteractiva({
         <p className="mt-3 text-[29px] font-semibold leading-none">
           {String(upcomingThisWeek).padStart(2, "0")}
         </p>
-        <p className="mt-1 text-[14px] leading-none">Esta semana</p>
+        <p className="mt-1 text-[14px] leading-none">Próximos 7 días</p>
       </section>
 
       <section className="agenda-columns grid min-h-0 grid-cols-1 @min-[1100px]:grid-cols-[minmax(0,720px)_306px] gap-3">
@@ -133,7 +135,7 @@ export default function AgendaInteractiva({
 
         <aside className="min-h-0 overflow-hidden rounded-[14px] border-2 border-[#88A9C8] bg-white px-5 py-4">
           <h2 className="text-[20px] leading-none">
-            Eventos {formatPanelDate(selectedDate)}
+            {search.trim() ? "Resultados de búsqueda" : `Eventos ${formatPanelDate(selectedDate)}`}
           </h2>
           <div className="mt-3">
             {displayEvents.length ? (
@@ -142,6 +144,7 @@ export default function AgendaInteractiva({
                   className={`py-3 ${index ? "border-t border-[#88A9C8]" : ""}`}
                   key={event.id}
                 >
+                  {search.trim() && event.fecha && <p className="mb-2 text-sm">{new Date(event.fecha).toLocaleDateString("es-AR")}</p>}
                   <p className="text-[30px] font-semibold leading-none">
                     {formatTime(event.fecha)}
                   </p>
@@ -210,7 +213,7 @@ function getCalendarDays(month: Date) {
 function countUpcomingThisWeek(deadlines: CaseDeadline[]) {
   return deadlines.filter((deadline) => {
     if (deadline.dias_restantes === null) return false;
-    return deadline.dias_restantes >= 0 && deadline.dias_restantes <= 7;
+    return deadline.dias_restantes >= 0 && deadline.dias_restantes < 7;
   }).length;
 }
 
