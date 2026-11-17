@@ -7,6 +7,7 @@ const TOOL_DEFINITIONS = {
     fields: ["expediente", "jurisdiccion", "objetivo"],
     maxOutputTokens: 720,
     maxContextChunks: 6,
+    chatInstruction: "Resumí el caso: empezá por el hecho que originó la investigación, luego explicá cómo está hoy y cuál es el próximo paso. Incluí cifras y fechas clave si están respaldadas.",
     instruction: [
       "Prepará un informe ejecutivo del expediente, con suficiente desarrollo para que otro abogado comprenda el asunto sin releer toda la fuente.",
       "Organizá el desarrollo en: identificación y objeto; partes y roles; hechos relevantes; estado procesal; fechas o plazos; y lectura práctica.",
@@ -21,6 +22,7 @@ const TOOL_DEFINITIONS = {
     fields: ["tipo_documento_a", "tipo_documento_b", "criterio_comparacion"],
     maxOutputTokens: 780,
     maxContextChunks: 6,
+    chatInstruction: "Compará los dos documentos elegidos. Empezá por la diferencia o coincidencia más importante y explicá qué sostiene cada uno. Citá ambos y distinguí las contradicciones de las omisiones.",
     instruction: [
       "Prepará una comparación jurídica razonada de ambas fuentes.",
       "Desarrollá: objeto y alcance de cada documento; coincidencias; diferencias relevantes; contradicciones u omisiones; y posible impacto procesal o probatorio.",
@@ -35,6 +37,7 @@ const TOOL_DEFINITIONS = {
     fields: ["criterio_comparacion"],
     maxOutputTokens: 780,
     maxContextChunks: 6,
+    chatInstruction: "Compará las fichas de las dos personas elegidas. Indicá qué está registrado para cada una, qué coincide y qué queda por verificar. Tratá las fichas como registros, sin inferir culpabilidad.",
     instruction: [
       "Compará las fichas registradas de los dos imputados del expediente.",
       "Identificá a cada persona y desarrollá roles, hechos registrados, coincidencias, diferencias y datos pendientes de verificación.",
@@ -50,6 +53,7 @@ const TOOL_DEFINITIONS = {
     fields: ["problema_juridico", "jurisdiccion", "posicion_procesal"],
     maxOutputTokens: 780,
     maxContextChunks: 6,
+    chatInstruction: "Compará los dos fallos elegidos. Señalá sus criterios, la diferencia decisiva y qué utilidad tendría cada uno para la pregunta. Aclaralo si las fuentes no permiten establecer su aplicabilidad.",
     instruction: [
       "Compará los fallos con enfoque práctico y argumentativo.",
       "Desarrollá: hechos jurídicamente relevantes; cuestión debatida; criterio o regla aplicada; semejanzas y diferencias determinantes; aplicabilidad al caso; y límites del paralelo.",
@@ -64,6 +68,7 @@ const TOOL_DEFINITIONS = {
     fields: ["fecha_corte", "incluir_inferidas"],
     maxOutputTokens: 680,
     maxContextChunks: 6,
+    chatInstruction: "Ordená las fechas relevantes. Si la pregunta es por lo próximo, empezá por el primer plazo o audiencia vigente. Indicá qué fechas quedaron sin efecto y quién debe actuar si consta.",
     instruction: [
       "Reconstruí la secuencia temporal y explicá por qué importa cada hito.",
       "Desarrollá: antecedentes; actuaciones cumplidas; situación actual; próximos hitos; y plazos o dependencias que requieren control.",
@@ -93,6 +98,7 @@ const TOOL_DEFINITIONS = {
     fields: ["parte_representada", "hipotesis_central", "etapa_procesal"],
     maxOutputTokens: 780,
     maxContextChunks: 6,
+    chatInstruction: "Explicá la hipótesis principal, la evidencia favorable, la evidencia que la debilita y qué conviene verificar. Presentá las hipótesis como provisionales y vinculá cada punto con fuentes.",
     instruction: [
       "Prepará una teoría del caso provisional, concreta y contrastable.",
       "Desarrollá: hipótesis central; proposiciones fácticas; evidencia favorable; evidencia adversa o explicaciones alternativas; debilidades; y comprobaciones pendientes.",

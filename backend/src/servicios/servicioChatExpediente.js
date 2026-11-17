@@ -1,4 +1,4 @@
-const { runCaseChatWithLocalAI, runCaseChatPlainWithLocalAI, runLegalToolWithLocalAI,
+const { runCaseChatWithLocalAI, runCaseChatPlainWithLocalAI,
   embedTextsWithLocalAI, getLocalAIConfig } = require("../../IA/analizadorLocal");
 const { buildStructuredCaseDocuments } = require("../../IA/contextoExpediente");
 const { retrieveRelevantChunks } = require("../../IA/ragLocal");
@@ -41,7 +41,10 @@ async function answerCaseChat({ organizationId, caseId, question, history = [], 
     ? prepareToolInput({ toolId, toolParameters, documents, defendants, jurisprudence, question })
     : null;
   const corpus = [buildCaseOverview(caseId, defendants), ...structuredDocuments, ...documents];
-  const lexicalChunks = retrieveRelevantChunks(corpus, retrievalQuery, 12)
+  const lexicalQuery = toolId === "resumen_expediente"
+    ? `${retrievalQuery} hechos principales denuncia origen investigación hallazgo situación actual próxima audiencia`
+    : retrievalQuery;
+  const lexicalChunks = retrieveRelevantChunks(corpus, lexicalQuery, 12)
     .map((chunk) => ({ ...chunk, source_type: chunk.metadata?.source_type || "expediente" }));
 
   let queryEmbedding = null;
@@ -58,7 +61,14 @@ async function answerCaseChat({ organizationId, caseId, question, history = [], 
         semantic_score: Number(item.semantic_score), metadata: item.metadata_json, source_type: "expediente" }));
     } catch (error) { console.warn("Chat sin indice vectorial persistido:", error.message); }
   }
-  const caseChunks = fuseRankings(lexicalChunks, semanticChunks, 7);
+  const rankedCaseChunks = fuseRankings(lexicalChunks, semanticChunks, 7);
+  const caseChunks = toolId === "resumen_expediente"
+    ? mergeToolChunks(
+      retrieveRelevantChunks(documents, "denuncia inicial inventario faltante hechos que originaron la investigación", 2),
+      rankedCaseChunks,
+      7,
+    )
+    : rankedCaseChunks;
   let legalChunks = [];
   try { legalChunks = await searchLegalLibrary({ query: retrievalQuery, queryEmbedding, limit: 3 }); }
   catch (error) { console.warn("Chat sin biblioteca juridica:", error.message); }
@@ -71,64 +81,55 @@ async function answerCaseChat({ organizationId, caseId, question, history = [], 
   let answer;
   let suggestedQuestions = [];
   let limitations = [];
-  let engine = "ollama_case_chat";
+  let engine = selectedTool ? `ollama_tool_${toolId}` : "ollama_case_chat";
   let fallbackReason = null;
-  const generationTimeoutMs = Math.max(15000, Math.min(getLocalAIConfig().timeoutMs, 60000));
-  const generationTokens = Math.max(650, getLocalAIConfig().maxOutputTokens);
+  const config = getLocalAIConfig();
+  const generationTimeoutMs = Math.max(15000, Math.min(config.timeoutMs, 60000));
+  const generationTokens = Math.max(650, config.maxOutputTokens);
 
   if (!chunks.length) {
     answer = "No encontre informacion suficiente en el expediente para responder. Carga documentos o registra datos del caso y volve a intentarlo.";
     limitations = ["El expediente no contiene fragmentos recuperables para esta consulta."];
     engine = "no_evidence";
   } else {
+    const request = {
+      question, history, task: selectedTool?.chatInstruction, comparison: toolInput,
+      timeoutMs: generationTimeoutMs,
+      maxOutputTokens: selectedTool ? Math.min(generationTokens, selectedTool.maxOutputTokens) : generationTokens,
+      context: chunks.map((chunk, index) => ({
+        documentName: chunk.document_name, location: citations[index]?.location_label, text: chunk.text,
+      })),
+    };
     try {
-      if (selectedTool) {
-        const result = await runLegalToolWithLocalAI({ toolId,
-          primaryText: toolInput?.primaryText || "Analiza exclusivamente los pasajes recuperados del expediente.",
-          secondaryText: toolInput?.secondaryText || "",
-          query: question, parameters: { scope: "case", conversation: true },
-          context: chunks.map((chunk, index) => `[FUENTE ${index + 1}] ${chunk.document_name}: ${chunk.text}`),
-          timeoutMs: generationTimeoutMs, maxOutputTokens: generationTokens });
-        answer = formatToolResult(result);
-        limitations = result.limitaciones || [];
-        suggestedQuestions = result.acciones_sugeridas || [];
-        engine = `ollama_tool_${toolId}`;
+      let result;
+      if (config.baseUrl === "https://ollama.com") {
+        result = await runCaseChatPlainWithLocalAI(request);
       } else {
-        const result = await runCaseChatWithLocalAI({ question, history, timeoutMs: generationTimeoutMs,
-          maxOutputTokens: generationTokens, context: chunks.map((chunk, index) => ({
-          documentName: chunk.document_name, location: citations[index]?.location_label, text: chunk.text,
-        })) });
-        if (!result.answer) throw new Error("El modelo no devolvio una respuesta conversacional.");
-        answer = normalizeSourceMarkers(result.answer, chunks.length);
-        suggestedQuestions = result.suggestedQuestions;
-        limitations = result.limitations;
+        try {
+          result = await runCaseChatWithLocalAI(request);
+          if (!result.answer) throw new Error("El modelo no devolvio una respuesta conversacional.");
+        } catch (error) {
+          fallbackReason = error.message;
+          result = await runCaseChatPlainWithLocalAI(request);
+          engine = selectedTool ? `ollama_plain_retry_${toolId}` : "ollama_case_chat_plain_retry";
+        }
       }
+      answer = cleanChatAnswer(result.answer, chunks.length);
+      suggestedQuestions = result.suggestedQuestions;
+      limitations = result.limitations;
     } catch (error) {
-      try {
-        const retryQuestion = selectedTool
-          ? `${selectedTool.instruction}\n\nSolicitud del abogado: ${question}` : question;
-        const retry = await runCaseChatPlainWithLocalAI({ question: retryQuestion, history,
-          timeoutMs: generationTimeoutMs, maxOutputTokens: generationTokens,
-          context: chunks.map((chunk, index) => ({ documentName: chunk.document_name,
-            location: citations[index]?.location_label, text: chunk.text })) });
-        answer = normalizeSourceMarkers(retry.answer, chunks.length);
-        limitations = ["La salida estructurada no estuvo disponible; Ollama redacto la respuesta en formato libre."];
-        engine = selectedTool ? `ollama_plain_retry_${toolId}` : "ollama_case_chat_plain_retry";
-        fallbackReason = error.message;
-      } catch (retryError) {
-        const fallback = buildGroundedLegalAnswer({ question: retrievalQuery,
-          caseChunks: toolInput?.chunks?.length ? toolInput.chunks : caseChunks, legalChunks });
-        answer = fallback.answer;
-        limitations = ["Ollama no estuvo disponible; se muestran extractos recuperados como ultimo recurso."];
-        engine = "extractive_chat_fallback";
-        fallbackReason = `${error.message} | Reintento: ${retryError.message}`;
-      }
+      const fallback = buildGroundedLegalAnswer({ question: retrievalQuery,
+        caseChunks: toolInput?.chunks?.length ? toolInput.chunks : caseChunks, legalChunks });
+      answer = fallback.answer;
+      limitations = ["Ollama no estuvo disponible; se muestran extractos recuperados como ultimo recurso."];
+      engine = "extractive_chat_fallback";
+      fallbackReason = [fallbackReason, error.message].filter(Boolean).join(" | Reintento: ");
     }
   }
 
   return { answer, retrievalQuery, citations, metadata: { engine, tool_id: selectedTool ? toolId : null,
     tool_parameters: selectedTool ? compactToolParameters(toolParameters) : null,
-    model: engine.startsWith("ollama") ? getLocalAIConfig().model : null,
+    model: engine.startsWith("ollama") ? config.model : null,
     evidence, suggested_questions: suggestedQuestions.slice(0, 3), limitations: limitations.slice(0, 3),
     case_chunks: caseChunks.length, legal_chunks: legalChunks.length,
     conversation_messages_used: Math.min(history.length, 8), duration_ms: Date.now() - startedAt,
@@ -292,13 +293,6 @@ function fuseRankings(lexicalChunks, semanticChunks, limit) {
     .sort((left, right) => right.score - left.score).slice(0, limit);
 }
 
-function formatToolResult(result) {
-  return [result.conclusion,
-    ...(result.puntos_clave || []).map((point) => `- ${point}`),
-    ...(result.desarrollo || []).map((section) => `${section.titulo}\n${section.contenido}`),
-  ].filter(Boolean).join("\n\n");
-}
-
 function handleConversationalIntent(question) {
   const normalized = String(question || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[!?.,]/g, "").trim();
   if (/^(hola|buenas|buen dia|buenas tardes|buenas noches)$/.test(normalized)) {
@@ -313,10 +307,17 @@ function handleConversationalIntent(question) {
 }
 
 function normalizeSourceMarkers(value, sourceCount) {
-  return String(value || "").replace(/\[FUENTE\s+(\d+)\]/gi, (match, number) => {
-    const index = Number(number);
-    return index >= 1 && index <= sourceCount ? `[${index}]` : "[fuente no verificada]";
-  });
+  return String(value || "").replace(/\[((?:FUENTE\s+)?\d+(?:\s*[,;]\s*(?:FUENTE\s+)?\d+)*)\]/gi,
+    (_, markers) => markers.match(/\d+/g).map(Number).map((index) =>
+      index >= 1 && index <= sourceCount ? `[${index}]` : "[fuente no verificada]").join(" "));
+}
+
+function cleanChatAnswer(value, sourceCount) {
+  return normalizeSourceMarkers(value, sourceCount)
+    .replace(/^[ \t]{0,3}#{1,6}[ \t]+/gm, "")
+    .replace(/\*\*([^*\n]+)\*\*/g, "$1")
+    .replace(/^[ \t]*\*[ \t]+/gm, "- ")
+    .trim();
 }
 
 module.exports = { CHAT_TOOL_IDS, answerCaseChat, buildConversationAwareQuery, fuseRankings,

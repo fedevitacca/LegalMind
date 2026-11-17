@@ -51,7 +51,7 @@ describe("mensajes del chat del expediente", () => {
     resetSessionResolverForTests(); resetAuthorizationResolverForTests();
     await new Promise((resolve) => server.close(resolve));
   });
-  function send(content) { return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }) }); }
+  function send(content, toolId) { return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content, tool_id: toolId }) }); }
 
   it("genera y guarda ambos mensajes con sus citas en una transaccion", async () => {
     const response = await send("Cuando es la audiencia del expediente?");
@@ -71,6 +71,29 @@ describe("mensajes del chat del expediente", () => {
     assert.equal(savedMetadata.engine, "extractive_chat_fallback");
     assert.match(body.assistant_message.content, /12 de mayo/);
     assert.ok(statements.includes("COMMIT"));
+  });
+
+  it("resume en lenguaje conversacional y normaliza las citas al usar Ollama Cloud", async () => {
+    const previousUrl = process.env.LOCAL_AI_BASE_URL;
+    process.env.LOCAL_AI_BASE_URL = "https://ollama.com";
+    const requests = [];
+    setLocalAIClientFactoryForTests(() => ({ chat: async (payload) => {
+      requests.push(payload);
+      return "**La audiencia es el 12 de mayo.** [FUENTE 1, FUENTE 2]";
+    } }));
+    try {
+      const response = await send("Resumí el expediente", "resumen_expediente");
+      const body = await response.json();
+      assert.equal(response.status, 201);
+      assert.equal(requests.length, 1);
+      assert.equal(requests[0].format, null);
+      assert.match(requests[0].messages[0].content, /empezá por el hecho/);
+      assert.equal(body.assistant_message.content, "La audiencia es el 12 de mayo. [1] [2]");
+      assert.equal(savedMetadata.engine, "ollama_tool_resumen_expediente");
+    } finally {
+      if (previousUrl === undefined) delete process.env.LOCAL_AI_BASE_URL;
+      else process.env.LOCAL_AI_BASE_URL = previousUrl;
+    }
   });
 
   it("guarda saludos sin invocar al modelo", async () => {
