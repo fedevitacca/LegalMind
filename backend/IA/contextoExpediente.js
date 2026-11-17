@@ -1,110 +1,110 @@
-function buildStructuredCaseDocuments({ tasks = [], hearings = [], dates = [], communications = [] } = {}) {
+function crearDocumentosDelContexto({ tasks: tareas = [], hearings: audiencias = [], dates: fechas = [], communications: comunicaciones = [] } = {}) {
   return [
-    buildDocument(
+    crearDocumento(
       "gestion-tareas",
       "Tareas del expediente",
-      tasks.filter((item) => item.estado !== "cancelada").slice(0, 40).map(formatTask),
+      tareas.filter((elemento) => elemento.estado !== "cancelada").slice(0, 40).map(formatearTarea),
       "Tareas"
     ),
-    buildDocument(
+    crearDocumento(
       "gestion-audiencias",
       "Audiencias del expediente",
-      hearings.slice(0, 30).map(formatHearing),
+      audiencias.slice(0, 30).map(formatearAudiencia),
       "Audiencias"
     ),
-    buildDocument(
+    crearDocumento(
       "gestion-fechas",
       "Fechas registradas del expediente",
-      dates.slice(0, 50).map(formatDate),
+      fechas.slice(0, 50).map(formatearFecha),
       "Fechas"
     ),
-    buildDocument(
+    crearDocumento(
       "gestion-comunicaciones",
       "Comunicaciones del expediente",
-      communications.filter((item) => !item.privada).slice(0, 30).map(formatCommunication),
+      comunicaciones.filter((elemento) => !elemento.privada).slice(0, 30).map(formatearComunicacion),
       "Comunicaciones"
     ),
   ].filter(Boolean);
 }
 
-function buildDocument(id, name, entries, section) {
-  const text = entries.filter(Boolean).join("\n");
-  if (!text) return null;
+function crearDocumento(id, nombre, entradas, seccion) {
+  const texto = entradas.filter(Boolean).join("\n");
+  if (!texto) return null;
   return {
     id,
-    nombre_archivo: name,
-    texto_extraido: text,
-    metadata: { section, source_type: "case_management" },
+    nombre_archivo: nombre,
+    texto_extraido: texto,
+    metadata: { section: seccion, source_type: "case_management" },
   };
 }
 
-function formatTask(item) {
-  const pendingItems = normalizeArray(item.items)
-    .filter((entry) => !entry.completado)
-    .map((entry) => entry.texto)
+function formatearTarea(elemento) {
+  const asuntosPendientes = normalizarArreglo(elemento.items)
+    .filter((entrada) => !entrada.completado)
+    .map((entrada) => entrada.texto)
     .filter(Boolean);
-  return sentence([
-    `Tarea: ${item.titulo || "sin titulo"}`,
-    item.estado ? `estado ${item.estado}` : "",
-    item.prioridad ? `prioridad ${item.prioridad}` : "",
-    item.fecha_limite ? `fecha limite ${formatValue(item.fecha_limite)}` : "",
-    item.responsable_nombre ? `responsable ${item.responsable_nombre}` : "",
-    item.descripcion,
-    pendingItems.length ? `items pendientes: ${pendingItems.join(", ")}` : "",
+  return oracion([
+    `Tarea: ${elemento.titulo || "sin titulo"}`,
+    elemento.estado ? `estado ${elemento.estado}` : "",
+    elemento.prioridad ? `prioridad ${elemento.prioridad}` : "",
+    elemento.fecha_limite ? `fecha limite ${formatearValor(elemento.fecha_limite)}` : "",
+    elemento.responsable_nombre ? `responsable ${elemento.responsable_nombre}` : "",
+    elemento.descripcion,
+    asuntosPendientes.length ? `items pendientes: ${asuntosPendientes.join(", ")}` : "",
   ]);
 }
 
-function formatHearing(item) {
-  return sentence([
-    `Audiencia: ${item.titulo || "sin titulo"}`,
-    item.fecha ? `fecha ${formatValue(item.fecha)}` : "",
-    item.lugar ? `lugar ${item.lugar}` : "",
-    item.estado ? `estado ${item.estado}` : "",
-    item.participantes ? `participantes ${item.participantes}` : "",
-    item.objetivo ? `objetivo ${item.objetivo}` : "",
-    item.argumentos ? `argumentos ${item.argumentos}` : "",
-    item.preguntas ? `preguntas preparadas ${item.preguntas}` : "",
-    item.objeciones ? `objeciones previstas ${item.objeciones}` : "",
-    item.resultado ? `resultado ${item.resultado}` : "",
-    item.proximas_acciones ? `proximas acciones ${item.proximas_acciones}` : "",
+function formatearAudiencia(elemento) {
+  return oracion([
+    `Audiencia: ${elemento.titulo || "sin titulo"}`,
+    elemento.fecha ? `fecha ${formatearValor(elemento.fecha)}` : "",
+    elemento.lugar ? `lugar ${elemento.lugar}` : "",
+    elemento.estado ? `estado ${elemento.estado}` : "",
+    elemento.participantes ? `participantes ${elemento.participantes}` : "",
+    elemento.objetivo ? `objetivo ${elemento.objetivo}` : "",
+    elemento.argumentos ? `argumentos ${elemento.argumentos}` : "",
+    elemento.preguntas ? `preguntas preparadas ${elemento.preguntas}` : "",
+    elemento.objeciones ? `objeciones previstas ${elemento.objeciones}` : "",
+    elemento.resultado ? `resultado ${elemento.resultado}` : "",
+    elemento.proximas_acciones ? `proximas acciones ${elemento.proximas_acciones}` : "",
   ]);
 }
 
-function formatDate(item) {
-  return sentence([
-    `Fecha registrada: ${item.evento || "evento sin titulo"}`,
-    item.fecha ? formatValue(item.fecha) : item.fecha_texto,
-    item.tipo ? `tipo ${item.tipo}` : "",
-    item.estado ? `estado ${item.estado}` : "",
-    item.prioridad ? `prioridad ${item.prioridad}` : "",
-    item.requiere_alerta ? "requiere alerta" : "",
+function formatearFecha(elemento) {
+  return oracion([
+    `Fecha registrada: ${elemento.evento || "evento sin titulo"}`,
+    elemento.fecha ? formatearValor(elemento.fecha) : elemento.fecha_texto,
+    elemento.tipo ? `tipo ${elemento.tipo}` : "",
+    elemento.estado ? `estado ${elemento.estado}` : "",
+    elemento.prioridad ? `prioridad ${elemento.prioridad}` : "",
+    elemento.requiere_alerta ? "requiere alerta" : "",
   ]);
 }
 
-function formatCommunication(item) {
-  return sentence([
-    `Comunicacion: ${item.asunto || item.tipo || "sin asunto"}`,
-    item.fecha ? `fecha ${formatValue(item.fecha)}` : "",
-    item.tipo ? `tipo ${item.tipo}` : "",
-    item.resumen,
-    item.compromisos ? `compromisos ${item.compromisos}` : "",
-    item.proximo_contacto ? `proximo contacto ${formatValue(item.proximo_contacto)}` : "",
+function formatearComunicacion(elemento) {
+  return oracion([
+    `Comunicacion: ${elemento.asunto || elemento.tipo || "sin asunto"}`,
+    elemento.fecha ? `fecha ${formatearValor(elemento.fecha)}` : "",
+    elemento.tipo ? `tipo ${elemento.tipo}` : "",
+    elemento.resumen,
+    elemento.compromisos ? `compromisos ${elemento.compromisos}` : "",
+    elemento.proximo_contacto ? `proximo contacto ${formatearValor(elemento.proximo_contacto)}` : "",
   ]);
 }
 
-function sentence(parts) {
-  const value = parts.map((part) => String(part || "").trim()).filter(Boolean).join(". ");
-  return value ? `${value.replace(/[.\s]+$/g, "")}.` : "";
+function oracion(partes) {
+  const valor = partes.map((parte) => String(parte || "").trim()).filter(Boolean).join(". ");
+  return valor ? `${valor.replace(/[.\s]+$/g, "")}.` : "";
 }
 
-function normalizeArray(value) {
-  if (Array.isArray(value)) return value;
-  try { return JSON.parse(value || "[]"); } catch { return []; }
+function normalizarArreglo(valor) {
+  if (Array.isArray(valor)) return valor;
+  try { return JSON.parse(valor || "[]"); } catch { return []; }
 }
 
-function formatValue(value) {
-  if (value instanceof Date) return value.toISOString();
-  return String(value || "");
+function formatearValor(valor) {
+  if (valor instanceof Date) return valor.toISOString();
+  return String(valor || "");
 }
 
-module.exports = { buildStructuredCaseDocuments };
+module.exports = { crearDocumentosDelContexto };

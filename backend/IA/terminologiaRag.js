@@ -1,4 +1,4 @@
-const LEGAL_QUERY_GROUPS = [
+const GRUPOS_TERMINOS_JURIDICOS = [
   ["imputado", "acusado", "procesado", "encausado", "investigado"],
   ["victima", "damnificado", "denunciante", "querellante"],
   ["audiencia", "comparendo", "vista", "debate", "indagatoria"],
@@ -16,33 +16,33 @@ const LEGAL_QUERY_GROUPS = [
   ["medida cautelar", "cautelar", "embargo", "inhibicion", "prision preventiva"],
 ];
 
-function expandLegalQuery(value) {
-  const original = String(value || "").trim();
+function ampliarConsultaJuridica(valor) {
+  const original = String(valor || "").trim();
   if (!original) return "";
-  const normalized = normalize(original);
-  const additions = LEGAL_QUERY_GROUPS
-    .filter((group) => group.some((term) => containsTerm(normalized, normalize(term))))
-    .flatMap((group) => group)
-    .filter((term) => !containsTerm(normalized, normalize(term)));
-  return [...new Set([original, ...additions])].join(" ");
+  const normalizado = normalizar(original);
+  const terminosAdicionales = GRUPOS_TERMINOS_JURIDICOS
+    .filter((grupo) => grupo.some((termino) => contieneTermino(normalizado, normalizar(termino))))
+    .flatMap((grupo) => grupo)
+    .filter((termino) => !contieneTermino(normalizado, normalizar(termino)));
+  return [...new Set([original, ...terminosAdicionales])].join(" ");
 }
 
-function containsTerm(value, term) {
-  const valueTokens = value.split(" ").map(stemToken);
-  const termTokens = term.split(" ").map(stemToken);
-  return valueTokens.some((_, index) =>
-    termTokens.every((token, offset) => valueTokens[index + offset] === token)
+function contieneTermino(valor, termino) {
+  const tokensValor = valor.split(" ").map(reducirTerminoARaiz);
+  const tokensTermino = termino.split(" ").map(reducirTerminoARaiz);
+  return tokensValor.some((_, indice) =>
+    tokensTermino.every((token, desplazamiento) => tokensValor[indice + desplazamiento] === token)
   );
 }
 
-function stemToken(token) {
+function reducirTerminoARaiz(token) {
   if (token.length > 5 && token.endsWith("es")) return token.slice(0, -2);
   if (token.length > 4 && token.endsWith("s")) return token.slice(0, -1);
   return token;
 }
 
-function normalize(value) {
-  return String(value || "")
+function normalizar(valor) {
+  return String(valor || "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -51,4 +51,4 @@ function normalize(value) {
     .trim();
 }
 
-module.exports = { expandLegalQuery, LEGAL_QUERY_GROUPS };
+module.exports = { ampliarConsultaJuridica, GRUPOS_TERMINOS_JURIDICOS };

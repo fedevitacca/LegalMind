@@ -4,7 +4,7 @@ const { describe, it } = require("node:test");
 process.env.DATABASE_URL = process.env.DATABASE_URL || "postgres://test:test@localhost/test";
 
 const { pool } = require("../configuracion/baseDatos");
-const { saveLegalAnalysis } = require("./repositorioIA");
+const { guardarAnalisisJuridico } = require("./repositorioIA");
 
 describe("repositorioIA", () => {
   it("persiste analisis normalizando alertas y estado documental", async () => {
@@ -25,7 +25,7 @@ describe("repositorioIA", () => {
     });
 
     try {
-      const result = await saveLegalAnalysis({
+      const result = await guardarAnalisisJuridico({
         analysis: {
           alertas: [
             {

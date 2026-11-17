@@ -3,9 +3,9 @@ require("dotenv").config({ quiet: true });
 const crypto = require("node:crypto");
 const { pool } = require("../src/configuracion/baseDatos");
 const { runMigrations } = require("../src/configuracion/migraciones");
-const { embedTextsWithLocalAI, getLocalAIConfig } = require("../IA/analizadorLocal");
+const { generarEmbeddingsDeTextos, obtenerConfiguracionDeIA } = require("../IA/analizadorLocal");
 
-const OFFICIAL_SOURCES = [
+const FUENTES_OFICIALES = [
   {
     key: "constitucion-nacional",
     type: "constitucion",
@@ -34,29 +34,29 @@ const OFFICIAL_SOURCES = [
   },
 ];
 
-async function synchronizeLegalCorpus({ sources = OFFICIAL_SOURCES, fetchImpl = fetch, database = pool } = {}) {
+async function sincronizarCorpusJuridico({ sources: fuentes = FUENTES_OFICIALES, fetchImpl = fetch, database = pool } = {}) {
   const summary = [];
-  for (const source of sources) {
-    const response = await fetchImpl(source.url, { headers: { "user-agent": "LegalMind/1.0 corpus juridico" } });
-    if (!response.ok) throw new Error(`No se pudo descargar ${source.title}: HTTP ${response.status}.`);
-    const html = await response.text();
-    const text = htmlToText(html);
-    const allFragments = splitLegalArticles(text);
-    const fragments = source.articleSlice ? allFragments.slice(...source.articleSlice) : allFragments;
-    if (fragments.length < 5) throw new Error(`La fuente ${source.title} no contiene suficientes artículos reconocibles.`);
-    const checksum = crypto.createHash("sha256").update(fragments.map((item) => item.text).join("\n")).digest("hex");
-    const embeddings = await embedFragments(fragments);
-    const saved = await replaceSource(database, source, fragments, embeddings, checksum);
-    summary.push(saved);
+  for (const fuente of fuentes) {
+    const respuesta = await fetchImpl(fuente.url, { headers: { "user-agent": "LegalMind/1.0 corpus juridico" } });
+    if (!respuesta.ok) throw new Error(`No se pudo descargar ${fuente.title}: HTTP ${respuesta.status}.`);
+    const html = await respuesta.text();
+    const texto = convertirHtmlEnTexto(html);
+    const allFragments = separarArticulosJuridicos(texto);
+    const fragmentos = fuente.articleSlice ? allFragments.slice(...fuente.articleSlice) : allFragments;
+    if (fragmentos.length < 5) throw new Error(`La fuente ${fuente.title} no contiene suficientes artículos reconocibles.`);
+    const checksum = crypto.createHash("sha256").update(fragmentos.map((elemento) => elemento.text).join("\n")).digest("hex");
+    const embeddings = await generarEmbeddingsDeFragmentos(fragmentos);
+    const intercambioGuardado = await reemplazarFuente(database, fuente, fragmentos, embeddings, checksum);
+    summary.push(intercambioGuardado);
   }
   return summary;
 }
 
-async function embedFragments(fragments) {
+async function generarEmbeddingsDeFragmentos(fragmentos) {
   const embeddings = [];
   const batchSize = Math.max(1, Number(process.env.RAG_EMBEDDING_BATCH_SIZE) || 12);
-  for (let start = 0; start < fragments.length; start += batchSize) {
-    embeddings.push(...await embedTextsWithLocalAI(fragments.slice(start, start + batchSize).map((item) => item.text)));
+  for (let inicio = 0; inicio < fragmentos.length; inicio += batchSize) {
+    embeddings.push(...await generarEmbeddingsDeTextos(fragmentos.slice(inicio, inicio + batchSize).map((elemento) => elemento.text)));
   }
   if (embeddings.some((embedding) => embedding.length !== 768)) {
     throw new Error("El modelo de embeddings debe devolver vectores de 768 dimensiones.");
@@ -64,29 +64,29 @@ async function embedFragments(fragments) {
   return embeddings;
 }
 
-async function replaceSource(database, source, fragments, embeddings, checksum) {
+async function reemplazarFuente(database, fuente, fragmentos, embeddings, checksum) {
   const client = await database.connect();
   try {
     await client.query("BEGIN");
-    const result = await client.query(`INSERT INTO fuentes_juridicas
+    const resultado = await client.query(`INSERT INTO fuentes_juridicas
       (clave,tipo,titulo,numero_norma,organismo,url_oficial,checksum,version_fuente,sincronizada_at)
       VALUES($1,$2,$3,$4,$5,$6,$7,$7,NOW())
       ON CONFLICT(clave) DO UPDATE SET tipo=EXCLUDED.tipo,titulo=EXCLUDED.titulo,
         numero_norma=EXCLUDED.numero_norma,organismo=EXCLUDED.organismo,url_oficial=EXCLUDED.url_oficial,
         checksum=EXCLUDED.checksum,version_fuente=EXCLUDED.version_fuente,sincronizada_at=NOW(),updated_at=NOW()
-      RETURNING id`, [source.key, source.type, source.title, source.lawNumber, source.body, source.url, checksum]);
-    const sourceId = result.rows[0].id;
+      RETURNING id`, [fuente.key, fuente.type, fuente.title, fuente.lawNumber, fuente.body, fuente.url, checksum]);
+    const sourceId = resultado.rows[0].id;
     await client.query("DELETE FROM fragmentos_juridicos WHERE fuente_id=$1", [sourceId]);
-    for (let index = 0; index < fragments.length; index += 1) {
-      const fragment = fragments[index];
+    for (let indice = 0; indice < fragmentos.length; indice += 1) {
+      const fragmento = fragmentos[indice];
       await client.query(`INSERT INTO fragmentos_juridicos
         (fuente_id,orden,identificador,encabezado,texto,metadata_json,embedding,modelo_embedding)
-        VALUES($1,$2,$3,$4,$5,$6,$7::vector,$8)`, [sourceId, fragment.order, fragment.identifier,
-        fragment.heading, fragment.text, JSON.stringify({ official: true, jurisdiction: "nacional_federal" }),
-        vectorLiteral(embeddings[index]), getLocalAIConfig().embeddingModel]);
+        VALUES($1,$2,$3,$4,$5,$6,$7::vector,$8)`, [sourceId, fragmento.order, fragmento.identifier,
+        fragmento.heading, fragmento.text, JSON.stringify({ official: true, jurisdiction: "nacional_federal" }),
+        convertirVectorAFormatoSql(embeddings[indice]), obtenerConfiguracionDeIA().embeddingModel]);
     }
     await client.query("COMMIT");
-    return { key: source.key, fragments: fragments.length, checksum };
+    return { key: fuente.key, fragments: fragmentos.length, checksum };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -95,12 +95,12 @@ async function replaceSource(database, source, fragments, embeddings, checksum) 
   }
 }
 
-function vectorLiteral(vector) {
-  return `[${vector.map((value) => Number(value).toFixed(8)).join(",")}]`;
+function convertirVectorAFormatoSql(vector) {
+  return `[${vector.map((valor) => Number(valor).toFixed(8)).join(",")}]`;
 }
 
-function htmlToText(html) {
-  return decodeEntities(String(html || "")
+function convertirHtmlEnTexto(html) {
+  return decodificarEntidades(String(html || "")
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
     .replace(/<br\s*\/?>/gi, "\n")
@@ -112,24 +112,24 @@ function htmlToText(html) {
     .trim();
 }
 
-function splitLegalArticles(text) {
+function separarArticulosJuridicos(texto) {
   const marker = /\bART[IÍ]CULO\s+([0-9]+(?:\s*(?:bis|ter|qu[aá]ter|quinquies))?|[A-Z]+)(?:\s*[º°])?\s*(?:\.-|\.|-|—)/gi;
-  const matches = [...String(text || "").matchAll(marker)];
-  return matches.map((match, index) => {
-    const end = matches[index + 1]?.index ?? text.length;
-    const body = String(text.slice(match.index, end)).replace(/\s+/g, " ").trim();
+  const coincidencias = [...String(texto || "").matchAll(marker)];
+  return coincidencias.map((coincidencia, indice) => {
+    const fin = coincidencias[indice + 1]?.index ?? texto.length;
+    const cuerpo = String(texto.slice(coincidencia.index, fin)).replace(/\s+/g, " ").trim();
     return {
-      order: index,
-      identifier: `Artículo ${match[1].replace(/\s+/g, " ")}`,
+      order: indice,
+      identifier: `Artículo ${coincidencia[1].replace(/\s+/g, " ")}`,
       heading: null,
-      text: body.slice(0, 12000),
+      text: cuerpo.slice(0, 12000),
     };
-  }).filter((fragment) => fragment.text.length >= 20);
+  }).filter((fragmento) => fragmento.text.length >= 20);
 }
 
-function decodeEntities(value) {
+function decodificarEntidades(valor) {
   const entities = { amp: "&", apos: "'", gt: ">", lt: "<", nbsp: " ", quot: '"' };
-  return value.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (_match, entity) => {
+  return valor.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (_match, entity) => {
     if (entity[0] === "#") {
       const hex = entity[1]?.toLowerCase() === "x";
       return String.fromCodePoint(Number.parseInt(entity.slice(hex ? 2 : 1), hex ? 16 : 10));
@@ -140,11 +140,11 @@ function decodeEntities(value) {
 
 async function main() {
   await runMigrations();
-  const summary = await synchronizeLegalCorpus();
+  const summary = await sincronizarCorpusJuridico();
   console.log(JSON.stringify({ synchronized: summary }, null, 2));
   await pool.end();
 }
 
 if (require.main === module) main().catch((error) => { console.error(error.message); process.exit(1); });
 
-module.exports = { OFFICIAL_SOURCES, embedFragments, htmlToText, splitLegalArticles, synchronizeLegalCorpus };
+module.exports = { FUENTES_OFICIALES, generarEmbeddingsDeFragmentos, convertirHtmlEnTexto, separarArticulosJuridicos, sincronizarCorpusJuridico };

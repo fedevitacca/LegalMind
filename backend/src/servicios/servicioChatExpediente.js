@@ -1,18 +1,19 @@
-const { runCaseChatWithLocalAI, runCaseChatPlainWithLocalAI,
-  embedTextsWithLocalAI, getLocalAIConfig } = require("../../IA/analizadorLocal");
-const { buildStructuredCaseDocuments } = require("../../IA/contextoExpediente");
-const { retrieveRelevantChunks } = require("../../IA/ragLocal");
-const { expandLegalQuery } = require("../../IA/terminologiaRag");
-const { buildGroundedLegalAnswer } = require("../../IA/respuestaJuridicaExtractiva");
-const { getTool } = require("../../IA/motorHerramientas");
-const { listDocumentsForCase } = require("../modelos/repositorioIA");
-const { listDatesByCase, listDefendantsByCase, listJurisprudenceByCase } = require("../modelos/repositorioCasos");
-const { listCaseRecords, listTasks } = require("../modelos/repositorioTrabajoJuridico");
-const { searchLegalLibrary } = require("../modelos/repositorioBibliotecaJuridica");
-const { hybridSearch } = require("../modelos/repositorioRagVectorial");
-const { assessEvidence, buildLegalCitations } = require("./citasJuridicas");
+const { generarRespuestaEstructuradaDelChat, generarRespuestaLibreDelChat,
+  generarEmbeddingsDeTextos, obtenerConfiguracionDeIA } = require("../../IA/analizadorLocal");
+const { crearDocumentosDelContexto } = require("../../IA/contextoExpediente");
+const { buscarFragmentosRelevantes } = require("../../IA/ragLocal");
+const { ampliarConsultaJuridica } = require("../../IA/terminologiaRag");
+const { construirRespuestaConEvidencia } = require("../../IA/respuestaJuridicaExtractiva");
+const { obtenerHerramienta } = require("../../IA/motorHerramientas");
+const { listarDocumentosDelExpediente } = require("../modelos/repositorioIA");
+const { listDatesByCase: listarFechasDelExpediente, listDefendantsByCase: listarImputadosDelExpediente, listJurisprudenceByCase: listarJurisprudenciaDelExpediente } = require("../modelos/repositorioCasos");
+const { listCaseRecords: listarRegistrosDelExpediente, listTasks: listarTareas } = require("../modelos/repositorioTrabajoJuridico");
+const { buscarNormativaOficial } = require("../modelos/repositorioBibliotecaJuridica");
+const { buscarFragmentosDeFormaHibrida } = require("../modelos/repositorioRagVectorial");
+const { evaluarEvidencia, construirCitasJuridicas } = require("./citasJuridicas");
+const { construirTablaDeEvidencia, obtenerColumnasDeTabla, leerTablaChat } = require("./tablaChat");
 
-const CHAT_TOOL_IDS = new Set([
+const IDS_HERRAMIENTAS_CHAT = new Set([
   "resumen_expediente",
   "comparar_documentos",
   "comparar_imputados",
@@ -21,304 +22,322 @@ const CHAT_TOOL_IDS = new Set([
   "teoria_del_caso",
 ]);
 
-async function answerCaseChat({ organizationId, caseId, question, history = [], toolId = null, toolParameters = {} }) {
-  const startedAt = Date.now();
-  const conversational = handleConversationalIntent(question);
-  if (conversational) return { answer: conversational.answer, retrievalQuery: question, citations: [],
-    metadata: { engine: "deterministic_conversation", tool_id: null, model: null,
+async function responderChatExpediente({
+  idOrganizacion,
+  idExpediente,
+  pregunta,
+  historial = [],
+  idHerramienta = null,
+  parametrosHerramienta = {},
+  formatoRespuesta = "text",
+}) {
+  const inicioMs = Date.now();
+  const respuestaDirecta = responderIntencionConversacional(pregunta);
+  if (respuestaDirecta) return { respuesta: respuestaDirecta.respuesta, consultaDeBusqueda: pregunta, citas: [],
+    metadatos: { engine: "deterministic_conversation", tool_id: null, model: null,
       evidence: { status: "no_requerido", requires_human_review: false, citations_count: 0 },
-      suggested_questions: conversational.suggestions, limitations: [], case_chunks: 0, legal_chunks: 0,
-      conversation_messages_used: Math.min(history.length, 8), duration_ms: Date.now() - startedAt, fallback_reason: null } };
-  const retrievalQuery = buildConversationAwareQuery(question, history);
-  const [documents, defendants, structuredDocuments, jurisprudence] = await Promise.all([
-    listDocumentsForCase(caseId),
-    listDefendantsByCase(caseId),
-    loadStructuredContext(organizationId, caseId),
-    listJurisprudenceByCase(caseId),
+      suggested_questions: respuestaDirecta.preguntasSugeridas, limitations: [], case_chunks: 0, legal_chunks: 0,
+      conversation_messages_used: Math.min(historial.length, 8), duration_ms: Date.now() - inicioMs, fallback_reason: null } };
+  const consultaDeBusqueda = construirConsultaConHistorial(pregunta, historial);
+  const [documentos, imputados, documentosDelContexto, jurisprudencia] = await Promise.all([
+    listarDocumentosDelExpediente(idExpediente),
+    listarImputadosDelExpediente(idExpediente),
+    cargarContextoEstructurado(idOrganizacion, idExpediente),
+    listarJurisprudenciaDelExpediente(idExpediente),
   ]);
-  const selectedTool = CHAT_TOOL_IDS.has(toolId) ? getTool(toolId) : null;
-  const toolInput = selectedTool
-    ? prepareToolInput({ toolId, toolParameters, documents, defendants, jurisprudence, question })
+  const herramientaElegida = IDS_HERRAMIENTAS_CHAT.has(idHerramienta) ? obtenerHerramienta(idHerramienta) : null;
+  const entradaHerramienta = herramientaElegida
+    ? prepararEntradaHerramienta({ idHerramienta, parametrosHerramienta, documentos, imputados, jurisprudencia, pregunta })
     : null;
-  const corpus = [buildCaseOverview(caseId, defendants), ...structuredDocuments, ...documents];
-  const lexicalQuery = toolId === "resumen_expediente"
-    ? `${retrievalQuery} hechos principales denuncia origen investigación hallazgo situación actual próxima audiencia`
-    : retrievalQuery;
-  const lexicalChunks = retrieveRelevantChunks(corpus, lexicalQuery, 12)
-    .map((chunk) => ({ ...chunk, source_type: chunk.metadata?.source_type || "expediente" }));
+  const corpus = [crearFichaDelExpediente(idExpediente, imputados), ...documentosDelContexto, ...documentos];
+  const consultaLexica = idHerramienta === "resumen_expediente"
+    ? `${consultaDeBusqueda} hechos principales denuncia origen investigación hallazgo situación actual próxima audiencia`
+    : consultaDeBusqueda;
+  const fragmentosLexicos = buscarFragmentosRelevantes(corpus, consultaLexica, 12)
+    .map((fragmento) => ({ ...fragmento, source_type: fragmento.metadata?.source_type || "expediente" }));
 
-  let queryEmbedding = null;
-  try { [queryEmbedding] = await embedTextsWithLocalAI([expandLegalQuery(retrievalQuery)], { timeoutMs: 1800 }); }
+  let embeddingConsulta = null;
+  try { [embeddingConsulta] = await generarEmbeddingsDeTextos([ampliarConsultaJuridica(consultaDeBusqueda)], { timeoutMs: 1800 }); }
   catch (error) { console.warn("Chat sin embeddings de consulta:", error.message); }
 
-  let semanticChunks = [];
-  if (queryEmbedding) {
+  let fragmentosSemanticos = [];
+  if (embeddingConsulta) {
     try {
-      const stored = await hybridSearch({ organizationId, caseId, query: retrievalQuery, queryEmbedding, limit: 12 });
-      semanticChunks = stored.map((item) => ({ id: item.id, document_id: item.documento_id,
-        document_name: item.nombre_archivo, chunk_index: item.orden, page: item.pagina,
-        text: item.texto, score: Number(item.score), lexical_score: Number(item.lexical_score),
-        semantic_score: Number(item.semantic_score), metadata: item.metadata_json, source_type: "expediente" }));
+      const fragmentosGuardados = await buscarFragmentosDeFormaHibrida({ organizationId: idOrganizacion, caseId: idExpediente, query: consultaDeBusqueda, queryEmbedding: embeddingConsulta, limit: 12 });
+      fragmentosSemanticos = fragmentosGuardados.map((elemento) => ({ id: elemento.id, document_id: elemento.documento_id,
+        document_name: elemento.nombre_archivo, chunk_index: elemento.orden, page: elemento.pagina,
+        text: elemento.texto, score: Number(elemento.score), lexical_score: Number(elemento.lexical_score),
+        semantic_score: Number(elemento.semantic_score), metadata: elemento.metadata_json, source_type: "expediente" }));
     } catch (error) { console.warn("Chat sin indice vectorial persistido:", error.message); }
   }
-  const rankedCaseChunks = fuseRankings(lexicalChunks, semanticChunks, 7);
-  const caseChunks = toolId === "resumen_expediente"
-    ? mergeToolChunks(
-      retrieveRelevantChunks(documents, "denuncia inicial inventario faltante hechos que originaron la investigación", 2),
-      rankedCaseChunks,
+  const fragmentosOrdenadosDelExpediente = fusionarResultados(fragmentosLexicos, fragmentosSemanticos, 7);
+  const fragmentosExpediente = idHerramienta === "resumen_expediente"
+    ? combinarFragmentosHerramienta(
+      buscarFragmentosRelevantes(documentos, "denuncia inicial inventario faltante hechos que originaron la investigación", 2),
+      fragmentosOrdenadosDelExpediente,
       7,
     )
-    : rankedCaseChunks;
-  let legalChunks = [];
-  try { legalChunks = await searchLegalLibrary({ query: retrievalQuery, queryEmbedding, limit: 3 }); }
+    : fragmentosOrdenadosDelExpediente;
+  let fragmentosNormativa = [];
+  try { fragmentosNormativa = await buscarNormativaOficial({ query: consultaDeBusqueda, queryEmbedding: embeddingConsulta, limit: 3 }); }
   catch (error) { console.warn("Chat sin biblioteca juridica:", error.message); }
 
-  const chunks = toolInput?.chunks?.length
-    ? mergeToolChunks(toolInput.chunks, [...caseChunks, ...legalChunks], 9)
-    : [...caseChunks, ...legalChunks];
-  const citations = buildLegalCitations(chunks, { caseId });
-  const evidence = assessEvidence(citations);
-  let answer;
-  let suggestedQuestions = [];
-  let limitations = [];
-  let engine = selectedTool ? `ollama_tool_${toolId}` : "ollama_case_chat";
-  let fallbackReason = null;
-  const config = getLocalAIConfig();
-  const generationTimeoutMs = Math.max(15000, Math.min(config.timeoutMs, 60000));
-  const generationTokens = Math.max(650, config.maxOutputTokens);
+  const fragmentos = entradaHerramienta?.fragmentos?.length
+    ? combinarFragmentosHerramienta(entradaHerramienta.fragmentos, [...fragmentosExpediente, ...fragmentosNormativa], 9)
+    : [...fragmentosExpediente, ...fragmentosNormativa];
+  const citas = construirCitasJuridicas(fragmentos, { caseId: idExpediente });
+  const evidencia = evaluarEvidencia(citas);
+  let respuestaRedactada;
+  let tablaRespuesta = null;
+  let preguntasSugeridas = [];
+  let limitaciones = [];
+  let motor = herramientaElegida ? `ollama_tool_${idHerramienta}` : "ollama_case_chat";
+  let motivoRespaldo = null;
+  const { baseUrl: urlOllama, model: modelo, timeoutMs: limiteConfigurado, maxOutputTokens: maximoTokens } = obtenerConfiguracionDeIA();
+  const limiteGeneracionMs = Math.max(15000, Math.min(limiteConfigurado, 60000));
+  const tokensDeGeneracion = Math.max(650, maximoTokens);
 
-  if (!chunks.length) {
-    answer = "No encontre informacion suficiente en el expediente para responder. Carga documentos o registra datos del caso y volve a intentarlo.";
-    limitations = ["El expediente no contiene fragmentos recuperables para esta consulta."];
-    engine = "no_evidence";
+  if (!fragmentos.length) {
+    respuestaRedactada = "No encontre informacion suficiente en el expediente para responder. Carga documentos o registra datos del caso y volve a intentarlo.";
+    limitaciones = ["El expediente no contiene fragmentos recuperables para esta consulta."];
+    motor = "no_evidence";
   } else {
-    const request = {
-      question, history, task: selectedTool?.chatInstruction, comparison: toolInput,
-      timeoutMs: generationTimeoutMs,
-      maxOutputTokens: selectedTool ? Math.min(generationTokens, selectedTool.maxOutputTokens) : generationTokens,
-      context: chunks.map((chunk, index) => ({
-        documentName: chunk.document_name, location: citations[index]?.location_label, text: chunk.text,
+    const solicitud = {
+      pregunta, historial,
+      instruccionHerramienta: herramientaElegida?.chatInstruction,
+      entradaComparacion: entradaHerramienta,
+      columnasTabla: formatoRespuesta === "table" ? obtenerColumnasDeTabla(herramientaElegida && idHerramienta) : null,
+      limiteTiempoMs: limiteGeneracionMs,
+      maximoTokens: herramientaElegida ? Math.min(tokensDeGeneracion, herramientaElegida.maxOutputTokens) : tokensDeGeneracion,
+      contexto: fragmentos.map((fragmento, indice) => ({
+        nombreDocumento: fragmento.document_name, ubicacion: citas[indice]?.location_label, texto: fragmento.text,
       })),
     };
     try {
-      let result;
-      if (config.baseUrl === "https://ollama.com") {
-        result = await runCaseChatPlainWithLocalAI(request);
+      let resultado;
+      if (urlOllama === "https://ollama.com") {
+        resultado = await generarRespuestaLibreDelChat(solicitud);
       } else {
         try {
-          result = await runCaseChatWithLocalAI(request);
-          if (!result.answer) throw new Error("El modelo no devolvio una respuesta conversacional.");
+          resultado = await generarRespuestaEstructuradaDelChat(solicitud);
+          if (!resultado.respuesta) throw new Error("El modelo no devolvio una respuesta conversacional.");
         } catch (error) {
-          fallbackReason = error.message;
-          result = await runCaseChatPlainWithLocalAI(request);
-          engine = selectedTool ? `ollama_plain_retry_${toolId}` : "ollama_case_chat_plain_retry";
+          motivoRespaldo = error.message;
+          resultado = await generarRespuestaLibreDelChat(solicitud);
+          motor = herramientaElegida ? `ollama_plain_retry_${idHerramienta}` : "ollama_case_chat_plain_retry";
         }
       }
-      answer = cleanChatAnswer(result.answer, chunks.length);
-      suggestedQuestions = result.suggestedQuestions;
-      limitations = result.limitations;
+      respuestaRedactada = limpiarRespuestaChat(resultado.respuesta, fragmentos.length);
+      if (formatoRespuesta === "table") {
+        tablaRespuesta = leerTablaChat(respuestaRedactada);
+        if (!tablaRespuesta) throw new Error("Ollama no devolvió una tabla válida.");
+      }
+      preguntasSugeridas = resultado.preguntasSugeridas;
+      limitaciones = resultado.limitaciones;
     } catch (error) {
-      const fallback = buildGroundedLegalAnswer({ question: retrievalQuery,
-        caseChunks: toolInput?.chunks?.length ? toolInput.chunks : caseChunks, legalChunks });
-      answer = fallback.answer;
-      limitations = ["Ollama no estuvo disponible; se muestran extractos recuperados como ultimo recurso."];
-      engine = "extractive_chat_fallback";
-      fallbackReason = [fallbackReason, error.message].filter(Boolean).join(" | Reintento: ");
+      const respaldo = construirRespuestaConEvidencia({ question: consultaDeBusqueda,
+        caseChunks: entradaHerramienta?.fragmentos?.length ? entradaHerramienta.fragmentos : fragmentosExpediente, legalChunks: fragmentosNormativa });
+      respuestaRedactada = respaldo.answer;
+      limitaciones = ["Se muestran extractos recuperados como respaldo."];
+      motor = "extractive_chat_fallback";
+      motivoRespaldo = [motivoRespaldo, error.message].filter(Boolean).join(" | Reintento: ");
+      if (formatoRespuesta === "table") tablaRespuesta = construirTablaDeEvidencia(consultaDeBusqueda, fragmentos, citas);
     }
   }
 
-  return { answer, retrievalQuery, citations, metadata: { engine, tool_id: selectedTool ? toolId : null,
-    tool_parameters: selectedTool ? compactToolParameters(toolParameters) : null,
-    model: engine.startsWith("ollama") ? config.model : null,
-    evidence, suggested_questions: suggestedQuestions.slice(0, 3), limitations: limitations.slice(0, 3),
-    case_chunks: caseChunks.length, legal_chunks: legalChunks.length,
-    conversation_messages_used: Math.min(history.length, 8), duration_ms: Date.now() - startedAt,
-    fallback_reason: fallbackReason } };
+  return { respuesta: respuestaRedactada, consultaDeBusqueda, citas, metadatos: { engine: motor, tool_id: herramientaElegida ? idHerramienta : null,
+    tool_parameters: herramientaElegida ? resumirParametrosHerramienta(parametrosHerramienta) : null,
+    ...(tablaRespuesta && { response_table: tablaRespuesta }),
+    model: motor.startsWith("ollama") ? modelo : null,
+    evidence: evidencia, suggested_questions: preguntasSugeridas.slice(0, 3), limitations: limitaciones.slice(0, 3),
+    case_chunks: fragmentosExpediente.length, legal_chunks: fragmentosNormativa.length,
+    conversation_messages_used: Math.min(historial.length, 8), duration_ms: Date.now() - inicioMs,
+    fallback_reason: motivoRespaldo } };
 }
 
-function prepareToolInput({ toolId, toolParameters, documents, defendants, jurisprudence, question }) {
-  if (toolId === "comparar_documentos") {
-    const selected = selectPair(documents, toolParameters.document_ids, "documentos");
+function prepararEntradaHerramienta({ idHerramienta, parametrosHerramienta, documentos, imputados, jurisprudencia, pregunta }) {
+  if (idHerramienta === "comparar_documentos") {
+    const seleccionados = seleccionarPar(documentos, parametrosHerramienta.document_ids, "documentos");
     return {
-      primaryText: sourceText(selected[0]),
-      secondaryText: sourceText(selected[1]),
-      chunks: selected.flatMap((item) => selectedSourceChunks(item, question, "expediente")),
+      textoPrincipal: obtenerTextoDeFuente(seleccionados[0]),
+      textoSecundario: obtenerTextoDeFuente(seleccionados[1]),
+      fragmentos: seleccionados.flatMap((elemento) => buscarFragmentosDeFuente(elemento, pregunta, "expediente")),
     };
   }
-  if (toolId === "comparar_imputados") {
-    const selected = selectPair(defendants, toolParameters.defendant_ids, "imputados");
-    const defendantDocuments = selected.map(buildDefendantSource);
-    const evidenceChunks = selected.flatMap((item) => retrieveRelevantChunks(
-      documents,
-      `${question} ${item.nombre}`,
+  if (idHerramienta === "comparar_imputados") {
+    const seleccionados = seleccionarPar(imputados, parametrosHerramienta.defendant_ids, "imputados");
+    const documentosDeImputados = seleccionados.map(crearFuenteImputado);
+    const fragmentosDeEvidencia = seleccionados.flatMap((elemento) => buscarFragmentosRelevantes(
+      documentos,
+      `${pregunta} ${elemento.nombre}`,
       2
-    ).map((chunk) => ({ ...chunk, source_type: "expediente" })));
+    ).map((fragmento) => ({ ...fragmento, source_type: "expediente" })));
     return {
-      primaryText: sourceText(defendantDocuments[0]),
-      secondaryText: sourceText(defendantDocuments[1]),
-      chunks: [...defendantDocuments.flatMap((item) => selectedSourceChunks(item, question, "imputado")), ...evidenceChunks],
+      textoPrincipal: obtenerTextoDeFuente(documentosDeImputados[0]),
+      textoSecundario: obtenerTextoDeFuente(documentosDeImputados[1]),
+      fragmentos: [...documentosDeImputados.flatMap((elemento) => buscarFragmentosDeFuente(elemento, pregunta, "imputado")), ...fragmentosDeEvidencia],
     };
   }
-  if (toolId === "comparar_jurisprudencia") {
-    const selected = selectPair(jurisprudence, toolParameters.jurisprudence_ids, "fallos");
-    const precedentDocuments = selected.map(buildJurisprudenceSource);
+  if (idHerramienta === "comparar_jurisprudencia") {
+    const seleccionados = seleccionarPar(jurisprudencia, parametrosHerramienta.jurisprudence_ids, "fallos");
+    const documentosDeFallos = seleccionados.map(crearFuenteJurisprudencia);
     return {
-      primaryText: sourceText(precedentDocuments[0]),
-      secondaryText: sourceText(precedentDocuments[1]),
-      chunks: precedentDocuments.flatMap((item) => selectedSourceChunks(item, question, "jurisprudencia")),
+      textoPrincipal: obtenerTextoDeFuente(documentosDeFallos[0]),
+      textoSecundario: obtenerTextoDeFuente(documentosDeFallos[1]),
+      fragmentos: documentosDeFallos.flatMap((elemento) => buscarFragmentosDeFuente(elemento, pregunta, "jurisprudencia")),
     };
   }
   return null;
 }
 
-function selectPair(items, rawIds, label) {
-  const ids = Array.isArray(rawIds) ? rawIds.map(Number) : [];
-  if (ids.length !== 2 || ids.some((id) => !Number.isSafeInteger(id) || id <= 0) || ids[0] === ids[1]) {
-    throw badToolRequest(`Selecciona dos ${label} distintos para ejecutar la comparacion.`);
+function seleccionarPar(elementos, idsOriginales, etiqueta) {
+  const identificadores = Array.isArray(idsOriginales) ? idsOriginales.map(Number) : [];
+  if (identificadores.length !== 2 || identificadores.some((id) => !Number.isSafeInteger(id) || id <= 0) || identificadores[0] === identificadores[1]) {
+    throw crearErrorDeHerramienta(`Selecciona dos ${etiqueta} distintos para ejecutar la comparacion.`);
   }
-  const selected = ids.map((id) => items.find((item) => Number(item.id) === id));
-  if (selected.some((item) => !item)) {
-    throw badToolRequest(`Los ${label} seleccionados deben pertenecer al expediente.`);
+  const seleccionados = identificadores.map((id) => elementos.find((elemento) => Number(elemento.id) === id));
+  if (seleccionados.some((elemento) => !elemento)) {
+    throw crearErrorDeHerramienta(`Los ${etiqueta} seleccionados deben pertenecer al expediente.`);
   }
-  return selected;
+  return seleccionados;
 }
 
-function buildDefendantSource(item) {
+function crearFuenteImputado(elemento) {
   return {
-    id: `imputado-${item.id}`,
-    nombre_archivo: `Ficha de ${item.nombre}`,
+    id: `imputado-${elemento.id}`,
+    nombre_archivo: `Ficha de ${elemento.nombre}`,
     texto_extraido: [
-      `Nombre: ${item.nombre}`,
-      item.documento_identidad ? `Documento: ${item.documento_identidad}` : "",
-      item.rol ? `Rol: ${item.rol}` : "",
-      item.notas ? `Notas: ${item.notas}` : "",
-      item.datos_contexto ? `Contexto registrado: ${JSON.stringify(item.datos_contexto)}` : "",
+      `Nombre: ${elemento.nombre}`,
+      elemento.documento_identidad ? `Documento: ${elemento.documento_identidad}` : "",
+      elemento.rol ? `Rol: ${elemento.rol}` : "",
+      elemento.notas ? `Notas: ${elemento.notas}` : "",
+      elemento.datos_contexto ? `Contexto registrado: ${JSON.stringify(elemento.datos_contexto)}` : "",
     ].filter(Boolean).join("\n"),
     metadata: { source_type: "imputado", section: "Ficha del imputado" },
   };
 }
 
-function buildJurisprudenceSource(item) {
+function crearFuenteJurisprudencia(elemento) {
   return {
-    id: `jurisprudencia-${item.id}`,
-    nombre_archivo: `Fallo: ${item.titulo}`,
+    id: `jurisprudencia-${elemento.id}`,
+    nombre_archivo: `Fallo: ${elemento.titulo}`,
     texto_extraido: [
-      `Titulo: ${item.titulo}`,
-      item.tribunal ? `Tribunal: ${item.tribunal}` : "",
-      item.anio ? `Anio: ${item.anio}` : "",
-      item.referencia ? `Referencia: ${item.referencia}` : "",
-      item.resumen ? `Resumen: ${item.resumen}` : "",
-      item.cita ? `Cita: ${item.cita}` : "",
+      `Titulo: ${elemento.titulo}`,
+      elemento.tribunal ? `Tribunal: ${elemento.tribunal}` : "",
+      elemento.anio ? `Anio: ${elemento.anio}` : "",
+      elemento.referencia ? `Referencia: ${elemento.referencia}` : "",
+      elemento.resumen ? `Resumen: ${elemento.resumen}` : "",
+      elemento.cita ? `Cita: ${elemento.cita}` : "",
     ].filter(Boolean).join("\n"),
     metadata: { source_type: "jurisprudencia", section: "Jurisprudencia del expediente" },
   };
 }
 
-function selectedSourceChunks(document, question, sourceType) {
-  const chunks = retrieveRelevantChunks([document], `${question} ${document.nombre_archivo}`, 3);
-  if (chunks.length) return chunks.map((chunk) => ({ ...chunk, source_type: sourceType }));
-  return [{ document_id: document.id, document_name: document.nombre_archivo, chunk_index: 0,
-    text: sourceText(document).slice(0, 3500), score: 1, source_type: sourceType,
-    metadata: document.metadata || null }];
+function buscarFragmentosDeFuente(documento, pregunta, tipoFuente) {
+  const fragmentos = buscarFragmentosRelevantes([documento], `${pregunta} ${documento.nombre_archivo}`, 3);
+  if (fragmentos.length) return fragmentos.map((fragmento) => ({ ...fragmento, source_type: tipoFuente }));
+  return [{ document_id: documento.id, document_name: documento.nombre_archivo, chunk_index: 0,
+    text: obtenerTextoDeFuente(documento).slice(0, 3500), score: 1, source_type: tipoFuente,
+    metadata: documento.metadata || null }];
 }
 
-function sourceText(item) {
-  return String(item?.texto_extraido || "").trim().slice(0, 12000);
+function obtenerTextoDeFuente(elemento) {
+  return String(elemento?.texto_extraido || "").trim().slice(0, 12000);
 }
 
-function mergeToolChunks(preferred, additional, limit) {
-  const seen = new Set();
-  return [...preferred, ...additional].filter((chunk) => {
-    const key = `${chunk.document_id}:${chunk.chunk_index}:${chunk.text}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
+function combinarFragmentosHerramienta(preferidos, adicionales, limite) {
+  const vistos = new Set();
+  return [...preferidos, ...adicionales].filter((fragmento) => {
+    const clave = `${fragmento.document_id}:${fragmento.chunk_index}:${fragmento.text}`;
+    if (vistos.has(clave)) return false;
+    vistos.add(clave);
     return true;
-  }).slice(0, limit);
+  }).slice(0, limite);
 }
 
-function badToolRequest(message) {
-  const error = new Error(message);
+function crearErrorDeHerramienta(mensaje) {
+  const error = new Error(mensaje);
   error.statusCode = 400;
   return error;
 }
 
-function compactToolParameters(value) {
-  return ["document_ids", "defendant_ids", "jurisprudence_ids"].reduce((result, key) => {
-    if (Array.isArray(value?.[key])) result[key] = value[key].slice(0, 2).map(Number);
-    return result;
+function resumirParametrosHerramienta(valor) {
+  return ["document_ids", "defendant_ids", "jurisprudence_ids"].reduce((resultado, clave) => {
+    if (Array.isArray(valor?.[clave])) resultado[clave] = valor[clave].slice(0, 2).map(Number);
+    return resultado;
   }, {});
 }
 
-async function loadStructuredContext(organizationId, caseId) {
+async function cargarContextoEstructurado(idOrganizacion, idExpediente) {
   try {
-    const [tasks, hearings, dates, communications] = await Promise.all([
-      listTasks(organizationId, { caseId }), listCaseRecords("audiencias", organizationId, caseId),
-      listDatesByCase(caseId), listCaseRecords("comunicaciones", organizationId, caseId),
+    const [tareas, audiencias, fechas, comunicaciones] = await Promise.all([
+      listarTareas(idOrganizacion, { caseId: idExpediente }), listarRegistrosDelExpediente("audiencias", idOrganizacion, idExpediente),
+      listarFechasDelExpediente(idExpediente), listarRegistrosDelExpediente("comunicaciones", idOrganizacion, idExpediente),
     ]);
-    return buildStructuredCaseDocuments({ tasks, hearings, dates, communications });
+    return crearDocumentosDelContexto({ tasks: tareas, hearings: audiencias, dates: fechas, communications: comunicaciones });
   } catch (error) { console.warn("Contexto de gestion no disponible para chat:", error.message); return []; }
 }
 
-function buildConversationAwareQuery(question, history) {
-  const clean = String(question || "").replace(/\s+/g, " ").trim();
-  const dependsOnHistory = clean.length < 90 || /\b(eso|esa|ese|anterior|tambien|mencionad[oa]|dicho|ella|ellos|entonces)\b/i.test(clean);
-  if (!dependsOnHistory) return clean.slice(0, 700);
-  const previous = history.filter((item) => item.role === "usuario" || item.role === "user")
-    .slice(-2).map((item) => item.content).join(" ");
-  return `${previous} ${clean}`.replace(/\s+/g, " ").trim().slice(0, 700);
+function construirConsultaConHistorial(pregunta, historial) {
+  const limpio = String(pregunta || "").replace(/\s+/g, " ").trim();
+  const necesitaHistorial = limpio.length < 90 || /\b(eso|esa|ese|anterior|tambien|mencionad[oa]|dicho|ella|ellos|entonces)\b/i.test(limpio);
+  if (!necesitaHistorial) return limpio.slice(0, 700);
+  const preguntasAnteriores = historial.filter((elemento) => elemento.role === "usuario" || elemento.role === "user")
+    .slice(-2).map((elemento) => elemento.content).join(" ");
+  return `${preguntasAnteriores} ${limpio}`.replace(/\s+/g, " ").trim().slice(0, 700);
 }
 
-function buildCaseOverview(caseId, defendants) {
-  return { id: `expediente-${caseId}`, nombre_archivo: "Datos generales del expediente",
-    texto_extraido: defendants.length
-      ? `Expediente interno ${caseId}. Imputados registrados: ${defendants.map((item) => `${item.nombre}${item.rol ? ` (${item.rol})` : ""}`).join(", ")}.`
-      : `Expediente interno ${caseId}. No hay imputados registrados.`,
+function crearFichaDelExpediente(idExpediente, imputados) {
+  return { id: `expediente-${idExpediente}`, nombre_archivo: "Datos generales del expediente",
+    texto_extraido: imputados.length
+      ? `Expediente interno ${idExpediente}. Imputados registrados: ${imputados.map((elemento) => `${elemento.nombre}${elemento.rol ? ` (${elemento.rol})` : ""}`).join(", ")}.`
+      : `Expediente interno ${idExpediente}. No hay imputados registrados.`,
     metadata: { source_type: "case_overview", section: "Expediente" } };
 }
 
-function fuseRankings(lexicalChunks, semanticChunks, limit) {
-  const fused = new Map();
-  const add = (chunk, rank, weight) => {
-    const key = `${chunk.document_id}:${chunk.chunk_index}`;
-    const current = fused.get(key) || { ...chunk, score: 0 };
-    current.score += weight / (60 + rank + 1);
-    if (chunk.semantic_score != null) current.semantic_score = chunk.semantic_score;
-    if (chunk.lexical_score != null) current.lexical_score = chunk.lexical_score;
-    fused.set(key, current);
+function fusionarResultados(fragmentosLexicos, fragmentosSemanticos, limite) {
+  const resultadosFusionados = new Map();
+  const agregarResultado = (fragmento, posicion, peso) => {
+    const clave = `${fragmento.document_id}:${fragmento.chunk_index}`;
+    const actual = resultadosFusionados.get(clave) || { ...fragmento, score: 0 };
+    actual.score += peso / (60 + posicion + 1);
+    if (fragmento.semantic_score != null) actual.semantic_score = fragmento.semantic_score;
+    if (fragmento.lexical_score != null) actual.lexical_score = fragmento.lexical_score;
+    resultadosFusionados.set(clave, actual);
   };
-  lexicalChunks.forEach((chunk, rank) => add(chunk, rank, 0.45));
-  semanticChunks.forEach((chunk, rank) => add(chunk, rank, 0.55));
-  const maximum = 1 / 61;
-  return [...fused.values()].map((chunk) => ({ ...chunk, score: Math.min(1, chunk.score / maximum) }))
-    .sort((left, right) => right.score - left.score).slice(0, limit);
+  fragmentosLexicos.forEach((fragmento, posicion) => agregarResultado(fragmento, posicion, 0.45));
+  fragmentosSemanticos.forEach((fragmento, posicion) => agregarResultado(fragmento, posicion, 0.55));
+  const maximo = 1 / 61;
+  return [...resultadosFusionados.values()].map((fragmento) => ({ ...fragmento, score: Math.min(1, fragmento.score / maximo) }))
+    .sort((izquierda, derecha) => derecha.score - izquierda.score).slice(0, limite);
 }
 
-function handleConversationalIntent(question) {
-  const normalized = String(question || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[!?.,]/g, "").trim();
-  if (/^(hola|buenas|buen dia|buenas tardes|buenas noches)$/.test(normalized)) {
-    return { answer: "Hola. Puedo revisar los documentos y datos de este expediente, responder preguntas con fuentes o ejecutar una herramienta.",
-      suggestions: ["¿Cuál es el estado actual del expediente?", "¿Qué fechas requieren atención?", "Resumí los hechos principales"] };
+function responderIntencionConversacional(pregunta) {
+  const normalizado = String(pregunta || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[!?.,]/g, "").trim();
+  if (/^(hola|buenas|buen dia|buenas tardes|buenas noches)$/.test(normalizado)) {
+    return { respuesta: "Hola. Puedo revisar los documentos y datos de este expediente, responder preguntas con fuentes o ejecutar una herramienta.",
+      preguntasSugeridas: ["¿Cuál es el estado actual del expediente?", "¿Qué fechas requieren atención?", "Resumí los hechos principales"] };
   }
-  if (/^(que podes hacer|como me podes ayudar|ayuda)$/.test(normalized)) {
-    return { answer: "Puedo buscar hechos en los documentos, relacionar información del expediente, ordenar fechas, resumir el caso y preparar una teoría provisional. Cada respuesta documental muestra las fuentes utilizadas.",
-      suggestions: ["Resumí el expediente", "Ordená las fechas relevantes", "¿Qué información falta verificar?"] };
+  if (/^(que podes hacer|como me podes ayudar|ayuda)$/.test(normalizado)) {
+    return { respuesta: "Puedo buscar hechos en los documentos, relacionar información del expediente, ordenar fechas, resumir el caso y preparar una teoría provisional. Cada respuesta documental muestra las fuentes utilizadas.",
+      preguntasSugeridas: ["Resumí el expediente", "Ordená las fechas relevantes", "¿Qué información falta verificar?"] };
   }
   return null;
 }
 
-function normalizeSourceMarkers(value, sourceCount) {
-  return String(value || "").replace(/\[((?:FUENTE\s+)?\d+(?:\s*[,;]\s*(?:FUENTE\s+)?\d+)*)\]/gi,
-    (_, markers) => markers.match(/\d+/g).map(Number).map((index) =>
-      index >= 1 && index <= sourceCount ? `[${index}]` : "[fuente no verificada]").join(" "));
+function normalizarReferencias(valor, cantidadFuentes) {
+  return String(valor || "").replace(/\[((?:FUENTE\s+)?\d+(?:\s*[,;]\s*(?:FUENTE\s+)?\d+)*)\]/gi,
+    (_, marcadores) => marcadores.match(/\d+/g).map(Number).map((indice) =>
+      indice >= 1 && indice <= cantidadFuentes ? `[${indice}]` : "[fuente no verificada]").join(" "));
 }
 
-function cleanChatAnswer(value, sourceCount) {
-  return normalizeSourceMarkers(value, sourceCount)
+function limpiarRespuestaChat(valor, cantidadFuentes) {
+  return normalizarReferencias(valor, cantidadFuentes)
     .replace(/^[ \t]{0,3}#{1,6}[ \t]+/gm, "")
     .replace(/\*\*([^*\n]+)\*\*/g, "$1")
     .replace(/^[ \t]*\*[ \t]+/gm, "- ")
     .trim();
 }
 
-module.exports = { CHAT_TOOL_IDS, answerCaseChat, buildConversationAwareQuery, fuseRankings,
-  handleConversationalIntent, normalizeSourceMarkers, prepareToolInput };
+module.exports = { IDS_HERRAMIENTAS_CHAT, responderChatExpediente, construirConsultaConHistorial, fusionarResultados,
+  responderIntencionConversacional, normalizarReferencias, prepararEntradaHerramienta };

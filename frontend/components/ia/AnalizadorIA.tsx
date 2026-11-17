@@ -186,106 +186,106 @@ export default function AnalizadorIA() {
   const [cases, setCases] = useState<CaseOption[]>([]);
   const [casesError, setCasesError] = useState("");
   const [inputMode, setInputMode] = useState<InputMode>("text");
-  const [text, setText] = useState(sampleText);
-  const [file, setFile] = useState<File>();
+  const [texto, setText] = useState(sampleText);
+  const [archivo, setFile] = useState<File>();
   const [persist, setPersist] = useState(false);
-  const [caseId, setCaseId] = useState("");
-  const [analysis, setAnalysis] = useState<Analysis>();
-  const [documents, setDocuments] = useState<StoredDocument[]>([]);
+  const [idExpediente, setCaseId] = useState("");
+  const [analisis, setAnalysis] = useState<Analysis>();
+  const [documentos, setDocuments] = useState<StoredDocument[]>([]);
   const [documentsError, setDocumentsError] = useState("");
-  const [question, setQuestion] = useState("Que audiencia o vencimiento esta pendiente?");
+  const [pregunta, setQuestion] = useState("Que audiencia o vencimiento esta pendiente?");
   const [ragResult, setRagResult] = useState<RagResult>();
   const [ragError, setRagError] = useState("");
-  const [error, setError] = useState("");
+  const [error, cambiarError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isRagLoading, setIsRagLoading] = useState(false);
   const [isDocumentsLoading, setIsDocumentsLoading] = useState(false);
 
-  const selectedCaseId = useMemo(() => parsePositiveInteger(caseId), [caseId]);
+  const selectedCaseId = useMemo(() => leerEnteroPositivo(idExpediente), [idExpediente]);
 
   useEffect(() => {
-    const controller = new AbortController();
+    const controlador = new AbortController();
 
     async function loadInitialData() {
       const [healthResult, casesResult] = await Promise.allSettled([
-        loadHealth(controller),
-        loadCases(controller),
+        consultarEstadoDeIA(controlador),
+        cargarExpedientes(controlador),
       ]);
 
       if (healthResult.status === "fulfilled") {
         setHealth(healthResult.value);
-      } else if (!controller.signal.aborted) {
-        setHealthError(getErrorMessage(healthResult.reason));
+      } else if (!controlador.signal.aborted) {
+        setHealthError(obtenerMensajeDeError(healthResult.reason));
       }
 
       if (casesResult.status === "fulfilled") {
         setCases(casesResult.value);
-      } else if (!controller.signal.aborted) {
+      } else if (!controlador.signal.aborted) {
         setCasesError("Las causas reales no estan disponibles. Se puede ingresar el ID manualmente.");
       }
     }
 
     loadInitialData();
 
-    return () => controller.abort();
+    return () => controlador.abort();
   }, []);
 
   useEffect(() => {
     if (selectedCaseId) {
-      loadDocuments(selectedCaseId);
+      cargarDocumentos(selectedCaseId);
     }
   }, [selectedCaseId]);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
+  async function enviarAnalisis(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    cambiarError("");
     setAnalysis(undefined);
 
-    if (inputMode === "text" && !text.trim()) {
-      setError("Ingresa texto para analizar.");
+    if (inputMode === "text" && !texto.trim()) {
+      cambiarError("Ingresa texto para analizar.");
       return;
     }
 
-    if (inputMode === "file" && !file) {
-      setError("Selecciona un archivo TXT.");
+    if (inputMode === "file" && !archivo) {
+      cambiarError("Selecciona un archivo TXT.");
       return;
     }
 
     if (persist && !selectedCaseId) {
-      setError("Para guardar el analisis, ingresa el ID numerico de una causa.");
+      cambiarError("Para guardar el analisis, ingresa el ID numerico de una causa.");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const response =
+      const respuesta =
         inputMode === "file"
-          ? await analyzeFile(file as File, { caseId: selectedCaseId, persist })
-          : await analyzeText(text, { caseId: selectedCaseId, persist });
-      const body = (await response.json()) as Analysis & {
+          ? await analizarArchivo(archivo as File, { caseId: selectedCaseId, persist })
+          : await analizarTexto(texto, { caseId: selectedCaseId, persist });
+      const cuerpo = (await respuesta.json()) as Analysis & {
         details?: string;
         error?: string;
       };
 
-      if (!response.ok) {
-        throw new Error([body.error, body.details].filter(Boolean).join(" "));
+      if (!respuesta.ok) {
+        throw new Error([cuerpo.error, cuerpo.details].filter(Boolean).join(" "));
       }
 
-      setAnalysis(body);
+      setAnalysis(cuerpo);
 
-      if (body._metadata.persistence?.persisted && selectedCaseId) {
-        await loadDocuments(selectedCaseId);
+      if (cuerpo._metadata.persistence?.persisted && selectedCaseId) {
+        await cargarDocumentos(selectedCaseId);
       }
     } catch (analysisError) {
-      setError(getErrorMessage(analysisError));
+      cambiarError(obtenerMensajeDeError(analysisError));
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function handleRagSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function enviarConsultaRag(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
     setRagError("");
     setRagResult(undefined);
 
@@ -294,7 +294,7 @@ export default function AnalizadorIA() {
       return;
     }
 
-    if (!question.trim()) {
+    if (!pregunta.trim()) {
       setRagError("Ingresa una pregunta para consultar la causa.");
       return;
     }
@@ -302,44 +302,44 @@ export default function AnalizadorIA() {
     setIsRagLoading(true);
 
     try {
-      const response = await queryRag(selectedCaseId, question);
-      const body = (await response.json()) as RagResult & {
+      const respuesta = await consultarRag(selectedCaseId, pregunta);
+      const cuerpo = (await respuesta.json()) as RagResult & {
         details?: string;
         error?: string;
       };
 
-      if (!response.ok) {
-        throw new Error([body.error, body.details].filter(Boolean).join(" "));
+      if (!respuesta.ok) {
+        throw new Error([cuerpo.error, cuerpo.details].filter(Boolean).join(" "));
       }
 
-      setRagResult(body);
+      setRagResult(cuerpo);
     } catch (ragQueryError) {
-      setRagError(getErrorMessage(ragQueryError));
+      setRagError(obtenerMensajeDeError(ragQueryError));
     } finally {
       setIsRagLoading(false);
     }
   }
 
-  async function loadDocuments(id: number) {
+  async function cargarDocumentos(id: number) {
     setDocumentsError("");
     setIsDocumentsLoading(true);
 
     try {
-      const response = await fetch(`${apiUrl}/api/ia/cases/${id}/documents`);
-      const body = (await response.json()) as {
+      const respuesta = await fetch(`${apiUrl}/api/ia/cases/${id}/documents`);
+      const cuerpo = (await respuesta.json()) as {
         details?: string;
         documents?: StoredDocument[];
         error?: string;
       };
 
-      if (!response.ok) {
-        throw new Error([body.error, body.details].filter(Boolean).join(" "));
+      if (!respuesta.ok) {
+        throw new Error([cuerpo.error, cuerpo.details].filter(Boolean).join(" "));
       }
 
-      setDocuments(body.documents || []);
+      setDocuments(cuerpo.documents || []);
     } catch (loadError) {
       setDocuments([]);
-      setDocumentsError(getErrorMessage(loadError));
+      setDocumentsError(obtenerMensajeDeError(loadError));
     } finally {
       setIsDocumentsLoading(false);
     }
@@ -350,7 +350,7 @@ export default function AnalizadorIA() {
       <div className="grid gap-5 @min-[1280px]:grid-cols-[minmax(360px,0.88fr)_minmax(0,1.12fr)]">
         <form
           className="flex min-h-[680px] flex-col rounded-lg border border-[#84A2BD]/35 bg-white p-5 shadow-[0_10px_28px_rgba(15,32,68,0.06)]"
-          onSubmit={handleSubmit}
+          onSubmit={enviarAnalisis}
         >
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#84A2BD]/28 pb-4">
             <div>
@@ -359,19 +359,19 @@ export default function AnalizadorIA() {
                 Backend: {apiUrl}
               </p>
             </div>
-            <HealthBadge error={healthError} health={health} />
+            <IndicadorDeEstado error={healthError} health={health} />
           </div>
 
           <div className="mt-5 grid gap-4">
             <fieldset>
               <legend className="text-sm font-semibold">Origen</legend>
               <div className="mt-2 grid grid-cols-2 rounded-lg bg-[#F4F7F5] p-1">
-                <ModeButton
+                <BotonDeModo
                   active={inputMode === "text"}
                   label="Texto"
                   onClick={() => setInputMode("text")}
                 />
-                <ModeButton
+                <BotonDeModo
                   active={inputMode === "file"}
                   label="Archivo TXT"
                   onClick={() => setInputMode("file")}
@@ -379,8 +379,8 @@ export default function AnalizadorIA() {
               </div>
             </fieldset>
 
-            <CaseControls
-              caseId={caseId}
+            <ControlesDelExpediente
+              caseId={idExpediente}
               cases={cases}
               casesError={casesError}
               onCaseIdChange={setCaseId}
@@ -394,30 +394,30 @@ export default function AnalizadorIA() {
               <span className="text-sm font-semibold">Texto juridico</span>
               <textarea
                 className="mt-2 min-h-[280px] flex-1 resize-none rounded-lg border border-[#84A2BD]/55 bg-[#F4F7F5] px-4 py-3 text-sm font-medium leading-6 outline-none placeholder:text-[#0F2044]/38 focus:border-[#546FC0] focus:bg-white focus:ring-4 focus:ring-[#84A2BD]/20"
-                onChange={(event) => setText(event.target.value)}
-                value={text}
+                onChange={(evento) => setText(evento.target.value)}
+                value={texto}
               />
             </label>
           ) : (
             <label className="mt-5 grid min-h-[320px] place-items-center rounded-lg border border-dashed border-[#546FC0]/55 bg-[#F4F7F5] p-5 text-center transition focus-within:border-[#546FC0] focus-within:bg-white">
               <span>
                 <span className="block text-base font-semibold">
-                  {file?.name || "Seleccionar TXT"}
+                  {archivo?.name || "Seleccionar TXT"}
                 </span>
                 <span className="mt-2 block text-sm font-medium text-[#0F2044]/58">
-                  {file ? formatBytes(file.size) : "Hasta 5 MB"}
+                  {archivo ? formatearBytes(archivo.size) : "Hasta 5 MB"}
                 </span>
               </span>
               <input
                 accept=".txt,text/plain"
                 className="sr-only"
-                onChange={(event) => setFile(event.target.files?.[0])}
+                onChange={(evento) => setFile(evento.target.files?.[0])}
                 type="file"
               />
             </label>
           )}
 
-          {error ? <AlertMessage message={error} /> : null}
+          {error ? <MensajeDeAlerta message={error} /> : null}
 
           <div className="mt-5 flex flex-wrap justify-end gap-3 border-t border-[#84A2BD]/28 pt-4">
             {inputMode === "text" ? (
@@ -439,19 +439,19 @@ export default function AnalizadorIA() {
           </div>
         </form>
 
-        <AnalysisResult analysis={analysis} />
+        <ResultadoDelAnalisis analysis={analisis} />
       </div>
 
-      <CaseWorkspace
+      <EspacioDelExpediente
         caseId={selectedCaseId}
-        documents={selectedCaseId ? documents : []}
+        documents={selectedCaseId ? documentos : []}
         documentsError={selectedCaseId ? documentsError : ""}
         isDocumentsLoading={isDocumentsLoading}
         isRagLoading={isRagLoading}
         onQuestionChange={setQuestion}
-        onRefreshDocuments={() => selectedCaseId && loadDocuments(selectedCaseId)}
-        onSubmit={handleRagSubmit}
-        question={question}
+        onRefreshDocuments={() => selectedCaseId && cargarDocumentos(selectedCaseId)}
+        onSubmit={enviarConsultaRag}
+        question={pregunta}
         ragError={ragError}
         ragResult={selectedCaseId ? ragResult : undefined}
       />
@@ -459,8 +459,8 @@ export default function AnalizadorIA() {
   );
 }
 
-function CaseControls({
-  caseId,
+function ControlesDelExpediente({
+  caseId: idExpediente,
   cases,
   casesError,
   onCaseIdChange,
@@ -470,8 +470,8 @@ function CaseControls({
   caseId: string;
   cases: CaseOption[];
   casesError: string;
-  onCaseIdChange: (value: string) => void;
-  onPersistChange: (value: boolean) => void;
+  onCaseIdChange: (valor: string) => void;
+  onPersistChange: (valor: boolean) => void;
   persist: boolean;
 }) {
   return (
@@ -481,7 +481,7 @@ function CaseControls({
           checked={persist}
           className="mt-1 h-4 w-4 accent-[#546FC0]"
           id="guardar-analisis"
-          onChange={(event) => onPersistChange(event.target.checked)}
+          onChange={(evento) => onPersistChange(evento.target.checked)}
           type="checkbox"
         />
         <label htmlFor="guardar-analisis">
@@ -497,9 +497,9 @@ function CaseControls({
         <input
           className="mt-2 h-11 w-full rounded-lg border border-[#84A2BD]/55 bg-white px-4 text-sm font-medium outline-none placeholder:text-[#0F2044]/38 focus:border-[#546FC0] focus:ring-4 focus:ring-[#84A2BD]/20"
           inputMode="numeric"
-          onChange={(event) => onCaseIdChange(event.target.value)}
+          onChange={(evento) => onCaseIdChange(evento.target.value)}
           placeholder="Ejemplo: 1"
-          value={caseId}
+          value={idExpediente}
         />
       </label>
 
@@ -530,16 +530,16 @@ function CaseControls({
   );
 }
 
-function CaseWorkspace({
-  caseId,
-  documents,
+function EspacioDelExpediente({
+  caseId: idExpediente,
+  documents: documentos,
   documentsError,
   isDocumentsLoading,
   isRagLoading,
   onQuestionChange,
   onRefreshDocuments,
   onSubmit,
-  question,
+  question: pregunta,
   ragError,
   ragResult,
 }: {
@@ -548,9 +548,9 @@ function CaseWorkspace({
   documentsError: string;
   isDocumentsLoading: boolean;
   isRagLoading: boolean;
-  onQuestionChange: (value: string) => void;
+  onQuestionChange: (valor: string) => void;
   onRefreshDocuments: () => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmit: (evento: FormEvent<HTMLFormElement>) => void;
   question: string;
   ragError: string;
   ragResult?: RagResult;
@@ -562,12 +562,12 @@ function CaseWorkspace({
           <div>
             <h2 className="text-xl font-semibold">Documentos guardados</h2>
             <p className="mt-1 text-sm font-medium text-[#0F2044]/60">
-              {caseId ? `Causa ${caseId}` : "Selecciona una causa"}
+              {idExpediente ? `Causa ${idExpediente}` : "Selecciona una causa"}
             </p>
           </div>
           <button
             className="rounded-full bg-[#F4F7F5] px-4 py-2 text-sm font-semibold transition hover:bg-[#84A2BD]/22 disabled:cursor-not-allowed disabled:text-[#0F2044]/38"
-            disabled={!caseId || isDocumentsLoading}
+            disabled={!idExpediente || isDocumentsLoading}
             onClick={onRefreshDocuments}
             type="button"
           >
@@ -576,26 +576,26 @@ function CaseWorkspace({
         </div>
 
         <div className="mt-4 grid gap-3">
-          {documentsError ? <AlertMessage message={documentsError} /> : null}
-          {!caseId ? <EmptyBlock title="Sin causa seleccionada" /> : null}
-          {caseId && !documentsError && !documents.length ? (
-            <EmptyBlock title="Sin documentos guardados" />
+          {documentsError ? <MensajeDeAlerta message={documentsError} /> : null}
+          {!idExpediente ? <BloqueVacio title="Sin causa seleccionada" /> : null}
+          {idExpediente && !documentsError && !documentos.length ? (
+            <BloqueVacio title="Sin documentos guardados" />
           ) : null}
-          {documents.map((document) => (
+          {documentos.map((documento) => (
             <article
               className="rounded-lg border border-[#84A2BD]/30 bg-[#F4F7F5] p-4"
-              key={document.id}
+              key={documento.id}
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <h3 className="font-semibold">{document.name}</h3>
+                  <h3 className="font-semibold">{documento.name}</h3>
                   <p className="mt-1 text-sm font-medium text-[#0F2044]/58">
-                    {document.status} | {document.type || "texto"}
+                    {documento.status} | {documento.type || "texto"}
                   </p>
                 </div>
-                {document.size_bytes ? (
+                {documento.size_bytes ? (
                   <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold">
-                    {formatBytes(document.size_bytes)}
+                    {formatearBytes(documento.size_bytes)}
                   </span>
                 ) : null}
               </div>
@@ -616,12 +616,12 @@ function CaseWorkspace({
           <span className="text-sm font-semibold">Pregunta</span>
           <textarea
             className="mt-2 min-h-28 w-full resize-none rounded-lg border border-[#84A2BD]/55 bg-[#F4F7F5] px-4 py-3 text-sm font-medium leading-6 outline-none placeholder:text-[#0F2044]/38 focus:border-[#546FC0] focus:bg-white focus:ring-4 focus:ring-[#84A2BD]/20"
-            onChange={(event) => onQuestionChange(event.target.value)}
-            value={question}
+            onChange={(evento) => onQuestionChange(evento.target.value)}
+            value={pregunta}
           />
         </label>
 
-        {ragError ? <AlertMessage message={ragError} /> : null}
+        {ragError ? <MensajeDeAlerta message={ragError} /> : null}
 
         <div className="mt-4 flex justify-end">
           <button
@@ -635,27 +635,27 @@ function CaseWorkspace({
 
         {ragResult ? (
           <div className="mt-5 grid gap-4">
-            <ResultBlock title={`Respuesta | confianza ${ragResult.confidence}`}>
+            <BloqueDeResultados title={`Respuesta | confianza ${ragResult.confidence}`}>
               <p className="text-sm font-medium leading-6 text-[#0F2044]/72">
                 {ragResult.answer}
               </p>
-            </ResultBlock>
-            <ResultBlock title="Fragmentos usados">
+            </BloqueDeResultados>
+            <BloqueDeResultados title="Fragmentos usados">
               {ragResult.retrieved_chunks.length ? (
                 <div className="grid gap-2">
-                  {ragResult.retrieved_chunks.map((chunk) => (
+                  {ragResult.retrieved_chunks.map((fragmento) => (
                     <article
                       className="rounded-lg bg-white px-3 py-2"
-                      key={`${chunk.document_id}-${chunk.chunk_index}`}
+                      key={`${fragmento.document_id}-${fragmento.chunk_index}`}
                     >
                       <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="font-semibold">{chunk.document_name}</h4>
+                        <h4 className="font-semibold">{fragmento.document_name}</h4>
                         <span className="rounded-full bg-[#F4F7F5] px-2 py-1 text-xs font-semibold">
-                          {chunk.score.toFixed(2)}
+                          {fragmento.score.toFixed(2)}
                         </span>
                       </div>
                       <p className="mt-1 text-sm font-medium leading-5 text-[#0F2044]/62">
-                        {chunk.text}
+                        {fragmento.text}
                       </p>
                     </article>
                   ))}
@@ -665,7 +665,7 @@ function CaseWorkspace({
                   Sin fragmentos recuperados.
                 </p>
               )}
-            </ResultBlock>
+            </BloqueDeResultados>
           </div>
         ) : null}
       </form>
@@ -673,7 +673,7 @@ function CaseWorkspace({
   );
 }
 
-function HealthBadge({ error, health }: { error: string; health?: Health }) {
+function IndicadorDeEstado({ error, health }: { error: string; health?: Health }) {
   if (error) {
     return (
       <span className="rounded-full bg-[#A68147]/18 px-3 py-1.5 text-xs font-semibold">
@@ -697,8 +697,8 @@ function HealthBadge({ error, health }: { error: string; health?: Health }) {
   );
 }
 
-function ModeButton({
-  active,
+function BotonDeModo({
+  active: activo,
   label,
   onClick,
 }: {
@@ -709,7 +709,7 @@ function ModeButton({
   return (
     <button
       className={`h-10 rounded-md text-sm font-semibold transition ${
-        active
+        activo
           ? "bg-white text-[#0F2044] shadow-[0_4px_14px_rgba(15,32,68,0.12)]"
           : "text-[#0F2044]/62 hover:text-[#0F2044]"
       }`}
@@ -721,16 +721,16 @@ function ModeButton({
   );
 }
 
-function AnalysisResult({ analysis }: { analysis?: Analysis }) {
-  if (!analysis) {
+function ResultadoDelAnalisis({ analysis: analisis }: { analysis?: Analysis }) {
+  if (!analisis) {
     return (
       <section className="min-h-[680px] rounded-lg border border-[#84A2BD]/35 bg-white p-5 shadow-[0_10px_28px_rgba(15,32,68,0.06)]">
         <h2 className="text-xl font-semibold">Resultado</h2>
         <div className="mt-5 grid gap-3">
-          <EmptyBlock title="Resumen" />
-          <EmptyBlock title="Causa" />
-          <EmptyBlock title="Imputados" />
-          <EmptyBlock title="Fechas y actuaciones" />
+          <BloqueVacio title="Resumen" />
+          <BloqueVacio title="Causa" />
+          <BloqueVacio title="Imputados" />
+          <BloqueVacio title="Fechas y actuaciones" />
         </div>
       </section>
     );
@@ -742,59 +742,59 @@ function AnalysisResult({ analysis }: { analysis?: Analysis }) {
         <div>
           <h2 className="text-xl font-semibold">Resultado</h2>
           <p className="mt-1 text-sm font-medium text-[#0F2044]/60">
-            {analysis.tipo_documento} | confianza {analysis.nivel_confianza}
+            {analisis.tipo_documento} | confianza {analisis.nivel_confianza}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs font-semibold">
           <span className="rounded-full bg-[#84A2BD]/22 px-3 py-1.5">
-            {analysis._metadata.engine}
+            {analisis._metadata.engine}
           </span>
-          {analysis._metadata.persistence ? (
+          {analisis._metadata.persistence ? (
             <span className="rounded-full bg-[#F4F7F5] px-3 py-1.5">
-              {analysis._metadata.persistence.persisted ? "guardado" : "sin guardar"}
+              {analisis._metadata.persistence.persisted ? "guardado" : "sin guardar"}
             </span>
           ) : null}
         </div>
       </div>
 
       <div className="mt-5 grid gap-4">
-        <AnalysisInsights analysis={analysis} />
+        <HallazgosDelAnalisis analysis={analisis} />
 
-        <ResultBlock title="Resumen">
+        <BloqueDeResultados title="Resumen">
           <p className="text-sm font-medium leading-6 text-[#0F2044]/72">
-            {analysis.resumen || "Sin resumen."}
+            {analisis.resumen || "Sin resumen."}
           </p>
-        </ResultBlock>
+        </BloqueDeResultados>
 
-        <ResultBlock title="Causa">
-          <TextList empty="Sin datos generales." items={analysis.causa.datos_generales} />
-          <TextList empty="Sin hechos relevantes." items={analysis.causa.hechos_relevantes} />
-        </ResultBlock>
+        <BloqueDeResultados title="Causa">
+          <ListaDeTexto empty="Sin datos generales." items={analisis.causa.datos_generales} />
+          <ListaDeTexto empty="Sin hechos relevantes." items={analisis.causa.hechos_relevantes} />
+        </BloqueDeResultados>
 
-        <ResultBlock title="Imputados">
-          {analysis.imputados.length ? (
+        <BloqueDeResultados title="Imputados">
+          {analisis.imputados.length ? (
             <div className="grid gap-3 @min-[768px]:grid-cols-2">
-              {analysis.imputados.map((defendant) => (
+              {analisis.imputados.map((defendant) => (
                 <article
                   className="rounded-lg border border-[#84A2BD]/30 bg-white p-3"
                   key={defendant.nombre}
                 >
                   <h4 className="font-semibold">{defendant.nombre}</h4>
-                  <TextList compact empty="Sin datos asociados." items={defendant.datos_asociados} />
-                  <TextList compact empty="Sin imputaciones detectadas." items={defendant.imputaciones} />
-                  <TextList compact empty="Sin hechos vinculados." items={defendant.hechos_vinculados} />
+                  <ListaDeTexto compact empty="Sin datos asociados." items={defendant.datos_asociados} />
+                  <ListaDeTexto compact empty="Sin imputaciones detectadas." items={defendant.imputaciones} />
+                  <ListaDeTexto compact empty="Sin hechos vinculados." items={defendant.hechos_vinculados} />
                 </article>
               ))}
             </div>
           ) : (
             <p className="text-sm font-medium text-[#0F2044]/58">Sin imputados detectados.</p>
           )}
-        </ResultBlock>
+        </BloqueDeResultados>
 
-        <ResultBlock title="Fechas">
-          {analysis.fechas_relevantes.length ? (
+        <BloqueDeResultados title="Fechas">
+          {analisis.fechas_relevantes.length ? (
             <div className="grid gap-2">
-              {analysis.fechas_relevantes.map((date) => (
+              {analisis.fechas_relevantes.map((date) => (
                 <article className="rounded-lg bg-white px-3 py-2" key={`${date.fecha}-${date.evento}`}>
                   <div className="flex flex-wrap items-center gap-2">
                     <h4 className="font-semibold">{date.fecha}</h4>
@@ -816,113 +816,113 @@ function AnalysisResult({ analysis }: { analysis?: Analysis }) {
           ) : (
             <p className="text-sm font-medium text-[#0F2044]/58">Sin fechas detectadas.</p>
           )}
-        </ResultBlock>
+        </BloqueDeResultados>
 
-        <ResultBlock title="Alertas inteligentes">
-          <TextList
+        <BloqueDeResultados title="Alertas inteligentes">
+          <ListaDeTexto
             empty="Sin alertas generadas."
-            items={analysis.alertas.map((alert) => `${alert.prioridad}: ${alert.titulo} - ${alert.descripcion}`)}
+            items={analisis.alertas.map((alert) => `${alert.prioridad}: ${alert.titulo} - ${alert.descripcion}`)}
           />
-        </ResultBlock>
+        </BloqueDeResultados>
 
-        <ResultBlock title="Analisis estrategico">
-          <TextList
+        <BloqueDeResultados title="Analisis estrategico">
+          <ListaDeTexto
             empty="Sin puntos de revision."
-            items={analysis.analisis_estrategico.puntos_revision.map(
+            items={analisis.analisis_estrategico.puntos_revision.map(
               (point) => `${point.prioridad}: ${point.descripcion}`,
             )}
           />
-          <TextList
+          <ListaDeTexto
             empty="Sin inconsistencias detectadas."
-            items={analysis.analisis_estrategico.inconsistencias.map(
-              (item) => `${item.severidad}: ${item.descripcion}`,
+            items={analisis.analisis_estrategico.inconsistencias.map(
+              (elemento) => `${elemento.severidad}: ${elemento.descripcion}`,
             )}
           />
-          <TextList empty="Sin omisiones posibles." items={analysis.analisis_estrategico.omisiones_posibles} />
-        </ResultBlock>
+          <ListaDeTexto empty="Sin omisiones posibles." items={analisis.analisis_estrategico.omisiones_posibles} />
+        </BloqueDeResultados>
 
-        <ResultBlock title="Base juridica y grafo">
-          <TextList empty="Sin entidades estructuradas." items={buildEntitySummary(analysis)} />
-          <TextList
+        <BloqueDeResultados title="Base juridica y grafo">
+          <ListaDeTexto empty="Sin entidades estructuradas." items={resumirEntidades(analisis)} />
+          <ListaDeTexto
             empty="Sin relaciones detectadas."
-            items={analysis.grafo_conocimiento.relaciones
+            items={analisis.grafo_conocimiento.relaciones
               .slice(0, 8)
               .map((relation) => `${relation.tipo}: ${relation.origen} -> ${relation.destino}`)}
           />
-        </ResultBlock>
+        </BloqueDeResultados>
 
-        <ResultBlock title="RAG juridico">
+        <BloqueDeResultados title="RAG juridico">
           <p className="text-sm font-medium leading-6 text-[#0F2044]/62">
-            {analysis.rag_juridico.indice_vectorial.proveedor} |{" "}
-            {analysis.rag_juridico.indice_vectorial.fragmentos_indexados} fragmentos
+            {analisis.rag_juridico.indice_vectorial.proveedor} |{" "}
+            {analisis.rag_juridico.indice_vectorial.fragmentos_indexados} fragmentos
           </p>
-          <TextList
+          <ListaDeTexto
             empty="Sin fragmentos recuperables."
-            items={analysis.rag_juridico.fragmentos
+            items={analisis.rag_juridico.fragmentos
               .slice(0, 5)
-              .map((fragment) => `${fragment.id}: ${fragment.texto.slice(0, 180)}`)}
+              .map((fragmento) => `${fragmento.id}: ${fragmento.texto.slice(0, 180)}`)}
           />
-          <TextList empty="Sin consultas sugeridas." items={analysis.rag_juridico.consultas_sugeridas} />
-        </ResultBlock>
+          <ListaDeTexto empty="Sin consultas sugeridas." items={analisis.rag_juridico.consultas_sugeridas} />
+        </BloqueDeResultados>
 
-        <ResultBlock title="Actuaciones y observaciones">
-          <TextList empty="Sin actuaciones pendientes." items={analysis.actuaciones_pendientes} />
-          <TextList empty="Sin observaciones." items={analysis.observaciones} />
-        </ResultBlock>
+        <BloqueDeResultados title="Actuaciones y observaciones">
+          <ListaDeTexto empty="Sin actuaciones pendientes." items={analisis.actuaciones_pendientes} />
+          <ListaDeTexto empty="Sin observaciones." items={analisis.observaciones} />
+        </BloqueDeResultados>
 
-        {analysis._metadata.source_file || analysis._metadata.persistence ? (
-          <ResultBlock title="Metadata">
-            {analysis._metadata.source_file ? (
+        {analisis._metadata.source_file || analisis._metadata.persistence ? (
+          <BloqueDeResultados title="Metadata">
+            {analisis._metadata.source_file ? (
               <p className="text-sm font-medium text-[#0F2044]/62">
-                {analysis._metadata.source_file.name} | {formatBytes(analysis._metadata.source_file.size_bytes)}
+                {analisis._metadata.source_file.name} | {formatearBytes(analisis._metadata.source_file.size_bytes)}
               </p>
             ) : null}
-            {analysis._metadata.persistence ? (
+            {analisis._metadata.persistence ? (
               <p className="text-sm font-medium text-[#0F2044]/62">
-                Analisis #{analysis._metadata.persistence.analysis_id ?? analysis._metadata.persistence.analisis_ia_id ?? "-"} | documento #
-                {analysis._metadata.persistence.document_id ?? "-"}
-                {analysis._metadata.persistence.error ? ` | ${analysis._metadata.persistence.error}` : ""}
+                Analisis #{analisis._metadata.persistence.analysis_id ?? analisis._metadata.persistence.analisis_ia_id ?? "-"} | documento #
+                {analisis._metadata.persistence.document_id ?? "-"}
+                {analisis._metadata.persistence.error ? ` | ${analisis._metadata.persistence.error}` : ""}
               </p>
             ) : null}
-          </ResultBlock>
+          </BloqueDeResultados>
         ) : null}
       </div>
     </section>
   );
 }
 
-function EmptyBlock({ title }: { title: string }) {
+function BloqueVacio({ title: titulo }: { title: string }) {
   return (
     <section className="h-24 rounded-lg bg-[#F4F7F5] p-4">
-      <h3 className="font-semibold">{title}</h3>
+      <h3 className="font-semibold">{titulo}</h3>
     </section>
   );
 }
 
-function ResultBlock({ children, title }: { children: React.ReactNode; title: string }) {
+function BloqueDeResultados({ children, title: titulo }: { children: React.ReactNode; title: string }) {
   return (
     <section className="grid gap-2 rounded-lg bg-[#F4F7F5] p-4">
-      <h3 className="text-lg font-semibold">{title}</h3>
+      <h3 className="text-lg font-semibold">{titulo}</h3>
       {children}
     </section>
   );
 }
 
-function AnalysisInsights({ analysis }: { analysis: Analysis }) {
+function HallazgosDelAnalisis({ analysis: analisis }: { analysis: Analysis }) {
   return (
     <section className="grid gap-3 @min-[768px]:grid-cols-4">
-      <InsightCard label="Imputados" value={analysis.imputados.length} />
-      <InsightCard label="Fechas" value={analysis.fechas_relevantes.length} />
-      <InsightCard label="Alertas" value={analysis.alertas.length} tone="alert" />
-      <InsightCard label="Grafo" value={analysis.grafo_conocimiento.relaciones.length} />
+      <TarjetaDeHallazgo label="Imputados" value={analisis.imputados.length} />
+      <TarjetaDeHallazgo label="Fechas" value={analisis.fechas_relevantes.length} />
+      <TarjetaDeHallazgo label="Alertas" value={analisis.alertas.length} tone="alert" />
+      <TarjetaDeHallazgo label="Grafo" value={analisis.grafo_conocimiento.relaciones.length} />
     </section>
   );
 }
 
-function InsightCard({
+function TarjetaDeHallazgo({
   label,
   tone = "default",
-  value,
+  value: valor,
 }: {
   label: string;
   tone?: "alert" | "default";
@@ -931,45 +931,45 @@ function InsightCard({
   return (
     <article className={`rounded-lg px-4 py-3 ${tone === "alert" ? "bg-[#A68147]/15" : "bg-[#F4F7F5]"}`}>
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#0F2044]/48">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{value}</p>
+      <p className="mt-1 text-2xl font-semibold">{valor}</p>
     </article>
   );
 }
 
-function TextList({
+function ListaDeTexto({
   compact = false,
   empty,
-  items,
+  items: elementos,
 }: {
   compact?: boolean;
   empty: string;
   items: string[];
 }) {
-  if (!items.length) {
+  if (!elementos.length) {
     return <p className={`font-medium text-[#0F2044]/58 ${compact ? "mt-2 text-xs" : "text-sm"}`}>{empty}</p>;
   }
 
   return (
     <ul className={`grid gap-1.5 font-medium leading-5 text-[#0F2044]/68 ${compact ? "mt-2 text-xs" : "text-sm"}`}>
-      {items.map((item) => (
-        <li className="rounded-md bg-white px-3 py-2" key={item}>
-          {item}
+      {elementos.map((elemento) => (
+        <li className="rounded-md bg-white px-3 py-2" key={elemento}>
+          {elemento}
         </li>
       ))}
     </ul>
   );
 }
 
-function AlertMessage({ message }: { message: string }) {
+function MensajeDeAlerta({ message: mensaje }: { message: string }) {
   return (
     <p className="mt-4 rounded-lg border border-[#A68147]/45 bg-[#A68147]/12 px-4 py-3 text-sm font-semibold" role="alert">
-      {message}
+      {mensaje}
     </p>
   );
 }
 
-function buildEntitySummary(analysis: Analysis) {
-  const entities = analysis.entidades_juridicas;
+function resumirEntidades(analisis: Analysis) {
+  const entities = analisis.entidades_juridicas;
 
   return [
     `Causas: ${entities.causas.length}`,
@@ -983,51 +983,51 @@ function buildEntitySummary(analysis: Analysis) {
   ];
 }
 
-async function loadHealth(controller: AbortController) {
-  const response = await fetch(`${apiUrl}/api/ia/health`, { signal: controller.signal });
-  const body = (await response.json()) as Health;
+async function consultarEstadoDeIA(controlador: AbortController) {
+  const respuesta = await fetch(`${apiUrl}/api/ia/health`, { signal: controlador.signal });
+  const cuerpo = (await respuesta.json()) as Health;
 
-  if (!response.ok) {
+  if (!respuesta.ok) {
     throw new Error("No se pudo consultar el backend de IA.");
   }
 
-  return body;
+  return cuerpo;
 }
 
-async function loadCases(controller: AbortController) {
-  const response = await fetch(`${apiUrl}/api/casos`, { signal: controller.signal });
-  const body = (await response.json()) as {
+async function cargarExpedientes(controlador: AbortController) {
+  const respuesta = await fetch(`${apiUrl}/api/casos`, { signal: controlador.signal });
+  const cuerpo = (await respuesta.json()) as {
     cases?: CaseOption[];
     details?: string;
     error?: string;
   };
 
-  if (!response.ok) {
-    throw new Error([body.error, body.details].filter(Boolean).join(" "));
+  if (!respuesta.ok) {
+    throw new Error([cuerpo.error, cuerpo.details].filter(Boolean).join(" "));
   }
 
-  return body.cases || [];
+  return cuerpo.cases || [];
 }
 
-function analyzeText(text: string, options: { caseId: number | null; persist: boolean }) {
+function analizarTexto(texto: string, opciones: { caseId: number | null; persist: boolean }) {
   return fetch(`${apiUrl}/api/ia/analyze`, {
     body: JSON.stringify({
-      case_id: options.caseId,
-      persist: options.persist,
-      text,
+      case_id: opciones.caseId,
+      persist: opciones.persist,
+      text: texto,
     }),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
 }
 
-function analyzeFile(file: File, options: { caseId: number | null; persist: boolean }) {
+function analizarArchivo(archivo: File, opciones: { caseId: number | null; persist: boolean }) {
   const formData = new FormData();
-  formData.set("file", file);
-  formData.set("persist", String(options.persist));
+  formData.set("file", archivo);
+  formData.set("persist", String(opciones.persist));
 
-  if (options.caseId) {
-    formData.set("case_id", String(options.caseId));
+  if (opciones.caseId) {
+    formData.set("case_id", String(opciones.caseId));
   }
 
   return fetch(`${apiUrl}/api/ia/analyze-file`, {
@@ -1036,25 +1036,25 @@ function analyzeFile(file: File, options: { caseId: number | null; persist: bool
   });
 }
 
-function queryRag(caseId: number, question: string) {
+function consultarRag(idExpediente: number, pregunta: string) {
   return fetch(`${apiUrl}/api/ia/rag/query`, {
-    body: JSON.stringify({ case_id: caseId, question, top_k: 5 }),
+    body: JSON.stringify({ case_id: idExpediente, question: pregunta, top_k: 5 }),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
 }
 
-function formatBytes(bytes: number) {
+function formatearBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function parsePositiveInteger(value: string) {
-  const number = Number(value);
+function leerEnteroPositivo(valor: string) {
+  const number = Number(valor);
   return Number.isInteger(number) && number > 0 ? number : null;
 }
 
-function getErrorMessage(error: unknown) {
+function obtenerMensajeDeError(error: unknown) {
   return error instanceof Error ? error.message : "No se pudo completar la accion.";
 }

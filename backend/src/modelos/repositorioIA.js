@@ -4,27 +4,27 @@ const crypto = require("node:crypto");
 
 const databaseConfigured = () => Boolean(process.env.DATABASE_URL);
 
-async function saveLegalAnalysis({
-  analysis,
+async function guardarAnalisisJuridico({
+  analysis: analisis,
   causaId = null,
   documentoId = null,
-  metadata = {},
-  sourceFile,
-  text,
+  metadata: metadatos = {},
+  sourceFile: archivoFuente,
+  text: texto,
 }) {
-  ensureDatabaseConfigured();
+  verificarConfiguracionDeBase();
 
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
 
-    const documentId =
+    const idDocumento =
       documentoId ||
-      (await createDocumentForAnalysis(client, {
+      (await crearDocumentoParaAnalisis(client, {
         causaId,
-        sourceFile,
-        text,
+        sourceFile: archivoFuente,
+        text: texto,
       }));
 
     const analysisResult = await client.query(
@@ -43,24 +43,24 @@ async function saveLegalAnalysis({
       `,
       [
         causaId,
-        documentId,
-        metadata.engine || "local",
-        metadata.model || null,
+        idDocumento,
+        metadatos.engine || "local",
+        metadatos.model || null,
         false,
-        analysis.nivel_confianza || null,
-        JSON.stringify({ ...analysis, _metadata: metadata }),
+        analisis.nivel_confianza || null,
+        JSON.stringify({ ...analisis, _metadata: metadatos }),
       ]
     );
-    const analysisId = analysisResult.rows[0].id;
+    const idAnalisis = analysisResult.rows[0].id;
 
-    await saveDates(client, { analysis, analysisId, causaId, documentoId: documentId });
-    await savePendingActions(client, { analysis, analysisId, causaId, documentoId: documentId });
-    await saveEntities(client, { analysis, analysisId, causaId, documentoId: documentId });
-    await saveRelations(client, { analysis, analysisId, causaId, documentoId: documentId });
-    await saveRagFragments(client, { analysis, analysisId, causaId, documentoId: documentId });
-    await saveAlerts(client, { analysis, analysisId, causaId, documentoId: documentId });
+    await guardarFechas(client, { analysis: analisis, analysisId: idAnalisis, causaId, documentoId: idDocumento });
+    await guardarAccionesPendientes(client, { analysis: analisis, analysisId: idAnalisis, causaId, documentoId: idDocumento });
+    await guardarEntidades(client, { analysis: analisis, analysisId: idAnalisis, causaId, documentoId: idDocumento });
+    await guardarRelaciones(client, { analysis: analisis, analysisId: idAnalisis, causaId, documentoId: idDocumento });
+    await guardarFragmentosRag(client, { analysis: analisis, analysisId: idAnalisis, causaId, documentoId: idDocumento });
+    await guardarAlertas(client, { analysis: analisis, analysisId: idAnalisis, causaId, documentoId: idDocumento });
 
-    if (documentId) {
+    if (idDocumento) {
       await client.query(
         `
           UPDATE documentos
@@ -68,7 +68,7 @@ async function saveLegalAnalysis({
               updated_at = NOW()
           WHERE id = $1
         `,
-        [documentId, DOCUMENT_PROCESSING_STATES.ANALYZED]
+        [idDocumento, DOCUMENT_PROCESSING_STATES.ANALYZED]
       );
     }
 
@@ -79,9 +79,9 @@ async function saveLegalAnalysis({
     await client.query("COMMIT");
 
     return {
-      analisis_ia_id: analysisId,
-      analysis_id: analysisId,
-      document_id: documentId,
+      analisis_ia_id: idAnalisis,
+      analysis_id: idAnalisis,
+      document_id: idDocumento,
       persisted: true,
     };
   } catch (error) {
@@ -92,10 +92,10 @@ async function saveLegalAnalysis({
   }
 }
 
-async function listDocumentsForCase(causaId, { includeUnprocessed = false } = {}) {
-  ensureDatabaseConfigured();
+async function listarDocumentosDelExpediente(causaId, { includeUnprocessed = false } = {}) {
+  verificarConfiguracionDeBase();
 
-  const result = await pool.query(
+  const resultado = await pool.query(
     `
       SELECT
         id,
@@ -114,11 +114,11 @@ async function listDocumentsForCase(causaId, { includeUnprocessed = false } = {}
     [causaId, includeUnprocessed]
   );
 
-  return result.rows;
+  return resultado.rows;
 }
 
-async function createDocumentForAnalysis(client, { causaId, sourceFile, text }) {
-  if (!causaId || !text) {
+async function crearDocumentoParaAnalisis(client, { causaId, sourceFile: archivoFuente, text: texto }) {
+  if (!causaId || !texto) {
     return null;
   }
 
@@ -139,21 +139,21 @@ async function createDocumentForAnalysis(client, { causaId, sourceFile, text }) 
     `,
     [
       causaId,
-      sourceFile?.name || "texto-ingresado",
-      sourceFile ? "txt" : "texto",
-      sourceFile?.mime_type || "text/plain",
-      sourceFile?.size_bytes || Buffer.byteLength(text, "utf8"),
-      text,
+      archivoFuente?.name || "texto-ingresado",
+      archivoFuente ? "txt" : "texto",
+      archivoFuente?.mime_type || "text/plain",
+      archivoFuente?.size_bytes || Buffer.byteLength(texto, "utf8"),
+      texto,
       DOCUMENT_PROCESSING_STATES.ANALYZED,
-      crypto.createHash("sha256").update(text, "utf8").digest("hex"),
+      crypto.createHash("sha256").update(texto, "utf8").digest("hex"),
     ]
   );
 
   return documentResult.rows[0].id;
 }
 
-async function saveDates(client, { analysis, analysisId, causaId, documentoId }) {
-  for (const date of analysis.fechas_relevantes || []) {
+async function guardarFechas(client, { analysis: analisis, analysisId: idAnalisis, causaId, documentoId }) {
+  for (const date of analisis.fechas_relevantes || []) {
     const dateText = date.fecha || date.fecha_texto || date.evento || "Fecha detectada";
 
     await client.query(
@@ -173,9 +173,9 @@ async function saveDates(client, { analysis, analysisId, causaId, documentoId })
       [
         causaId,
         documentoId,
-        analysisId,
+        idAnalisis,
         dateText,
-        date.fecha_normalizada || parseLegalDate(date.fecha || date.fecha_texto),
+        date.fecha_normalizada || interpretarFechaJuridica(date.fecha || date.fecha_texto),
         date.evento || "",
         date.tipo || "fecha_mencionada",
         Boolean(date.requiere_alerta),
@@ -184,12 +184,12 @@ async function saveDates(client, { analysis, analysisId, causaId, documentoId })
   }
 }
 
-async function savePendingActions(client, { analysis, analysisId, causaId, documentoId }) {
+async function guardarAccionesPendientes(client, { analysis: analisis, analysisId: idAnalisis, causaId, documentoId }) {
   if (!causaId) {
     return;
   }
 
-  for (const description of analysis.actuaciones_pendientes || []) {
+  for (const description of analisis.actuaciones_pendientes || []) {
     await client.query(
       `
         INSERT INTO actuaciones (
@@ -202,13 +202,13 @@ async function savePendingActions(client, { analysis, analysisId, causaId, docum
         )
         VALUES ($1, $2, $3, $4, 'pendiente', 'ia')
       `,
-      [causaId, documentoId, analysisId, description]
+      [causaId, documentoId, idAnalisis, description]
     );
   }
 }
 
-async function saveEntities(client, { analysis, analysisId, causaId, documentoId }) {
-  for (const entity of flattenLegalEntities(analysis.entidades_juridicas)) {
+async function guardarEntidades(client, { analysis: analisis, analysisId: idAnalisis, causaId, documentoId }) {
+  for (const entity of aplanarEntidadesJuridicas(analisis.entidades_juridicas)) {
     await client.query(
       `
         INSERT INTO entidades_juridicas (
@@ -225,7 +225,7 @@ async function saveEntities(client, { analysis, analysisId, causaId, documentoId
       [
         causaId,
         documentoId,
-        analysisId,
+        idAnalisis,
         entity.entidad_id,
         entity.tipo,
         entity.etiqueta,
@@ -235,8 +235,8 @@ async function saveEntities(client, { analysis, analysisId, causaId, documentoId
   }
 }
 
-async function saveRelations(client, { analysis, analysisId, causaId, documentoId }) {
-  for (const [index, relation] of (analysis.grafo_conocimiento?.relaciones || []).entries()) {
+async function guardarRelaciones(client, { analysis: analisis, analysisId: idAnalisis, causaId, documentoId }) {
+  for (const [indice, relation] of (analisis.grafo_conocimiento?.relaciones || []).entries()) {
     await client.query(
       `
         INSERT INTO relaciones_juridicas (
@@ -254,8 +254,8 @@ async function saveRelations(client, { analysis, analysisId, causaId, documentoI
       [
         causaId,
         documentoId,
-        analysisId,
-        relation.id || `relacion-${index + 1}`,
+        idAnalisis,
+        relation.id || `relacion-${indice + 1}`,
         String(relation.origen || "origen-no-informado"),
         String(relation.destino || "destino-no-informado"),
         relation.tipo || "relacion_juridica",
@@ -265,8 +265,8 @@ async function saveRelations(client, { analysis, analysisId, causaId, documentoI
   }
 }
 
-async function saveRagFragments(client, { analysis, analysisId, causaId, documentoId }) {
-  for (const [index, fragment] of (analysis.rag_juridico?.fragmentos || []).entries()) {
+async function guardarFragmentosRag(client, { analysis: analisis, analysisId: idAnalisis, causaId, documentoId }) {
+  for (const [indice, fragmento] of (analisis.rag_juridico?.fragmentos || []).entries()) {
     await client.query(
       `
         INSERT INTO fragmentos_rag (
@@ -285,27 +285,27 @@ async function saveRagFragments(client, { analysis, analysisId, causaId, documen
       [
         causaId,
         documentoId,
-        analysisId,
-        fragment.id || `fragmento-${index + 1}`,
-        Number.isInteger(fragment.orden) ? fragment.orden : index + 1,
-        String(fragment.texto || ""),
-        fragment.embedding_id,
+        idAnalisis,
+        fragmento.id || `fragmento-${indice + 1}`,
+        Number.isInteger(fragmento.orden) ? fragmento.orden : indice + 1,
+        String(fragmento.texto || ""),
+        fragmento.embedding_id,
         null,
         JSON.stringify({
-          categorias: fragment.categorias || [],
-          entidades: fragment.entidades || [],
-          caracteres_inicio: fragment.caracteres_inicio,
-          caracteres_fin: fragment.caracteres_fin,
-          tokens_estimados: fragment.tokens_estimados,
-          relevancia_base: fragment.relevancia_base,
+          categorias: fragmento.categorias || [],
+          entidades: fragmento.entidades || [],
+          caracteres_inicio: fragmento.caracteres_inicio,
+          caracteres_fin: fragmento.caracteres_fin,
+          tokens_estimados: fragmento.tokens_estimados,
+          relevancia_base: fragmento.relevancia_base,
         }),
       ]
     );
   }
 }
 
-async function saveAlerts(client, { analysis, analysisId, causaId, documentoId }) {
-  for (const [index, alert] of (analysis.alertas || []).entries()) {
+async function guardarAlertas(client, { analysis: analisis, analysisId: idAnalisis, causaId, documentoId }) {
+  for (const [indice, alert] of (analisis.alertas || []).entries()) {
     await client.query(
       `
         INSERT INTO alertas_ia (
@@ -326,10 +326,10 @@ async function saveAlerts(client, { analysis, analysisId, causaId, documentoId }
       [
         causaId,
         documentoId,
-        analysisId,
-        alert.id || `alerta-${index + 1}`,
+        idAnalisis,
+        alert.id || `alerta-${indice + 1}`,
         alert.tipo || "revision",
-        alert.titulo || `Alerta ${index + 1}`,
+        alert.titulo || `Alerta ${indice + 1}`,
         alert.descripcion || alert.detalle || "Revisar el hallazgo detectado por IA.",
         alert.fecha_normalizada || null,
         alert.prioridad,
@@ -340,22 +340,22 @@ async function saveAlerts(client, { analysis, analysisId, causaId, documentoId }
   }
 }
 
-function flattenLegalEntities(entities = {}) {
-  return Object.entries(entities).flatMap(([type, values]) => {
-    if (!Array.isArray(values)) {
+function aplanarEntidadesJuridicas(entities = {}) {
+  return Object.entries(entities).flatMap(([type, valores]) => {
+    if (!Array.isArray(valores)) {
       return [];
     }
 
-    return values.map((value) => ({
-      entidad_id: value.id || `${type}:${getEntityLabel(value)}`,
+    return valores.map((valor) => ({
+      entidad_id: valor.id || `${type}:${obtenerEtiquetaDeEntidad(valor)}`,
       tipo: type,
-      etiqueta: getEntityLabel(value),
-      datos_json: value,
+      etiqueta: obtenerEtiquetaDeEntidad(valor),
+      datos_json: valor,
     }));
   });
 }
 
-function getEntityLabel(entity) {
+function obtenerEtiquetaDeEntidad(entity) {
   return (
     entity.nombre ||
     entity.identificador ||
@@ -367,9 +367,9 @@ function getEntityLabel(entity) {
   );
 }
 
-function parseLegalDate(value) {
-  const text = String(value || "").trim().toLowerCase();
-  const numeric = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+function interpretarFechaJuridica(valor) {
+  const texto = String(valor || "").trim().toLowerCase();
+  const numeric = texto.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
 
   if (numeric) {
     const [, day, month, rawYear] = numeric;
@@ -391,7 +391,7 @@ function parseLegalDate(value) {
     noviembre: "11",
     diciembre: "12",
   };
-  const named = text.match(/^(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})$/);
+  const named = texto.match(/^(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})$/);
 
   if (!named || !monthNames[named[2]]) {
     return null;
@@ -400,7 +400,7 @@ function parseLegalDate(value) {
   return `${named[3]}-${monthNames[named[2]]}-${named[1].padStart(2, "0")}`;
 }
 
-function ensureDatabaseConfigured() {
+function verificarConfiguracionDeBase() {
   if (!databaseConfigured()) {
     const error = new Error("DATABASE_URL no esta configurado.");
     error.statusCode = 503;
@@ -409,6 +409,6 @@ function ensureDatabaseConfigured() {
 }
 
 module.exports = {
-  listDocumentsForCase,
-  saveLegalAnalysis,
+  listarDocumentosDelExpediente,
+  guardarAnalisisJuridico,
 };

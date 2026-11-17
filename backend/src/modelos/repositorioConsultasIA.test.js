@@ -5,11 +5,11 @@ process.env.DATABASE_URL = process.env.DATABASE_URL || "postgres://test:test@loc
 
 const { pool } = require("../configuracion/baseDatos");
 const {
-  createAIQuery,
-  deleteAIQuery,
-  getAIQuery,
-  listAIQueries,
-  resetQueriesTableForTests,
+  guardarConsultaDeIA,
+  eliminarConsultaDeIA,
+  obtenerConsultaDeIA,
+  listarConsultasDeIA,
+  reiniciarTablaDeConsultasParaPruebas,
 } = require("./repositorioConsultasIA");
 
 describe("repositorioConsultasIA", () => {
@@ -38,9 +38,9 @@ describe("repositorioConsultasIA", () => {
       return { rows: [], rowCount: 0 };
     };
 
-    resetQueriesTableForTests();
+    reiniciarTablaDeConsultasParaPruebas();
     try {
-      const created = await createAIQuery({
+      const created = await guardarConsultaDeIA({
         caseId: 7,
         userId: "user-a",
         toolId: "resumen_expediente",
@@ -51,9 +51,9 @@ describe("repositorioConsultasIA", () => {
         citations: [],
         metadata: { engine: "local" },
       });
-      const listed = await listAIQueries(7, "user-a");
-      const found = await getAIQuery(7, 31, "user-a");
-      const deleted = await deleteAIQuery(7, 31, "user-a");
+      const listed = await listarConsultasDeIA(7, "user-a");
+      const found = await obtenerConsultaDeIA(7, 31, "user-a");
+      const deleted = await eliminarConsultaDeIA(7, 31, "user-a");
 
       assert.equal(created.user_id, "user-a");
       assert.equal(listed[0].user_id, "user-a");
@@ -69,11 +69,11 @@ describe("repositorioConsultasIA", () => {
       assert.equal(protectedDelete.values[2], "user-a");
     } finally {
       pool.query = originalQuery;
-      resetQueriesTableForTests();
+      reiniciarTablaDeConsultasParaPruebas();
     }
   });
 
   it("rechaza nuevos registros sin usuario propietario", async () => {
-    await assert.rejects(() => createAIQuery({}), /sin usuario propietario/i);
+    await assert.rejects(() => guardarConsultaDeIA({}), /sin usuario propietario/i);
   });
 });

@@ -1,11 +1,11 @@
 const assert = require("node:assert/strict");
 const { describe, it } = require("node:test");
 process.env.DATABASE_URL = process.env.DATABASE_URL || "postgres://test:test@localhost/test";
-const { buildFtsWebQuery, searchLegalLibrary } = require("./repositorioBibliotecaJuridica");
+const { construirConsultaDeTextoCompleto, buscarNormativaOficial } = require("./repositorioBibliotecaJuridica");
 
 describe("repositorioBibliotecaJuridica", () => {
   it("expande terminología con OR para no exigir todos los sinónimos", () => {
-    const query = buildFtsWebQuery("declaración del acusado en audiencia");
+    const query = construirConsultaDeTextoCompleto("declaración del acusado en audiencia");
     assert.match(query, /acusado OR/);
     assert.match(query, /imputado/);
     assert.match(query, /audiencia/);
@@ -13,7 +13,7 @@ describe("repositorioBibliotecaJuridica", () => {
 
   it("busca sólo fuentes nacionales y federales vigentes", async () => {
     let captured;
-    const rows = await searchLegalLibrary({ query: "prisión preventiva", limit: 50 }, { pool: {
+    const rows = await buscarNormativaOficial({ query: "prisión preventiva", limit: 50 }, { pool: {
       query: async (sql, values) => {
         captured = { sql, values };
         return { rows: [{ id: 3, fuente_id: 2, orden: 16, titulo: "CPPF", texto: "Peligro real de fuga.", lexical_score: 0.4, tipo: "legislacion", url_oficial: "https://example.test", metadata_json: {} }] };
@@ -29,7 +29,7 @@ describe("repositorioBibliotecaJuridica", () => {
     let calls = 0;
     const common = { id: 3, fuente_id: 2, orden: 17, titulo: "CPPF", texto: "Riesgo procesal de fuga.",
       tipo: "legislacion", url_oficial: "https://example.test", metadata_json: {} };
-    const rows = await searchLegalLibrary({ query: "puede escaparse", queryEmbedding: Array(768).fill(0.1), limit: 5 }, { pool: {
+    const rows = await buscarNormativaOficial({ query: "puede escaparse", queryEmbedding: Array(768).fill(0.1), limit: 5 }, { pool: {
       query: async () => {
         calls += 1;
         return calls === 1

@@ -5,7 +5,7 @@ const { pool } = require("../configuracion/baseDatos");
 const app = require("../aplicacion");
 const { setSessionResolverForTests, resetSessionResolverForTests } = require("../autenticacion/sesion");
 const { setAuthorizationResolverForTests, resetAuthorizationResolverForTests } = require("../autenticacion/autorizacion");
-const { setLocalAIClientFactoryForTests, resetLocalAIClientFactoryForTests } = require("../../IA/analizadorLocal");
+const { configurarClienteDeIAParaPruebas, restablecerClienteDeIAParaPruebas } = require("../../IA/analizadorLocal");
 
 describe("mensajes del chat del expediente", () => {
   const originalQuery = pool.query, originalConnect = pool.connect;
@@ -37,21 +37,24 @@ describe("mensajes del chat del expediente", () => {
         return { rows: [], rowCount: 0 };
       }, release() {},
     });
-    setLocalAIClientFactoryForTests(() => ({ chat: async () => JSON.stringify({
+    configurarClienteDeIAParaPruebas(() => ({ chat: async () => JSON.stringify({
       answer: "La audiencia sera el 12 de mayo de 2026 [FUENTE 1].",
       suggested_questions: [], limitations: [],
     }) }));
   });
   afterEach(() => {
     pool.query = originalQuery; pool.connect = originalConnect;
-    resetLocalAIClientFactoryForTests();
+    restablecerClienteDeIAParaPruebas();
     mock.restoreAll();
   });
   after(async () => {
     resetSessionResolverForTests(); resetAuthorizationResolverForTests();
     await new Promise((resolve) => server.close(resolve));
   });
-  function send(content, toolId) { return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content, tool_id: toolId }) }); }
+  function send(content, toolId, responseFormat) {
+    return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content, tool_id: toolId, response_format: responseFormat }) });
+  }
 
   it("genera y guarda ambos mensajes con sus citas en una transaccion", async () => {
     const response = await send("Cuando es la audiencia del expediente?");
@@ -64,7 +67,7 @@ describe("mensajes del chat del expediente", () => {
   });
 
   it("devuelve y guarda evidencia extractiva cuando Ollama no esta accesible", async () => {
-    setLocalAIClientFactoryForTests(() => ({ chat: async () => { throw new Error("ECONNREFUSED localhost:11434"); } }));
+    configurarClienteDeIAParaPruebas(() => ({ chat: async () => { throw new Error("ECONNREFUSED localhost:11434"); } }));
     const response = await send("Cuando es la audiencia del expediente?");
     const body = await response.json();
     assert.equal(response.status, 201);
@@ -77,7 +80,7 @@ describe("mensajes del chat del expediente", () => {
     const previousUrl = process.env.LOCAL_AI_BASE_URL;
     process.env.LOCAL_AI_BASE_URL = "https://ollama.com";
     const requests = [];
-    setLocalAIClientFactoryForTests(() => ({ chat: async (payload) => {
+    configurarClienteDeIAParaPruebas(() => ({ chat: async (payload) => {
       requests.push(payload);
       return "**La audiencia es el 12 de mayo.** [FUENTE 1, FUENTE 2]";
     } }));
@@ -97,10 +100,35 @@ describe("mensajes del chat del expediente", () => {
   });
 
   it("guarda saludos sin invocar al modelo", async () => {
-    setLocalAIClientFactoryForTests(() => ({ chat: async () => { assert.fail("El saludo no necesita Ollama"); } }));
+    configurarClienteDeIAParaPruebas(() => ({ chat: async () => { assert.fail("El saludo no necesita Ollama"); } }));
     const response = await send("Hola");
     assert.equal(response.status, 201);
     assert.equal(savedMetadata.engine, "deterministic_conversation");
+  });
+
+  it("guarda una cronología como tabla con referencias visibles", async () => {
+    configurarClienteDeIAParaPruebas(() => ({ chat: async ({ messages }) => {
+      assert.match(messages[0].content, /Fecha y hora, Actuación, Responsable, Estado, Fuente/);
+      return JSON.stringify({
+        answer: "| Fecha y hora | Actuación | Responsable | Estado | Fuente |\n| --- | --- | --- | --- | --- |\n| 12 de mayo | Audiencia | No consta | Vigente | [FUENTE 1] |",
+        suggested_questions: [], limitations: [],
+      });
+    } }));
+    const response = await send("¿Cuándo es la audiencia del expediente?", "cronologia", "table");
+    assert.equal(response.status, 201);
+    assert.deepEqual(savedMetadata.response_table, {
+      columns: ["Fecha y hora", "Actuación", "Responsable", "Estado", "Fuente"],
+      rows: [["12 de mayo", "Audiencia", "No consta", "Vigente", "[1]"]],
+    });
+  });
+
+  it("entrega los extractos en tabla cuando falla Ollama", async () => {
+    configurarClienteDeIAParaPruebas(() => ({ chat: async () => { throw new Error("Ollama sin conexión"); } }));
+    const response = await send("¿Cuándo es la audiencia del expediente?", "cronologia", "table");
+    assert.equal(response.status, 201);
+    assert.equal(savedMetadata.engine, "extractive_chat_fallback");
+    assert.equal(savedMetadata.response_table.caption, "Fragmentos recuperados");
+    assert.ok(savedMetadata.response_table.rows.some((row) => /12 de mayo/.test(row[2])));
   });
 
   it("identifica la etapa y la solicitud cuando falla el guardado y revierte la transaccion", async () => {

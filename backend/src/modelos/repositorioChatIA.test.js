@@ -3,7 +3,7 @@ const { describe, it } = require("node:test");
 
 process.env.DATABASE_URL = process.env.DATABASE_URL || "postgres://test:test@localhost/test";
 const { pool } = require("../configuracion/baseDatos");
-const { createConversation, getConversation, listConversations } = require("./repositorioChatIA");
+const { crearConversacion, obtenerConversacion, listarConversaciones } = require("./repositorioChatIA");
 
 describe("repositorioChatIA", () => {
   it("restringe las conversaciones por organizacion, expediente y usuario", async () => {
@@ -19,9 +19,9 @@ describe("repositorioChatIA", () => {
       return { rows: [], rowCount: 0 };
     };
     try {
-      await createConversation({ organizationId: 2, caseId: 4, userId: "user-a", title: "Consulta de fechas" });
-      await listConversations({ organizationId: 2, caseId: 4, userId: "user-a" });
-      const found = await getConversation({ organizationId: 2, caseId: 4, userId: "user-a", conversationId: 8 });
+      await crearConversacion({ organizationId: 2, caseId: 4, userId: "user-a", title: "Consulta de fechas" });
+      await listarConversaciones({ organizationId: 2, caseId: 4, userId: "user-a" });
+      const found = await obtenerConversacion({ organizationId: 2, caseId: 4, userId: "user-a", conversationId: 8 });
       assert.equal(found.id, 8);
       const protectedCalls = calls.filter(({ sql }) => /organizacion_id/.test(sql) && /user_id/.test(sql));
       assert.ok(protectedCalls.length >= 3);

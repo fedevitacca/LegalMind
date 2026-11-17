@@ -2,15 +2,15 @@ const assert = require("node:assert/strict");
 const { describe, it } = require("node:test");
 
 const {
-  buildExtractiveAnswer,
-  extractSimpleCaseData,
-  retrieveRelevantChunks,
+  construirRespuestaExtractiva,
+  extraerDatosBasicosDelExpediente,
+  buscarFragmentosRelevantes,
 } = require("./ragLocal");
-const { expandLegalQuery } = require("./terminologiaRag");
+const { ampliarConsultaJuridica } = require("./terminologiaRag");
 
 describe("ragLocal", () => {
   it("recupera fragmentos relevantes de documentos de una causa", () => {
-    const documents = [
+    const documentos = [
       {
         id: 1,
         nombre_archivo: "audiencia.txt",
@@ -24,39 +24,39 @@ describe("ragLocal", () => {
       },
     ];
 
-    const chunks = retrieveRelevantChunks(documents, "cuando es la audiencia del imputado", 2);
+    const fragmentos = buscarFragmentosRelevantes(documentos, "cuando es la audiencia del imputado", 2);
 
-    assert.equal(chunks[0].document_id, 1);
-    assert.match(chunks[0].text, /audiencia/);
+    assert.equal(fragmentos[0].document_id, 1);
+    assert.match(fragmentos[0].text, /audiencia/);
   });
 
   it("expande vocabulario juridico equivalente para mejorar la recuperacion", () => {
-    const expanded = expandLegalQuery("¿Que dijeron los acusados en las vistas?");
-    assert.match(expanded, /imputado/);
-    assert.match(expanded, /audiencia/);
+    const ampliada = ampliarConsultaJuridica("¿Que dijeron los acusados en las vistas?");
+    assert.match(ampliada, /imputado/);
+    assert.match(ampliada, /audiencia/);
 
-    const documents = [
+    const documentos = [
       { id: 1, nombre_archivo: "acta.txt", texto_extraido: "El imputado presto declaracion durante la audiencia." },
       { id: 2, nombre_archivo: "otro.txt", texto_extraido: "Se incorporo documentacion administrativa." },
     ];
-    const chunks = retrieveRelevantChunks(documents, "testimonio del acusado en la vista", 1);
-    assert.equal(chunks[0].document_id, 1);
+    const fragmentos = buscarFragmentosRelevantes(documentos, "testimonio del acusado en la vista", 1);
+    assert.equal(fragmentos[0].document_id, 1);
   });
 
   it("genera respuesta extractiva con respaldo", () => {
-    const answer = buildExtractiveAnswer("pregunta", [
+    const respuestaRedactada = construirRespuestaExtractiva("pregunta", [
       {
         score: 0.5,
         text: "La defensa debera presentar documentacion antes del 22/04/2026.",
       },
     ]);
 
-    assert.equal(answer.confidence, "medio");
-    assert.match(answer.answer, /documentacion/);
+    assert.equal(respuestaRedactada.confidence, "medio");
+    assert.match(respuestaRedactada.answer, /documentacion/);
   });
 
   it("extrae datos simples de una causa desde texto juridico", () => {
-    const data = extractSimpleCaseData(`
+    const datos = extraerDatosBasicosDelExpediente(`
       Causa nro 9988/2026. Caratula: Perez Juan s/ robo agravado.
       Tribunal Oral Criminal N. 4.
       El imputado Juan Perez fue citado a audiencia el 18 de abril de 2026.
@@ -65,13 +65,13 @@ describe("ragLocal", () => {
       La defensa debera presentar documentacion hasta el 22/04/2026.
     `);
 
-    assert.equal(data.numero_causa, "9988/2026");
-    assert.match(data.tribunal, /Tribunal Oral Criminal/);
-    assert.equal(data.cantidad_imputados, 1);
-    assert.deepEqual(data.imputados, ["Juan Perez"]);
-    assert.deepEqual(data.victimas, ["Laura Rios"]);
-    assert.ok(data.fechas_relevantes.includes("18 de abril de 2026"));
-    assert.ok(data.fechas_relevantes.includes("22/04/2026"));
-    assert.ok(data.audiencias_o_actos.some((sentence) => sentence.includes("audiencia")));
+    assert.equal(datos.numero_causa, "9988/2026");
+    assert.match(datos.tribunal, /Tribunal Oral Criminal/);
+    assert.equal(datos.cantidad_imputados, 1);
+    assert.deepEqual(datos.imputados, ["Juan Perez"]);
+    assert.deepEqual(datos.victimas, ["Laura Rios"]);
+    assert.ok(datos.fechas_relevantes.includes("18 de abril de 2026"));
+    assert.ok(datos.fechas_relevantes.includes("22/04/2026"));
+    assert.ok(datos.audiencias_o_actos.some((oracion) => oracion.includes("audiencia")));
   });
 });

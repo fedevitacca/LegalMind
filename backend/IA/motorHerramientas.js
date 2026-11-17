@@ -1,4 +1,4 @@
-const TOOL_DEFINITIONS = {
+const DEFINICIONES_HERRAMIENTAS = {
   resumen_expediente: {
     label: "Resumen del expediente",
     description: "Sintetiza partes, hechos, estado, fechas y próximos pasos.",
@@ -107,7 +107,7 @@ const TOOL_DEFINITIONS = {
   },
 };
 
-const toolResultSchema = {
+const esquemaResultadoHerramienta = {
   type: "object",
   additionalProperties: false,
   required: ["titulo", "conclusion", "puntos_clave", "desarrollo", "acciones_sugeridas", "limitaciones"],
@@ -134,12 +134,12 @@ const toolResultSchema = {
   },
 };
 
-function listTools() {
-  return Object.entries(TOOL_DEFINITIONS).map(([id, value]) => ({ id, ...value }));
+function listarHerramientas() {
+  return Object.entries(DEFINICIONES_HERRAMIENTAS).map(([id, valor]) => ({ id, ...valor }));
 }
 
-function getTool(id) {
-  return TOOL_DEFINITIONS[id] || null;
+function obtenerHerramienta(id) {
+  return DEFINICIONES_HERRAMIENTAS[id] || null;
 }
 
-module.exports = { getTool, listTools, toolResultSchema };
+module.exports = { obtenerHerramienta, listarHerramientas, esquemaResultadoHerramienta };

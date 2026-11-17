@@ -1,56 +1,56 @@
 const express = require("express");
 
 const {
-  buildLawyerBriefWithLocalAI,
-  getLocalAIConfig,
-  probeLocalAI,
-  searchLegalTextWithLocalAI,
-  runLegalToolWithLocalAI,
-  embedTextsWithLocalAI,
+  generarInformeJuridicoConIA,
+  obtenerConfiguracionDeIA,
+  comprobarConexionConOllama,
+  buscarEnTextoJuridicoConIA,
+  ejecutarHerramientaJuridicaConIA,
+  generarEmbeddingsDeTextos,
 } = require("../../IA/analizadorLocal");
-const { getTool, listTools } = require("../../IA/motorHerramientas");
-const { buildStructuredCaseDocuments } = require("../../IA/contextoExpediente");
-const { expandLegalQuery } = require("../../IA/terminologiaRag");
-const { createAIQuery, deleteAIQuery, getAIQuery, listAIQueries } = require("../modelos/repositorioConsultasIA");
+const { obtenerHerramienta, listarHerramientas } = require("../../IA/motorHerramientas");
+const { crearDocumentosDelContexto } = require("../../IA/contextoExpediente");
+const { ampliarConsultaJuridica } = require("../../IA/terminologiaRag");
+const { guardarConsultaDeIA, eliminarConsultaDeIA, obtenerConsultaDeIA, listarConsultasDeIA } = require("../modelos/repositorioConsultasIA");
 const {
-  MAX_TEXT_FILE_SIZE_BYTES,
-  extractTextFromSupportedFile,
-  extractTextFromTxtFile,
-  isPdfFile,
-  isSupportedDocument,
-  isTxtFile,
+  MAXIMO_BYTES_ARCHIVO_TEXTO,
+  extraerTextoDeArchivo,
+  extraerTextoPlano,
+  esArchivoPdf,
+  esDocumentoCompatible,
+  esArchivoDeTexto,
 } = require("../../IA/textFile");
 const {
-  extractSimpleCaseData,
-  retrieveRelevantChunks,
+  extraerDatosBasicosDelExpediente,
+  buscarFragmentosRelevantes,
 } = require("../../IA/ragLocal");
-const { buildFastToolResult } = require("../../IA/respuestaRapida");
-const { buildGroundedLegalAnswer } = require("../../IA/respuestaJuridicaExtractiva");
+const { construirResultadoRapido } = require("../../IA/respuestaRapida");
+const { construirRespuestaConEvidencia } = require("../../IA/respuestaJuridicaExtractiva");
 const {
-  listDocumentsForCase,
-  saveLegalAnalysis,
+  listarDocumentosDelExpediente,
+  guardarAnalisisJuridico,
 } = require("../modelos/repositorioIA");
-const { searchLegalLibrary } = require("../modelos/repositorioBibliotecaJuridica");
-const { hybridSearch } = require("../modelos/repositorioRagVectorial");
-const { listDatesByCase, listDefendantsByCase } = require("../modelos/repositorioCasos");
-const { listCaseRecords, listTasks } = require("../modelos/repositorioTrabajoJuridico");
-const { assessEvidence, buildLegalCitations, verifyResultClaims } = require("../servicios/citasJuridicas");
-const { appendExchange, createConversation, deleteConversation, getConversation, listConversations } = require("../modelos/repositorioChatIA");
-const { answerCaseChat, CHAT_TOOL_IDS } = require("../servicios/servicioChatExpediente");
+const { buscarNormativaOficial } = require("../modelos/repositorioBibliotecaJuridica");
+const { buscarFragmentosDeFormaHibrida } = require("../modelos/repositorioRagVectorial");
+const { listDatesByCase: listarFechasDelExpediente, listDefendantsByCase: listarImputadosDelExpediente } = require("../modelos/repositorioCasos");
+const { listCaseRecords: listarRegistrosDelExpediente, listTasks: listarTareas } = require("../modelos/repositorioTrabajoJuridico");
+const { evaluarEvidencia, construirCitasJuridicas, verificarAfirmacionesDelResultado } = require("../servicios/citasJuridicas");
+const { guardarIntercambio, crearConversacion, eliminarConversacion, obtenerConversacion, listarConversaciones } = require("../modelos/repositorioChatIA");
+const { responderChatExpediente, IDS_HERRAMIENTAS_CHAT } = require("../servicios/servicioChatExpediente");
 
-const router = express.Router();
-const { requireSession } = require("../autenticacion/sesion");
-const { attachSecurityContext, recordAudit, requireCaseAccess, requireOptionalCaseAccess, requireRole } = require("../autenticacion/autorizacion");
+const enrutador = express.Router();
+const { requireSession: exigirSesion } = require("../autenticacion/sesion");
+const { attachSecurityContext: adjuntarContextoDeSeguridad, recordAudit: registrarAuditoria, requireCaseAccess: exigirAccesoAlExpediente, requireOptionalCaseAccess: exigirAccesoSiHayExpediente, requireRole: exigirRol } = require("../autenticacion/autorizacion");
 
-router.get("/health", (req, res) => {
-  const localAIConfig = getLocalAIConfig();
+enrutador.get("/health", (solicitud, respuesta) => {
+  const configuracionLocalIA = obtenerConfiguracionDeIA();
 
-  res.json({
+  respuesta.json({
     status: "ok",
     module: "LegalMind IA",
-    local_ai_base_url: localAIConfig.baseUrl,
+    local_ai_base_url: configuracionLocalIA.baseUrl,
     local_ai_configured: true,
-    local_ai_model: localAIConfig.model,
+    local_ai_model: configuracionLocalIA.model,
     local_ai_required: true,
     capabilities: [
       "extraccion_juridica_estructurada",
@@ -69,613 +69,615 @@ router.get("/health", (req, res) => {
   });
 });
 
-router.get("/health/live", async (req, res) => {
-  try { return res.json({ status: "ok", ...(await probeLocalAI()), config: getLocalAIConfig() }); }
-  catch (error) { return res.status(503).json({ status: "degraded", available: false, error: error.message }); }
+enrutador.get("/health/live", async (solicitud, respuesta) => {
+  try { return respuesta.json({ status: "ok", ...(await comprobarConexionConOllama()), config: obtenerConfiguracionDeIA() }); }
+  catch (error) { return respuesta.status(503).json({ status: "degraded", available: false, error: error.message }); }
 });
 
-router.get("/tools", (req, res) => res.json({ tools: listTools() }));
+enrutador.get("/tools", (solicitud, respuesta) => respuesta.json({ tools: listarHerramientas() }));
 
-router.post("/extract-file", requireSession, attachSecurityContext, (req, res) => {
-  parseTextFileUpload(req, async (uploadError) => {
-    if (uploadError) return res.status(400).json({ error: getUploadErrorMessage(uploadError) });
+enrutador.post("/extract-file", exigirSesion, adjuntarContextoDeSeguridad, (solicitud, respuesta) => {
+  procesarCargaDeArchivo(solicitud, async (errorDeCarga) => {
+    if (errorDeCarga) return respuesta.status(400).json({ error: obtenerMensajeDeErrorDeCarga(errorDeCarga) });
     try {
-      const text = await extractTextFromSupportedFile(req.file);
-      return res.json({ document: { name: req.file.originalname, mime_type: req.file.mimetype,
-        size_bytes: req.file.size, characters: text.length, text } });
-    } catch (error) { return res.status(400).json({ error: error.message }); }
+      const texto = await extraerTextoDeArchivo(solicitud.file);
+      return respuesta.json({ document: { name: solicitud.file.originalname, mime_type: solicitud.file.mimetype,
+        size_bytes: solicitud.file.size, characters: texto.length, text: texto } });
+    } catch (error) { return respuesta.status(400).json({ error: error.message }); }
   }, { allowAllDocuments: true });
 });
 
-router.use(requireSession, attachSecurityContext);
+enrutador.use(exigirSesion, adjuntarContextoDeSeguridad);
 
-router.get("/cases/:caseId/chats", requireCaseAccess, async (req, res, next) => {
+enrutador.get("/cases/:caseId/chats", exigirAccesoAlExpediente, async (solicitud, respuesta, siguiente) => {
   try {
-    const conversations = await listConversations({ organizationId: req.security.organizationId,
-      caseId: parseRequiredNumericId(req.params.caseId), userId: req.user.id });
-    return res.json({ conversations });
-  } catch (error) { return next(error); }
+    const conversaciones = await listarConversaciones({ organizationId: solicitud.security.organizationId,
+      caseId: leerIdNumericoObligatorio(solicitud.params.caseId), userId: solicitud.user.id });
+    return respuesta.json({ conversations: conversaciones });
+  } catch (error) { return siguiente(error); }
 });
 
-router.post("/cases/:caseId/chats", requireCaseAccess, requireRole("asistente"), async (req, res, next) => {
+enrutador.post("/cases/:caseId/chats", exigirAccesoAlExpediente, exigirRol("asistente"), async (solicitud, respuesta, siguiente) => {
   try {
-    const conversation = await createConversation({ organizationId: req.security.organizationId,
-      caseId: parseRequiredNumericId(req.params.caseId), userId: req.user.id, title: req.body?.title });
-    await recordAudit(req, { action: "ia.chat_creado", resourceType: "conversacion_ia", resourceId: conversation.id,
-      metadata: { causa_id: conversation.case_id } });
-    return res.status(201).json({ conversation });
-  } catch (error) { return next(error); }
+    const conversacion = await crearConversacion({ organizationId: solicitud.security.organizationId,
+      caseId: leerIdNumericoObligatorio(solicitud.params.caseId), userId: solicitud.user.id, title: solicitud.body?.title });
+    await registrarAuditoria(solicitud, { action: "ia.chat_creado", resourceType: "conversacion_ia", resourceId: conversacion.id,
+      metadata: { causa_id: conversacion.case_id } });
+    return respuesta.status(201).json({ conversation: conversacion });
+  } catch (error) { return siguiente(error); }
 });
 
-router.get("/cases/:caseId/chats/:chatId", requireCaseAccess, async (req, res, next) => {
+enrutador.get("/cases/:caseId/chats/:chatId", exigirAccesoAlExpediente, async (solicitud, respuesta, siguiente) => {
   try {
-    const conversation = await getConversation({ organizationId: req.security.organizationId,
-      caseId: parseRequiredNumericId(req.params.caseId), userId: req.user.id,
-      conversationId: parseRequiredNumericId(req.params.chatId) });
-    return conversation ? res.json({ conversation }) : res.status(404).json({ error: "Conversacion no encontrada." });
-  } catch (error) { return next(error); }
+    const conversacion = await obtenerConversacion({ organizationId: solicitud.security.organizationId,
+      caseId: leerIdNumericoObligatorio(solicitud.params.caseId), userId: solicitud.user.id,
+      conversationId: leerIdNumericoObligatorio(solicitud.params.chatId) });
+    return conversacion ? respuesta.json({ conversation: conversacion }) : respuesta.status(404).json({ error: "Conversacion no encontrada." });
+  } catch (error) { return siguiente(error); }
 });
 
-router.delete("/cases/:caseId/chats/:chatId", requireCaseAccess, requireRole("abogado"), async (req, res, next) => {
+enrutador.delete("/cases/:caseId/chats/:chatId", exigirAccesoAlExpediente, exigirRol("abogado"), async (solicitud, respuesta, siguiente) => {
   try {
-    const deleted = await deleteConversation({ organizationId: req.security.organizationId,
-      caseId: parseRequiredNumericId(req.params.caseId), userId: req.user.id,
-      conversationId: parseRequiredNumericId(req.params.chatId) });
-    return deleted ? res.status(204).send() : res.status(404).json({ error: "Conversacion no encontrada." });
-  } catch (error) { return next(error); }
+    const eliminado = await eliminarConversacion({ organizationId: solicitud.security.organizationId,
+      caseId: leerIdNumericoObligatorio(solicitud.params.caseId), userId: solicitud.user.id,
+      conversationId: leerIdNumericoObligatorio(solicitud.params.chatId) });
+    return eliminado ? respuesta.status(204).send() : respuesta.status(404).json({ error: "Conversacion no encontrada." });
+  } catch (error) { return siguiente(error); }
 });
 
-router.post("/cases/:caseId/chats/:chatId/messages", requireCaseAccess, requireRole("asistente"), async (req, res, next) => {
-  const content = typeof req.body?.content === "string" ? req.body.content.replace(/\s+/g, " ").trim() : "";
-  const toolId = req.body?.tool_id == null ? null : String(req.body.tool_id);
-  if (!content || content.length > 4000) return res.status(400).json({ error: "Escribi un mensaje de hasta 4000 caracteres." });
-  if (toolId && !CHAT_TOOL_IDS.has(toolId)) return res.status(400).json({ error: "La herramienta no esta habilitada en el chat." });
-  let stage = "load_conversation";
+enrutador.post("/cases/:caseId/chats/:chatId/messages", exigirAccesoAlExpediente, exigirRol("asistente"), async (solicitud, respuesta, siguiente) => {
+  const contenido = typeof solicitud.body?.content === "string" ? solicitud.body.content.replace(/\s+/g, " ").trim() : "";
+  const idHerramienta = solicitud.body?.tool_id == null ? null : String(solicitud.body.tool_id);
+  const formatoRespuesta = solicitud.body?.response_format ?? "text";
+  if (!contenido || contenido.length > 4000) return respuesta.status(400).json({ error: "Escribi un mensaje de hasta 4000 caracteres." });
+  if (idHerramienta && !IDS_HERRAMIENTAS_CHAT.has(idHerramienta)) return respuesta.status(400).json({ error: "La herramienta no esta habilitada en el chat." });
+  if (formatoRespuesta !== "text" && formatoRespuesta !== "table") return respuesta.status(400).json({ error: "Elegí texto o tabla como formato de respuesta." });
+  let etapa = "load_conversation";
   try {
-    const ids = { organizationId: req.security.organizationId, caseId: parseRequiredNumericId(req.params.caseId),
-      userId: req.user.id, conversationId: parseRequiredNumericId(req.params.chatId) };
-    const conversation = await getConversation(ids);
-    if (!conversation) return res.status(404).json({ error: "Conversacion no encontrada." });
-    stage = "generate_answer";
-    const generated = await answerCaseChat({ organizationId: ids.organizationId, caseId: ids.caseId,
-      question: content, history: conversation.messages, toolId,
-      toolParameters: req.body?.tool_parameters && typeof req.body.tool_parameters === "object"
-        ? req.body.tool_parameters : {} });
-    stage = "save_exchange";
-    const saved = await appendExchange({ ...ids, userContent: content, assistantContent: generated.answer,
-      retrievalQuery: generated.retrievalQuery, toolId, citations: generated.citations, metadata: generated.metadata });
-    stage = "record_audit";
-    await recordAudit(req, { action: "ia.chat_mensaje", resourceType: "conversacion_ia", resourceId: ids.conversationId,
-      metadata: { causa_id: ids.caseId, herramienta: toolId, citas: generated.citations.length } });
-    return res.status(201).json({ title: saved.title, user_message: saved.userMessage,
-      assistant_message: saved.assistantMessage });
+    const identificadores = { organizationId: solicitud.security.organizationId, caseId: leerIdNumericoObligatorio(solicitud.params.caseId),
+      userId: solicitud.user.id, conversationId: leerIdNumericoObligatorio(solicitud.params.chatId) };
+    const conversacion = await obtenerConversacion(identificadores);
+    if (!conversacion) return respuesta.status(404).json({ error: "Conversacion no encontrada." });
+    etapa = "generate_answer";
+    const respuestaGenerada = await responderChatExpediente({ idOrganizacion: identificadores.organizationId, idExpediente: identificadores.caseId,
+      pregunta: contenido, historial: conversacion.messages, idHerramienta, formatoRespuesta,
+      parametrosHerramienta: solicitud.body?.tool_parameters && typeof solicitud.body.tool_parameters === "object"
+        ? solicitud.body.tool_parameters : {} });
+    etapa = "save_exchange";
+    const intercambioGuardado = await guardarIntercambio({ ...identificadores, userContent: contenido, assistantContent: respuestaGenerada.respuesta,
+      retrievalQuery: respuestaGenerada.consultaDeBusqueda, toolId: idHerramienta, citations: respuestaGenerada.citas, metadata: respuestaGenerada.metadatos });
+    etapa = "record_audit";
+    await registrarAuditoria(solicitud, { action: "ia.chat_mensaje", resourceType: "conversacion_ia", resourceId: identificadores.conversationId,
+      metadata: { causa_id: identificadores.caseId, herramienta: idHerramienta, citas: respuestaGenerada.citas.length } });
+    return respuesta.status(201).json({ title: intercambioGuardado.title, user_message: intercambioGuardado.userMessage,
+      assistant_message: intercambioGuardado.assistantMessage });
   } catch (error) {
-    console.error("ia.chat_mensaje_failed", { request_id: req.requestId, stage,
-      case_id: req.params.caseId, chat_id: req.params.chatId,
+    console.error("ia.chat_mensaje_failed", { request_id: solicitud.requestId, stage: etapa,
+      case_id: solicitud.params.caseId, chat_id: solicitud.params.chatId,
       code: error.code, message: error.message });
-    return next(error);
+    return siguiente(error);
   }
 });
 
-router.get("/cases/:caseId/queries", requireCaseAccess, async (req, res, next) => {
-  try { return res.json({ queries: await listAIQueries(parseRequiredNumericId(req.params.caseId), req.user.id) }); }
-  catch (error) { return next(error); }
+enrutador.get("/cases/:caseId/queries", exigirAccesoAlExpediente, async (solicitud, respuesta, siguiente) => {
+  try { return respuesta.json({ queries: await listarConsultasDeIA(leerIdNumericoObligatorio(solicitud.params.caseId), solicitud.user.id) }); }
+  catch (error) { return siguiente(error); }
 });
-router.get("/cases/:caseId/queries/:queryId", requireCaseAccess, async (req, res, next) => {
-  try { const item = await getAIQuery(parseRequiredNumericId(req.params.caseId), parseRequiredNumericId(req.params.queryId), req.user.id);
-    return item ? res.json({ query: item }) : res.status(404).json({ error: "Consulta no encontrada." }); }
-  catch (error) { return next(error); }
+enrutador.get("/cases/:caseId/queries/:queryId", exigirAccesoAlExpediente, async (solicitud, respuesta, siguiente) => {
+  try { const elemento = await obtenerConsultaDeIA(leerIdNumericoObligatorio(solicitud.params.caseId), leerIdNumericoObligatorio(solicitud.params.queryId), solicitud.user.id);
+    return elemento ? respuesta.json({ query: elemento }) : respuesta.status(404).json({ error: "Consulta no encontrada." }); }
+  catch (error) { return siguiente(error); }
 });
-router.delete("/cases/:caseId/queries/:queryId", requireCaseAccess, requireRole("abogado"), async (req, res, next) => {
-  try { const deleted = await deleteAIQuery(parseRequiredNumericId(req.params.caseId), parseRequiredNumericId(req.params.queryId), req.user.id);
-    return deleted ? res.status(204).send() : res.status(404).json({ error: "Consulta no encontrada." }); }
-  catch (error) { return next(error); }
+enrutador.delete("/cases/:caseId/queries/:queryId", exigirAccesoAlExpediente, exigirRol("abogado"), async (solicitud, respuesta, siguiente) => {
+  try { const eliminado = await eliminarConsultaDeIA(leerIdNumericoObligatorio(solicitud.params.caseId), leerIdNumericoObligatorio(solicitud.params.queryId), solicitud.user.id);
+    return eliminado ? respuesta.status(204).send() : respuesta.status(404).json({ error: "Consulta no encontrada." }); }
+  catch (error) { return siguiente(error); }
 });
 
-router.post("/tools/:toolId/run", requireOptionalCaseAccess, requireRole("asistente"), async (req, res) => {
-  const startedAt = Date.now();
-  const deadline = startedAt + getResponseBudgetMs();
-  const tool = getTool(req.params.toolId);
-  if (!tool) return res.status(404).json({ error: "Herramienta de IA inexistente." });
-  let primaryText = String(req.body?.primary_text || req.body?.text || "").trim();
-  let secondaryText = String(req.body?.secondary_text || "").trim();
-  const query = String(req.body?.query || req.body?.parameters?.pregunta || "").trim();
-  const caseId = parseOptionalNumericId(req.body?.case_id);
-  const scope = normalizeToolScope(req.body?.scope);
-  const useCaseContext = Boolean(caseId)
-    && tool.inputs === 1
-    && (parseBoolean(req.body?.use_case_context) || parseBoolean(req.body?.use_case_documents));
-  const defendantId = parseOptionalNumericId(req.body?.defendant_id);
-  const comparingDefendants = req.params.toolId === "comparar_imputados";
-  const pair = req.body?.defendant_ids;
-  if (comparingDefendants && (!caseId || !Array.isArray(pair) || pair.length !== 2
-    || !pair.every((id) => Number.isSafeInteger(Number(id)) && Number(id) > 0) || Number(pair[0]) === Number(pair[1]))) {
-    return res.status(400).json({ error: "Seleccioná un expediente y dos imputados distintos para comparar." });
+enrutador.post("/tools/:toolId/run", exigirAccesoSiHayExpediente, exigirRol("asistente"), async (solicitud, respuesta) => {
+  const inicioMs = Date.now();
+  const tiempoLimite = inicioMs + obtenerPresupuestoDeRespuestaMs();
+  const herramienta = obtenerHerramienta(solicitud.params.toolId);
+  if (!herramienta) return respuesta.status(404).json({ error: "Herramienta de IA inexistente." });
+  let textoPrincipal = String(solicitud.body?.primary_text || solicitud.body?.text || "").trim();
+  let textoSecundario = String(solicitud.body?.secondary_text || "").trim();
+  const consulta = String(solicitud.body?.query || solicitud.body?.parameters?.pregunta || "").trim();
+  const idExpediente = leerIdNumericoOpcional(solicitud.body?.case_id);
+  const alcance = normalizarAlcanceHerramienta(solicitud.body?.scope);
+  const usarContextoDelExpediente = Boolean(idExpediente)
+    && herramienta.inputs === 1
+    && (leerBooleano(solicitud.body?.use_case_context) || leerBooleano(solicitud.body?.use_case_documents));
+  const idImputado = leerIdNumericoOpcional(solicitud.body?.defendant_id);
+  const comparandoImputados = solicitud.params.toolId === "comparar_imputados";
+  const par = solicitud.body?.defendant_ids;
+  if (comparandoImputados && (!idExpediente || !Array.isArray(par) || par.length !== 2
+    || !par.every((id) => Number.isSafeInteger(Number(id)) && Number(id) > 0) || Number(par[0]) === Number(par[1]))) {
+    return respuesta.status(400).json({ error: "Seleccioná un expediente y dos imputados distintos para comparar." });
   }
 
-  if (req.params.toolId === "consulta_rag" && !query) {
-    return res.status(400).json({ error: "Escriba una pregunta para realizar la consulta." });
+  if (solicitud.params.toolId === "consulta_rag" && !consulta) {
+    return respuesta.status(400).json({ error: "Escriba una pregunta para realizar la consulta." });
   }
-  if (scope === "defendant" && useCaseContext && !defendantId) {
-    return res.status(400).json({ error: "Seleccione el imputado sobre el que quiere consultar." });
+  if (alcance === "defendant" && usarContextoDelExpediente && !idImputado) {
+    return respuesta.status(400).json({ error: "Seleccione el imputado sobre el que quiere consultar." });
   }
-  if (!primaryText && !useCaseContext && !comparingDefendants) return res.status(400).json({ error: "La fuente principal es obligatoria." });
-  if (tool.inputs === 2 && !secondaryText && !comparingDefendants) return res.status(400).json({ error: "Esta herramienta requiere dos fuentes." });
+  if (!textoPrincipal && !usarContextoDelExpediente && !comparandoImputados) return respuesta.status(400).json({ error: "La fuente principal es obligatoria." });
+  if (herramienta.inputs === 2 && !textoSecundario && !comparandoImputados) return respuesta.status(400).json({ error: "Esta herramienta requiere dos fuentes." });
 
   try {
-    let selectedDefendant = null;
-    let documents;
-    let sourceDocumentCount = secondaryText ? 2 : 1;
-    let structuredContextCount = 0;
-    let structuredContextWarning = null;
-    let scopeLabel = getScopeLabel(scope, useCaseContext);
-    let comparedDefendants = [];
+    let imputadoElegido = null;
+    let documentos;
+    let cantidadDocumentosFuente = textoSecundario ? 2 : 1;
+    let cantidadDocumentosDeContexto = 0;
+    let avisoContextoEstructurado = null;
+    let etiquetaAlcance = obtenerEtiquetaDeAlcance(alcance, usarContextoDelExpediente);
+    let imputadosComparados = [];
 
-    if (comparingDefendants) {
-      const defendants = await withTimeout(listDefendantsByCase(caseId), availableMs(deadline, 1100), "No se pudieron leer las fichas a tiempo.");
-      comparedDefendants = pair.map((id) => defendants.find((item) => Number(item.id) === Number(id)));
-      if (comparedDefendants.some((item) => !item)) {
-        return res.status(400).json({ error: "Los dos imputados deben pertenecer al expediente seleccionado." });
+    if (comparandoImputados) {
+      const imputados = await ejecutarConLimiteDeTiempo(listarImputadosDelExpediente(idExpediente), tiempoDisponibleMs(tiempoLimite, 1100), "No se pudieron leer las fichas a tiempo.");
+      imputadosComparados = par.map((id) => imputados.find((elemento) => Number(elemento.id) === Number(id)));
+      if (imputadosComparados.some((elemento) => !elemento)) {
+        return respuesta.status(400).json({ error: "Los dos imputados deben pertenecer al expediente seleccionado." });
       }
-      documents = comparedDefendants.map(buildDefendantDocument);
-      primaryText = documents[0].texto_extraido;
-      secondaryText = documents[1].texto_extraido;
-      sourceDocumentCount = 2;
-      scopeLabel = `las fichas de ${comparedDefendants.map((item) => item.nombre).join(" y ")}`;
-    } else if (useCaseContext) {
-      documents = await withTimeout(
-        listDocumentsForCase(caseId),
-        availableMs(deadline, 1100),
+      documentos = imputadosComparados.map(crearDocumentoDeImputado);
+      textoPrincipal = documentos[0].texto_extraido;
+      textoSecundario = documentos[1].texto_extraido;
+      cantidadDocumentosFuente = 2;
+      etiquetaAlcance = `las fichas de ${imputadosComparados.map((elemento) => elemento.nombre).join(" y ")}`;
+    } else if (usarContextoDelExpediente) {
+      documentos = await ejecutarConLimiteDeTiempo(
+        listarDocumentosDelExpediente(idExpediente),
+        tiempoDisponibleMs(tiempoLimite, 1100),
         "La lectura de los documentos excedió el tiempo disponible."
       );
-      sourceDocumentCount = documents.length;
+      cantidadDocumentosFuente = documentos.length;
 
-      if (scope === "case" || scope === "defendant") {
-        const defendants = await withTimeout(
-          listDefendantsByCase(caseId),
-          availableMs(deadline, 800),
+      if (alcance === "case" || alcance === "defendant") {
+        const imputados = await ejecutarConLimiteDeTiempo(
+          listarImputadosDelExpediente(idExpediente),
+          tiempoDisponibleMs(tiempoLimite, 800),
           "La lectura de los imputados excedió el tiempo disponible."
         );
-        let structuredDocuments = [];
+        let documentosDelContexto = [];
         try {
-          structuredDocuments = await withTimeout(
-            loadStructuredCaseContext(req.security.organizationId, caseId),
-            availableMs(deadline, 700),
+          documentosDelContexto = await ejecutarConLimiteDeTiempo(
+            cargarContextoEstructuradoDelExpediente(solicitud.security.organizationId, idExpediente),
+            tiempoDisponibleMs(tiempoLimite, 700),
             "La lectura de la gestión del expediente excedió el tiempo disponible."
           );
         } catch (error) {
           console.warn("No se pudo incorporar la gestión del expediente al RAG:", error.message);
-          structuredContextWarning = "No se pudo incorporar la gestión del expediente.";
+          avisoContextoEstructurado = "No se pudo incorporar la gestión del expediente.";
         }
-        structuredContextCount = structuredDocuments.length;
-        if (scope === "defendant") {
-          selectedDefendant = defendants.find((item) => Number(item.id) === defendantId);
-          if (!selectedDefendant) {
-            return res.status(400).json({ error: "El imputado seleccionado no pertenece al expediente." });
+        cantidadDocumentosDeContexto = documentosDelContexto.length;
+        if (alcance === "defendant") {
+          imputadoElegido = imputados.find((elemento) => Number(elemento.id) === idImputado);
+          if (!imputadoElegido) {
+            return respuesta.status(400).json({ error: "El imputado seleccionado no pertenece al expediente." });
           }
-          documents = [buildDefendantDocument(selectedDefendant), ...structuredDocuments, ...documents];
+          documentos = [crearDocumentoDeImputado(imputadoElegido), ...documentosDelContexto, ...documentos];
         } else {
-          documents = [buildCaseOverviewDocument(caseId, defendants), ...structuredDocuments, ...documents];
+          documentos = [crearDocumentoDelExpediente(idExpediente, imputados), ...documentosDelContexto, ...documentos];
         }
       }
 
-      sourceDocumentCount = documents.length;
+      cantidadDocumentosFuente = documentos.length;
 
-      if (!documents.length) {
-        return res.status(409).json({
+      if (!documentos.length) {
+        return respuesta.status(409).json({
           error: "El expediente no tiene información procesada para consultar.",
           details: "Cargue un documento o registre datos de gestión en el expediente.",
         });
       }
     } else {
-      documents = [
-        { id: "fuente-a", nombre_archivo: "Fuente A", texto_extraido: primaryText },
-        ...(secondaryText ? [{ id: "fuente-b", nombre_archivo: "Fuente B", texto_extraido: secondaryText }] : []),
+      documentos = [
+        { id: "fuente-a", nombre_archivo: "Fuente A", texto_extraido: textoPrincipal },
+        ...(textoSecundario ? [{ id: "fuente-b", nombre_archivo: "Fuente B", texto_extraido: textoSecundario }] : []),
       ];
     }
 
-    const retrievalQuery = [query, selectedDefendant?.nombre, tool.label, primaryText.slice(0, 300)]
+    const consultaDeBusqueda = [consulta, imputadoElegido?.nombre, herramienta.label, textoPrincipal.slice(0, 300)]
       .filter(Boolean)
       .join(" ");
-    let chunks;
-    let retrieval = "bm25_legal_expansion_trigram_mmr";
-    let semanticRetrieval = "lexical_fallback";
-    const maxContextChunks = tool.maxContextChunks || 6;
-    if (tool.inputs === 2) {
+    let fragmentos;
+    let recuperacion = "bm25_legal_expansion_trigram_mmr";
+    let recuperacionSemantica = "lexical_fallback";
+    const maximoFragmentos = herramienta.maxContextChunks || 6;
+    if (herramienta.inputs === 2) {
       // Las dos fuentes deben estar representadas, incluso si una tiene más texto.
-      chunks = documents.flatMap((document) => retrieveRelevantChunks([document], `${retrievalQuery} ${document.texto_extraido.slice(0, 160)}`, Math.ceil(maxContextChunks / 2)));
-      semanticRetrieval = "balanced_lexical_sources";
+      fragmentos = documentos.flatMap((documento) => buscarFragmentosRelevantes([documento], `${consultaDeBusqueda} ${documento.texto_extraido.slice(0, 160)}`, Math.ceil(maximoFragmentos / 2)));
+      recuperacionSemantica = "balanced_lexical_sources";
     } else {
-      chunks = retrieveRelevantChunks(documents, retrievalQuery, maxContextChunks * 2);
-      ({ chunks, semanticRetrieval } = await rerankChunksWithEmbeddings(
-      chunks,
-      retrievalQuery,
-      maxContextChunks,
-      Math.min(700, availableMs(deadline, 1000))
+      fragmentos = buscarFragmentosRelevantes(documentos, consultaDeBusqueda, maximoFragmentos * 2);
+      ({ chunks: fragmentos, semanticRetrieval: recuperacionSemantica } = await reordenarFragmentosPorEmbeddings(
+      fragmentos,
+      consultaDeBusqueda,
+      maximoFragmentos,
+      Math.min(700, tiempoDisponibleMs(tiempoLimite, 1000))
       ));
     }
-    retrieval = useCaseContext
+    recuperacion = usarContextoDelExpediente
       ? "case_documents_and_management_bm25_legal_expansion_mmr"
       : "bm25_legal_expansion_trigram_mmr";
 
-    if (!chunks.length) {
-      return res.status(422).json({
+    if (!fragmentos.length) {
+      return respuesta.status(422).json({
         error: "No se encontraron fragmentos relevantes en el material seleccionado.",
         details: "Pruebe reformulando la pregunta o verifique que los documentos tengan texto extraído.",
       });
     }
 
-    const modelPrimaryText = useCaseContext
-      ? `Consulta sobre ${scopeLabel}. Use únicamente los pasajes seleccionados por pertinencia.`
-      : primaryText.slice(0, 18000);
-    let result;
-    let engine = "ollama_local_timeboxed_rag";
-    let fallbackReason = null;
+    const textoPrincipalDelModelo = usarContextoDelExpediente
+      ? `Consulta sobre ${etiquetaAlcance}. Use únicamente los pasajes seleccionados por pertinencia.`
+      : textoPrincipal.slice(0, 18000);
+    let resultado;
+    let motor = "ollama_local_timeboxed_rag";
+    let motivoRespaldo = null;
     try {
-      result = await runLegalToolWithLocalAI({
-        toolId: req.params.toolId,
-        primaryText: modelPrimaryText,
-        secondaryText: secondaryText.slice(0, 18000),
-        query,
-        parameters: { ...(req.body?.parameters || {}), scope, defendant: selectedDefendant?.nombre || null,
-          compared_defendants: comparedDefendants.map((item) => ({ id: item.id, nombre: item.nombre })) },
-        context: chunks.map((chunk) => `[${chunk.document_id}:${chunk.chunk_index ?? chunk.orden}] ${chunk.text}`),
-        timeoutMs: Math.min(5000, availableMs(deadline, 900)),
+      resultado = await ejecutarHerramientaJuridicaConIA({
+        toolId: solicitud.params.toolId,
+        primaryText: textoPrincipalDelModelo,
+        secondaryText: textoSecundario.slice(0, 18000),
+        query: consulta,
+        parameters: { ...(solicitud.body?.parameters || {}), scope: alcance, defendant: imputadoElegido?.nombre || null,
+          compared_defendants: imputadosComparados.map((elemento) => ({ id: elemento.id, nombre: elemento.nombre })) },
+        context: fragmentos.map((fragmento) => `[${fragmento.document_id}:${fragmento.chunk_index ?? fragmento.orden}] ${fragmento.text}`),
+        timeoutMs: Math.min(5000, tiempoDisponibleMs(tiempoLimite, 900)),
         maxOutputTokens: 360,
       });
     } catch (error) {
-      fallbackReason = error.message;
-      engine = "fast_extractive_rag";
-      result = buildFastToolResult({ toolId: req.params.toolId, chunks, query, scopeLabel });
+      motivoRespaldo = error.message;
+      motor = "fast_extractive_rag";
+      resultado = construirResultadoRapido({ toolId: solicitud.params.toolId, chunks: fragmentos, query: consulta, scopeLabel: etiquetaAlcance });
     }
 
-    const citations = buildLegalCitations(chunks, { caseId });
-    const evidence = assessEvidence(citations);
-    const grounding = verifyResultClaims(result, citations);
-    const metadata = {
-      engine, model: getLocalAIConfig().model,
-      embedding_model: getLocalAIConfig().embeddingModel, tool_id: req.params.toolId,
-      retrieval, semantic_retrieval: semanticRetrieval,
-      source: comparingDefendants ? "case_defendant_comparison" : useCaseContext ? `case_${scope}` : "ad_hoc_text",
-      scope,
-      defendant_id: selectedDefendant?.id || null,
-      defendant_name: selectedDefendant?.nombre || null,
-      compared_defendants: comparedDefendants.map((item) => ({ id: item.id, nombre: item.nombre })),
-      comparison_scope: comparingDefendants ? "fichas_registradas" : null,
-      source_document_count: sourceDocumentCount,
-      structured_context_count: structuredContextCount,
-      structured_context_warning: structuredContextWarning,
-      context_chunk_count: chunks.length,
+    const citas = construirCitasJuridicas(fragmentos, { caseId: idExpediente });
+    const evidencia = evaluarEvidencia(citas);
+    const respaldoDeAfirmaciones = verificarAfirmacionesDelResultado(resultado, citas);
+    const metadatos = {
+      engine: motor, model: obtenerConfiguracionDeIA().model,
+      embedding_model: obtenerConfiguracionDeIA().embeddingModel, tool_id: solicitud.params.toolId,
+      retrieval: recuperacion, semantic_retrieval: recuperacionSemantica,
+      source: comparandoImputados ? "case_defendant_comparison" : usarContextoDelExpediente ? `case_${alcance}` : "ad_hoc_text",
+      scope: alcance,
+      defendant_id: imputadoElegido?.id || null,
+      defendant_name: imputadoElegido?.nombre || null,
+      compared_defendants: imputadosComparados.map((elemento) => ({ id: elemento.id, nombre: elemento.nombre })),
+      comparison_scope: comparandoImputados ? "fichas_registradas" : null,
+      source_document_count: cantidadDocumentosFuente,
+      structured_context_count: cantidadDocumentosDeContexto,
+      structured_context_warning: avisoContextoEstructurado,
+      context_chunk_count: fragmentos.length,
       max_output_tokens: 360,
-      response_budget_ms: getResponseBudgetMs(),
-      fallback_reason: fallbackReason,
-      duration_ms: Date.now() - startedAt, evidence, grounding, generated_at: new Date().toISOString(),
+      response_budget_ms: obtenerPresupuestoDeRespuestaMs(),
+      fallback_reason: motivoRespaldo,
+      duration_ms: Date.now() - inicioMs, evidence: evidencia, grounding: respaldoDeAfirmaciones, generated_at: new Date().toISOString(),
     };
-    let savedQuery = null;
-    if (caseId && availableMs(deadline, 150) >= 250) {
+    let consultaGuardada = null;
+    if (idExpediente && tiempoDisponibleMs(tiempoLimite, 150) >= 250) {
       try {
-        savedQuery = await withTimeout(createAIQuery({ caseId, userId: req.user.id, toolId: req.params.toolId,
-          title: result.titulo || tool.label, query, input: { scope, defendant_id: defendantId,
-            defendant_ids: comparedDefendants.map((item) => item.id), parameters: req.body?.parameters || {} },
-          result, citations, metadata }), Math.min(550, availableMs(deadline, 150)), "No se alcanzó a guardar la consulta dentro del límite de respuesta.");
+        consultaGuardada = await ejecutarConLimiteDeTiempo(guardarConsultaDeIA({ caseId: idExpediente, userId: solicitud.user.id, toolId: solicitud.params.toolId,
+          title: resultado.titulo || herramienta.label, query: consulta, input: { scope: alcance, defendant_id: idImputado,
+            defendant_ids: imputadosComparados.map((elemento) => elemento.id), parameters: solicitud.body?.parameters || {} },
+          result: resultado, citations: citas, metadata: metadatos }), Math.min(550, tiempoDisponibleMs(tiempoLimite, 150)), "No se alcanzó a guardar la consulta dentro del límite de respuesta.");
       } catch (error) {
-        metadata.persistence_warning = error.message;
+        metadatos.persistence_warning = error.message;
       }
     }
-    if (savedQuery && availableMs(deadline, 80) >= 100) {
+    if (consultaGuardada && tiempoDisponibleMs(tiempoLimite, 80) >= 100) {
       try {
-        await withTimeout(recordAudit(req, { action: "ia.consulta_creada", resourceType: "consulta_ia", resourceId: savedQuery.id,
-          metadata: { herramienta: req.params.toolId, causa_id: caseId, scope, defendant_id: defendantId } }),
-        Math.min(250, availableMs(deadline, 80)), "No se alcanzó a registrar la auditoría dentro del límite de respuesta.");
+        await ejecutarConLimiteDeTiempo(registrarAuditoria(solicitud, { action: "ia.consulta_creada", resourceType: "consulta_ia", resourceId: consultaGuardada.id,
+          metadata: { herramienta: solicitud.params.toolId, causa_id: idExpediente, scope: alcance, defendant_id: idImputado } }),
+        Math.min(250, tiempoDisponibleMs(tiempoLimite, 80)), "No se alcanzó a registrar la auditoría dentro del límite de respuesta.");
       } catch (error) {
-        metadata.audit_warning = error.message;
+        metadatos.audit_warning = error.message;
       }
     }
-    metadata.duration_ms = Date.now() - startedAt;
-    return res.json({ result, citations, evidence, grounding, saved_query: savedQuery, _metadata: metadata });
+    metadatos.duration_ms = Date.now() - inicioMs;
+    return respuesta.json({ result: resultado, citations: citas, evidence: evidencia, grounding: respaldoDeAfirmaciones, saved_query: consultaGuardada, _metadata: metadatos });
   } catch (error) {
-    return res.status(getLocalAIErrorStatus(error)).json({ error: "No se pudo ejecutar la herramienta.", details: error.message });
+    return respuesta.status(obtenerEstadoHttpDelErrorDeIA(error)).json({ error: "No se pudo ejecutar la herramienta.", details: error.message });
   }
 });
 
-async function rerankChunksWithEmbeddings(chunks, retrievalQuery, limit = 6, timeoutMs = 700) {
+async function reordenarFragmentosPorEmbeddings(fragmentos, consultaDeBusqueda, limite = 6, limiteTiempoMs = 700) {
   try {
-    if (!chunks.length) return { chunks: [], semanticRetrieval: "lexical_fallback" };
-    const embeddings = await embedTextsWithLocalAI([
-      expandLegalQuery(retrievalQuery),
-      ...chunks.map((chunk) => chunk.text),
-    ], { timeoutMs });
-    const queryEmbedding = embeddings[0];
+    if (!fragmentos.length) return { chunks: [], semanticRetrieval: "lexical_fallback" };
+    const embeddings = await generarEmbeddingsDeTextos([
+      ampliarConsultaJuridica(consultaDeBusqueda),
+      ...fragmentos.map((fragmento) => fragmento.text),
+    ], { timeoutMs: limiteTiempoMs });
+    const embeddingConsulta = embeddings[0];
     return {
-      chunks: chunks.map((chunk, index) => ({
-        ...chunk,
-        embedding_score: vectorCosine(queryEmbedding, embeddings[index + 1]),
+      chunks: fragmentos.map((fragmento, indice) => ({
+        ...fragmento,
+        embedding_score: calcularSimilitudCoseno(embeddingConsulta, embeddings[indice + 1]),
       }))
-        .map((chunk) => ({ ...chunk, score: 0.45 * chunk.score + 0.55 * Math.max(0, chunk.embedding_score) }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, limit),
+        .map((fragmento) => ({ ...fragmento, score: 0.45 * fragmento.score + 0.55 * Math.max(0, fragmento.embedding_score) }))
+        .sort((primero, segundo) => segundo.score - primero.score)
+        .slice(0, limite),
       semanticRetrieval: "ollama_embeddings",
     };
   } catch {
-    return { chunks: chunks.slice(0, limit), semanticRetrieval: "lexical_fallback" };
+    return { chunks: fragmentos.slice(0, limite), semanticRetrieval: "lexical_fallback" };
   }
 }
 
-function normalizeToolScope(value) {
-  return ["documents", "case", "defendant"].includes(value) ? value : "documents";
+function normalizarAlcanceHerramienta(valor) {
+  return ["documents", "case", "defendant"].includes(valor) ? valor : "documents";
 }
 
-function getScopeLabel(scope, useCaseContext) {
-  if (!useCaseContext) return "las fuentes seleccionadas";
-  if (scope === "case") return "el expediente completo";
-  if (scope === "defendant") return "el imputado seleccionado y los documentos del expediente";
+function obtenerEtiquetaDeAlcance(alcance, usarContextoDelExpediente) {
+  if (!usarContextoDelExpediente) return "las fuentes seleccionadas";
+  if (alcance === "case") return "el expediente completo";
+  if (alcance === "defendant") return "el imputado seleccionado y los documentos del expediente";
   return "los documentos del expediente";
 }
 
-function buildDefendantDocument(defendant) {
-  const context = typeof defendant.datos_contexto === "string"
-    ? defendant.datos_contexto
-    : JSON.stringify(defendant.datos_contexto || {});
+function crearDocumentoDeImputado(imputado) {
+  const contexto = typeof imputado.datos_contexto === "string"
+    ? imputado.datos_contexto
+    : JSON.stringify(imputado.datos_contexto || {});
   return {
-    id: `imputado-${defendant.id}`,
-    nombre_archivo: `Ficha de ${defendant.nombre}`,
+    id: `imputado-${imputado.id}`,
+    nombre_archivo: `Ficha de ${imputado.nombre}`,
     texto_extraido: [
-      `Imputado: ${defendant.nombre}.`,
-      defendant.documento_identidad ? `Documento de identidad: ${defendant.documento_identidad}.` : "",
-      defendant.rol ? `Rol en el expediente: ${defendant.rol}.` : "",
-      defendant.notas ? `Notas: ${defendant.notas}.` : "",
-      context && context !== "{}" ? `Contexto registrado: ${context}.` : "",
+      `Imputado: ${imputado.nombre}.`,
+      imputado.documento_identidad ? `Documento de identidad: ${imputado.documento_identidad}.` : "",
+      imputado.rol ? `Rol en el expediente: ${imputado.rol}.` : "",
+      imputado.notas ? `Notas: ${imputado.notas}.` : "",
+      contexto && contexto !== "{}" ? `Contexto registrado: ${contexto}.` : "",
     ].filter(Boolean).join(" "),
   };
 }
 
-function buildCaseOverviewDocument(caseId, defendants) {
+function crearDocumentoDelExpediente(idExpediente, imputados) {
   return {
-    id: `expediente-${caseId}`,
+    id: `expediente-${idExpediente}`,
     nombre_archivo: "Datos generales del expediente",
     texto_extraido: [
-      `Expediente interno ${caseId}.`,
-      defendants.length
-        ? `Imputados registrados: ${defendants.map((item) => `${item.nombre}${item.rol ? ` (${item.rol})` : ""}`).join(", ")}.`
+      `Expediente interno ${idExpediente}.`,
+      imputados.length
+        ? `Imputados registrados: ${imputados.map((elemento) => `${elemento.nombre}${elemento.rol ? ` (${elemento.rol})` : ""}`).join(", ")}.`
         : "No hay imputados registrados en el expediente.",
     ].join(" "),
   };
 }
 
-async function loadStructuredCaseContext(organizationId, caseId) {
-  const [tasks, hearings, dates, communications] = await Promise.all([
-    listTasks(organizationId, { caseId }),
-    listCaseRecords("audiencias", organizationId, caseId),
-    listDatesByCase(caseId),
-    listCaseRecords("comunicaciones", organizationId, caseId),
+async function cargarContextoEstructuradoDelExpediente(idOrganizacion, idExpediente) {
+  const [tareas, audiencias, fechas, comunicaciones] = await Promise.all([
+    listarTareas(idOrganizacion, { caseId: idExpediente }),
+    listarRegistrosDelExpediente("audiencias", idOrganizacion, idExpediente),
+    listarFechasDelExpediente(idExpediente),
+    listarRegistrosDelExpediente("comunicaciones", idOrganizacion, idExpediente),
   ]);
-  return buildStructuredCaseDocuments({ tasks, hearings, dates, communications });
+  return crearDocumentosDelContexto({ tasks: tareas, hearings: audiencias, dates: fechas, communications: comunicaciones });
 }
 
-function getResponseBudgetMs() {
+function obtenerPresupuestoDeRespuestaMs() {
   return Math.min(9000, Math.max(3000, Number(process.env.AI_RESPONSE_BUDGET_MS) || 8500));
 }
 
-function availableMs(deadline, reserve = 0) {
-  return Math.max(100, deadline - Date.now() - reserve);
+function tiempoDisponibleMs(tiempoLimite, reserva = 0) {
+  return Math.max(100, tiempoLimite - Date.now() - reserva);
 }
 
-function withTimeout(promise, timeoutMs, message) {
-  let timer;
+function ejecutarConLimiteDeTiempo(promesa, limiteTiempoMs, mensaje) {
+  let temporizador;
   return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new Error(message)), Math.max(100, timeoutMs));
+    promesa,
+    new Promise((_, rechazar) => {
+      temporizador = setTimeout(() => rechazar(new Error(mensaje)), Math.max(100, limiteTiempoMs));
     }),
-  ]).finally(() => clearTimeout(timer));
+  ]).finally(() => clearTimeout(temporizador));
 }
 
-router.post("/analyze", requireOptionalCaseAccess, async (req, res) => {
-  const { text } = req.body;
+enrutador.post("/analyze", exigirAccesoSiHayExpediente, async (solicitud, respuesta) => {
+  const { text: texto } = solicitud.body;
 
-  if (typeof text !== "string" || text.trim().length === 0) {
-    return res.status(400).json({
+  if (typeof texto !== "string" || texto.trim().length === 0) {
+    return respuesta.status(400).json({
       error: "El campo 'text' es obligatorio y debe ser un string no vacio.",
     });
   }
 
-  const modeError = validateLocalOnlyMode(req.body.mode);
+  const errorDeModo = validarModoSoloLocal(solicitud.body.mode);
 
-  if (modeError) {
-    return res.status(400).json({ error: modeError });
+  if (errorDeModo) {
+    return respuesta.status(400).json({ error: errorDeModo });
   }
 
-  return sendAnalysisResponse(res, text, {
-    causaId: parseOptionalNumericId(req.body.causa_id || req.body.case_id),
-    documentoId: parseOptionalNumericId(req.body.documento_id),
-    persist: parseBoolean(req.body.persist),
+  return enviarRespuestaDeAnalisis(respuesta, texto, {
+    causaId: leerIdNumericoOpcional(solicitud.body.causa_id || solicitud.body.case_id),
+    documentoId: leerIdNumericoOpcional(solicitud.body.documento_id),
+    persist: leerBooleano(solicitud.body.persist),
   });
 });
 
-router.post("/analyze-file", requireOptionalCaseAccess, (req, res) => {
-  parseTextFileUpload(req, async (uploadError) => {
-    if (uploadError) {
-      return res.status(400).json({
-        error: getUploadErrorMessage(uploadError),
+enrutador.post("/analyze-file", exigirAccesoSiHayExpediente, (solicitud, respuesta) => {
+  procesarCargaDeArchivo(solicitud, async (errorDeCarga) => {
+    if (errorDeCarga) {
+      return respuesta.status(400).json({
+        error: obtenerMensajeDeErrorDeCarga(errorDeCarga),
       });
     }
 
     try {
-      const text = extractTextFromTxtFile(req.file);
-      const sourceFile = {
-        name: req.file.originalname,
-        mime_type: req.file.mimetype,
-        size_bytes: req.file.size,
+      const texto = extraerTextoPlano(solicitud.file);
+      const archivoFuente = {
+        name: solicitud.file.originalname,
+        mime_type: solicitud.file.mimetype,
+        size_bytes: solicitud.file.size,
       };
-      const modeError = validateLocalOnlyMode(req.body.mode);
+      const errorDeModo = validarModoSoloLocal(solicitud.body.mode);
 
-      if (modeError) {
-        return res.status(400).json({ error: modeError });
+      if (errorDeModo) {
+        return respuesta.status(400).json({ error: errorDeModo });
       }
 
-      return sendAnalysisResponse(res, text, {
-        causaId: parseOptionalNumericId(req.body.causa_id || req.body.case_id),
-        documentoId: parseOptionalNumericId(req.body.documento_id),
-        persist: parseBoolean(req.body.persist),
-        sourceFile,
+      return enviarRespuestaDeAnalisis(respuesta, texto, {
+        causaId: leerIdNumericoOpcional(solicitud.body.causa_id || solicitud.body.case_id),
+        documentoId: leerIdNumericoOpcional(solicitud.body.documento_id),
+        persist: leerBooleano(solicitud.body.persist),
+        sourceFile: archivoFuente,
       });
     } catch (error) {
-      return res.status(400).json({
+      return respuesta.status(400).json({
         error: error.message,
       });
     }
   });
 });
 
-router.get("/cases/:caseId/documents", requireCaseAccess, async (req, res, next) => {
+enrutador.get("/cases/:caseId/documents", exigirAccesoAlExpediente, async (solicitud, respuesta, siguiente) => {
   try {
-    const caseId = parseRequiredNumericId(req.params.caseId);
-    const documents = await listDocumentsForCase(caseId, { includeUnprocessed: true });
+    const idExpediente = leerIdNumericoObligatorio(solicitud.params.caseId);
+    const documentos = await listarDocumentosDelExpediente(idExpediente, { includeUnprocessed: true });
 
-    return res.json({
-      documents: documents.map((document) => ({
-        id: document.id,
-        name: document.nombre_archivo,
-        type: document.tipo_archivo,
-        mime_type: document.mime_type,
-        size_bytes: document.tamano_bytes,
-        status: document.estado_procesamiento,
-        created_at: document.created_at,
-        extracted_text: req.query.include_text === "true" ? document.texto_extraido : undefined,
+    return respuesta.json({
+      documents: documentos.map((documento) => ({
+        id: documento.id,
+        name: documento.nombre_archivo,
+        type: documento.tipo_archivo,
+        mime_type: documento.mime_type,
+        size_bytes: documento.tamano_bytes,
+        status: documento.estado_procesamiento,
+        created_at: documento.created_at,
+        extracted_text: solicitud.query.include_text === "true" ? documento.texto_extraido : undefined,
       })),
     });
   } catch (error) {
-    return next(error);
+    return siguiente(error);
   }
 });
 
-router.post("/rag/query", requireCaseAccess, async (req, res, next) => {
+enrutador.post("/rag/query", exigirAccesoAlExpediente, async (solicitud, respuesta, siguiente) => {
   try {
-    const caseId = parseRequiredNumericId(req.body.causa_id || req.body.case_id);
-    const question = String(req.body.question || "").trim();
+    const idExpediente = leerIdNumericoObligatorio(solicitud.body.causa_id || solicitud.body.case_id);
+    const pregunta = String(solicitud.body.question || "").trim();
 
-    if (!question) {
-      return res.status(400).json({
+    if (!pregunta) {
+      return respuesta.status(400).json({
         error: "El campo 'question' es obligatorio.",
       });
     }
 
-    let documents = await listDocumentsForCase(caseId);
-    let structuredDocuments = [];
+    let documentos = await listarDocumentosDelExpediente(idExpediente);
+    let documentosDelContexto = [];
     try {
-      structuredDocuments = await loadStructuredCaseContext(req.security.organizationId, caseId);
-      documents = [...structuredDocuments, ...documents];
+      documentosDelContexto = await cargarContextoEstructuradoDelExpediente(solicitud.security.organizationId, idExpediente);
+      documentos = [...documentosDelContexto, ...documentos];
     } catch (error) {
       console.warn("Contexto estructurado no disponible para RAG:", error.message);
     }
-    const topK = Math.min(20, Math.max(1, Number(req.body.top_k) || 8));
-    const lexicalCaseChunks = retrieveRelevantChunks(documents, question, Math.max(3, topK))
-      .map((chunk) => ({ ...chunk, source_type: "expediente" }));
-    let queryEmbedding = null;
+    const maximoFragmentos = Math.min(20, Math.max(1, Number(solicitud.body.top_k) || 8));
+    const fragmentosLexicosExpediente = buscarFragmentosRelevantes(documentos, pregunta, Math.max(3, maximoFragmentos))
+      .map((fragmento) => ({ ...fragmento, source_type: "expediente" }));
+    let embeddingConsulta = null;
     try {
-      [queryEmbedding] = await embedTextsWithLocalAI([expandLegalQuery(question)]);
+      [embeddingConsulta] = await generarEmbeddingsDeTextos([ampliarConsultaJuridica(pregunta)]);
     } catch (error) {
       console.warn("Embeddings no disponibles; se usa recuperación léxica:", error.message);
     }
-    let semanticCaseChunks = [];
-    if (queryEmbedding) {
+    let fragmentosSemanticosExpediente = [];
+    if (embeddingConsulta) {
       try {
-        const stored = await hybridSearch({ organizationId: req.security.organizationId, caseId, query: question,
-          queryEmbedding, limit: topK });
-        semanticCaseChunks = stored.map((item) => ({ id: item.id, document_id: item.documento_id,
-          document_name: item.nombre_archivo, chunk_index: item.orden, page: item.pagina,
-          text: item.texto, score: Number(item.score), lexical_score: Number(item.lexical_score),
-          semantic_score: Number(item.semantic_score), metadata: item.metadata_json, source_type: "expediente" }));
+        const fragmentosGuardados = await buscarFragmentosDeFormaHibrida({ organizationId: solicitud.security.organizationId, caseId: idExpediente, query: pregunta,
+          queryEmbedding: embeddingConsulta, limit: maximoFragmentos });
+        fragmentosSemanticosExpediente = fragmentosGuardados.map((elemento) => ({ id: elemento.id, document_id: elemento.documento_id,
+          document_name: elemento.nombre_archivo, chunk_index: elemento.orden, page: elemento.pagina,
+          text: elemento.texto, score: Number(elemento.score), lexical_score: Number(elemento.lexical_score),
+          semantic_score: Number(elemento.semantic_score), metadata: elemento.metadata_json, source_type: "expediente" }));
       } catch (error) {
         console.warn("Índice vectorial del expediente no disponible:", error.message);
       }
     }
-    const caseChunks = fuseCaseRankings(lexicalCaseChunks, semanticCaseChunks, Math.max(3, Math.ceil(topK / 2)));
-    let legalChunks = [];
+    const fragmentosExpediente = fusionarResultadosDelExpediente(fragmentosLexicosExpediente, fragmentosSemanticosExpediente, Math.max(3, Math.ceil(maximoFragmentos / 2)));
+    let fragmentosNormativa = [];
     try {
-      legalChunks = await searchLegalLibrary({ query: question, queryEmbedding, limit: Math.max(5, topK) });
+      fragmentosNormativa = await buscarNormativaOficial({ query: pregunta, queryEmbedding: embeddingConsulta, limit: Math.max(5, maximoFragmentos) });
     } catch (error) {
       console.warn("Biblioteca jurídica no disponible:", error.message);
     }
-    const chunks = [...caseChunks, ...legalChunks];
-    const citations = buildLegalCitations(chunks, { caseId });
-    const evidence = assessEvidence(citations);
-    const result = buildGroundedLegalAnswer({ question, caseChunks, legalChunks });
+    const fragmentos = [...fragmentosExpediente, ...fragmentosNormativa];
+    const citas = construirCitasJuridicas(fragmentos, { caseId: idExpediente });
+    const evidencia = evaluarEvidencia(citas);
+    const resultado = construirRespuestaConEvidencia({ question: pregunta, caseChunks: fragmentosExpediente, legalChunks: fragmentosNormativa });
 
-    return res.json({
-      answer: result.answer,
-      case_id: caseId,
-      confidence: result.confidence,
-      retrieved_chunks: citations,
-      evidence,
+    return respuesta.json({
+      answer: resultado.answer,
+      case_id: idExpediente,
+      confidence: resultado.confidence,
+      retrieved_chunks: citas,
+      evidence: evidencia,
       engine: "extractive_legal_retrieval",
-      retrieval: queryEmbedding ? "hybrid_lexical_semantic_with_official_law" : "lexical_with_official_law",
+      retrieval: embeddingConsulta ? "hybrid_lexical_semantic_with_official_law" : "lexical_with_official_law",
       model: null,
       ollama_used: false,
-      embedding_model: queryEmbedding ? getLocalAIConfig().embeddingModel : null,
+      embedding_model: embeddingConsulta ? obtenerConfiguracionDeIA().embeddingModel : null,
       sources: {
-        case_chunks: caseChunks.length,
-        legal_chunks: legalChunks.length,
+        case_chunks: fragmentosExpediente.length,
+        legal_chunks: fragmentosNormativa.length,
         jurisdiction: "nacional_federal",
       },
     });
   } catch (error) {
-    return next(error);
+    return siguiente(error);
   }
 });
 
-router.post("/rag/search", async (req, res) => {
-  const { limit = 5, query, text } = req.body || {};
+enrutador.post("/rag/search", async (solicitud, respuesta) => {
+  const { limit: limite = 5, query: consulta, text: texto } = solicitud.body || {};
 
-  if (typeof query !== "string" || query.trim().length === 0) {
-    return res.status(400).json({
+  if (typeof consulta !== "string" || consulta.trim().length === 0) {
+    return respuesta.status(400).json({
       error: "El campo 'query' es obligatorio y debe ser un string no vacio.",
     });
   }
 
-  if (typeof text !== "string" || text.trim().length === 0) {
-    return res.status(400).json({
+  if (typeof texto !== "string" || texto.trim().length === 0) {
+    return respuesta.status(400).json({
       error: "El campo 'text' es obligatorio y debe ser un string no vacio.",
     });
   }
 
   try {
-    const ragResult = await searchLegalTextWithLocalAI({ text, query, limit });
+    const resultadoRag = await buscarEnTextoJuridicoConIA({ text: texto, query: consulta, limit: limite });
 
-    return res.json({
-      ...ragResult,
+    return respuesta.json({
+      ...resultadoRag,
       _metadata: {
         engine: "local",
-        model: getLocalAIConfig().model,
+        model: obtenerConfiguracionDeIA().model,
       },
     });
   } catch (error) {
-    return res.status(getLocalAIErrorStatus(error)).json({
+    return respuesta.status(obtenerEstadoHttpDelErrorDeIA(error)).json({
       error: "No se pudo ejecutar la busqueda RAG con la API local.",
       details: error.message,
     });
   }
 });
 
-router.post("/rag/extract", (req, res) => {
-  if (isMultipartRequest(req)) {
-    parseTextFileUpload(req, async (uploadError) => {
-      if (uploadError) {
-        return res.status(400).json({
-          error: getUploadErrorMessage(uploadError),
+enrutador.post("/rag/extract", (solicitud, respuesta) => {
+  if (esSolicitudMultipart(solicitud)) {
+    procesarCargaDeArchivo(solicitud, async (errorDeCarga) => {
+      if (errorDeCarga) {
+        return respuesta.status(400).json({
+          error: obtenerMensajeDeErrorDeCarga(errorDeCarga),
         });
       }
 
       try {
-        const text = await extractTextFromSupportedFile(req.file);
+        const texto = await extraerTextoDeArchivo(solicitud.file);
 
-        return res.json(buildSimpleCaseDataPayload(text, {
-          name: req.file.originalname,
-          mime_type: req.file.mimetype,
-          size_bytes: req.file.size,
+        return respuesta.json(prepararDatosBasicosDelExpediente(texto, {
+          name: solicitud.file.originalname,
+          mime_type: solicitud.file.mimetype,
+          size_bytes: solicitud.file.size,
         }));
       } catch (error) {
-        return res.status(400).json({
+        return respuesta.status(400).json({
           error: error.message,
         });
       }
@@ -683,127 +685,127 @@ router.post("/rag/extract", (req, res) => {
     return;
   }
 
-  const text = String(req.body?.text || "").trim();
+  const texto = String(solicitud.body?.text || "").trim();
 
-  if (!text) {
-    return res.status(400).json({
+  if (!texto) {
+    return respuesta.status(400).json({
       error: "El campo 'text' es obligatorio o se debe enviar un archivo .txt/.pdf.",
     });
   }
 
-  return res.json(buildSimpleCaseDataPayload(text));
+  return respuesta.json(prepararDatosBasicosDelExpediente(texto));
 });
 
-async function sendAnalysisResponse(res, text, options = {}) {
+async function enviarRespuestaDeAnalisis(respuesta, texto, opciones = {}) {
   try {
-    const lawyerBrief = await buildLawyerBriefWithLocalAI(text);
-    const metadata = {
+    const informeJuridico = await generarInformeJuridicoConIA(texto);
+    const metadatos = {
       engine: "local",
-      model: getLocalAIConfig().model,
-      ...buildSourceFileMetadata(options.sourceFile),
+      model: obtenerConfiguracionDeIA().model,
+      ...extraerMetadatosDelArchivo(opciones.sourceFile),
     };
-    const payload = buildLawyerAnalysisPayload(lawyerBrief, metadata, text);
+    const datosDeEnvio = prepararInformeParaFrontend(informeJuridico, metadatos, texto);
 
-    if (options.persist) {
-      payload._metadata.persistence = await persistAnalysisPayload(payload, text, {
-        causaId: options.causaId,
-        documentoId: options.documentoId,
-        metadata,
-        sourceFile: options.sourceFile,
+    if (opciones.persist) {
+      datosDeEnvio._metadata.persistence = await persistirInformeDeAnalisis(datosDeEnvio, texto, {
+        causaId: opciones.causaId,
+        documentoId: opciones.documentoId,
+        metadata: metadatos,
+        sourceFile: opciones.sourceFile,
       });
     }
 
-    return res.json(payload);
+    return respuesta.json(datosDeEnvio);
   } catch (error) {
-    return res.status(getLocalAIErrorStatus(error)).json({
+    return respuesta.status(obtenerEstadoHttpDelErrorDeIA(error)).json({
       error: "No se pudo analizar el texto con la API local.",
       details: error.message,
     });
   }
 }
 
-function buildLawyerAnalysisPayload(lawyerBrief, metadata, text) {
-  const localData = extractSimpleCaseData(text);
+function prepararInformeParaFrontend(informeJuridico, metadatos, texto) {
+  const datosLocales = extraerDatosBasicosDelExpediente(texto);
   return {
-    informe_abogado: lawyerBrief,
-    datos_locales: localData,
-    ...buildFrontendCompatibilityFields(lawyerBrief, localData),
-    _metadata: metadata,
+    informe_abogado: informeJuridico,
+    datos_locales: datosLocales,
+    ...prepararCamposCompatiblesConFrontend(informeJuridico, datosLocales),
+    _metadata: metadatos,
   };
 }
 
-async function persistAnalysisPayload(payload, text, options) {
-  if (!options.causaId) {
+async function persistirInformeDeAnalisis(datosDeEnvio, texto, opciones) {
+  if (!opciones.causaId) {
     return {
       persisted: false,
       reason: "Para persistir el analisis se debe enviar causa_id o case_id.",
     };
   }
 
-  return saveLegalAnalysis({
-    analysis: payload,
-    causaId: options.causaId,
-    documentoId: options.documentoId,
-    metadata: options.metadata,
-    sourceFile: options.sourceFile,
-    text,
+  return guardarAnalisisJuridico({
+    analysis: datosDeEnvio,
+    causaId: opciones.causaId,
+    documentoId: opciones.documentoId,
+    metadata: opciones.metadata,
+    sourceFile: opciones.sourceFile,
+    text: texto,
   });
 }
 
-function buildFrontendCompatibilityFields(lawyerBrief, localData) {
+function prepararCamposCompatiblesConFrontend(informeJuridico, datosLocales) {
   return {
-    resumen: lawyerBrief.resumen_causa,
+    resumen: informeJuridico.resumen_causa,
     tipo_documento: "informe_abogado",
     causa: {
       datos_generales: [
-        localData.numero_causa ? `Numero de causa: ${localData.numero_causa}` : null,
-        localData.caratula ? `Caratula: ${localData.caratula}` : null,
-        localData.tribunal ? `Tribunal: ${localData.tribunal}` : null,
+        datosLocales.numero_causa ? `Numero de causa: ${datosLocales.numero_causa}` : null,
+        datosLocales.caratula ? `Caratula: ${datosLocales.caratula}` : null,
+        datosLocales.tribunal ? `Tribunal: ${datosLocales.tribunal}` : null,
       ].filter(Boolean),
-      hechos_relevantes: lawyerBrief.lectura_juridica.map((item) => `${item.tema}: ${item.explicacion}`),
+      hechos_relevantes: informeJuridico.lectura_juridica.map((elemento) => `${elemento.tema}: ${elemento.explicacion}`),
     },
-    imputados: localData.imputados.map((name) => ({
+    imputados: datosLocales.imputados.map((nombre) => ({
       datos_asociados: [],
-      documentos_mencionados: localData.documentos_mencionados,
+      documentos_mencionados: datosLocales.documentos_mencionados,
       hechos_vinculados: [],
       imputaciones: [],
-      nombre: name,
+      nombre: nombre,
     })),
-    fechas_relevantes: localData.fechas_relevantes.map((date) => ({
+    fechas_relevantes: datosLocales.fechas_relevantes.map((fecha) => ({
       evento: "Fecha detectada localmente",
-      fecha: date,
+      fecha: fecha,
       fecha_normalizada: null,
       requiere_alerta: false,
       tipo: "fecha_detectada",
     })),
     categorias: [],
-    actuaciones_pendientes: localData.vencimientos_o_plazos,
+    actuaciones_pendientes: datosLocales.vencimientos_o_plazos,
     observaciones: [
       "Ollama genera el informe explicativo; los datos concretos se extraen localmente.",
-      ...lawyerBrief.limitaciones,
+      ...informeJuridico.limitaciones,
     ],
-    nivel_confianza: lawyerBrief.nivel_confianza,
+    nivel_confianza: informeJuridico.nivel_confianza,
     entidades_juridicas: {
-      actuaciones: localData.audiencias_o_actos.map((description, index) => ({
-        descripcion: description,
-        id: `actuacion-${index + 1}`,
+      actuaciones: datosLocales.audiencias_o_actos.map((descripcion, indice) => ({
+        descripcion: descripcion,
+        id: `actuacion-${indice + 1}`,
       })),
-      causas: localData.numero_causa
-        ? [{ id: "causa-local", identificador: localData.numero_causa, nombre: localData.caratula || "" }]
+      causas: datosLocales.numero_causa
+        ? [{ id: "causa-local", identificador: datosLocales.numero_causa, nombre: datosLocales.caratula || "" }]
         : [],
-      delitos: localData.delitos.map((name, index) => ({ id: `delito-${index + 1}`, nombre: name })),
-      documentos: localData.documentos_mencionados.map((name, index) => ({ id: `documento-${index + 1}`, nombre: name })),
-      fechas: localData.fechas_relevantes.map((date, index) => ({ fecha: date, id: `fecha-${index + 1}` })),
-      imputados: localData.imputados.map((name, index) => ({ id: `imputado-${index + 1}`, nombre: name })),
-      organismos: localData.tribunal ? [{ id: "tribunal-local", nombre: localData.tribunal }] : [],
-      victimas: localData.victimas.map((name, index) => ({ id: `victima-${index + 1}`, nombre: name })),
+      delitos: datosLocales.delitos.map((nombre, indice) => ({ id: `delito-${indice + 1}`, nombre: nombre })),
+      documentos: datosLocales.documentos_mencionados.map((nombre, indice) => ({ id: `documento-${indice + 1}`, nombre: nombre })),
+      fechas: datosLocales.fechas_relevantes.map((fecha, indice) => ({ fecha: fecha, id: `fecha-${indice + 1}` })),
+      imputados: datosLocales.imputados.map((nombre, indice) => ({ id: `imputado-${indice + 1}`, nombre: nombre })),
+      organismos: datosLocales.tribunal ? [{ id: "tribunal-local", nombre: datosLocales.tribunal }] : [],
+      victimas: datosLocales.victimas.map((nombre, indice) => ({ id: `victima-${indice + 1}`, nombre: nombre })),
     },
     grafo_conocimiento: {
       nodos: [],
       relaciones: [],
     },
     rag_juridico: {
-      consultas_sugeridas: lawyerBrief.preguntas_utiles,
+      consultas_sugeridas: informeJuridico.preguntas_utiles,
       fragmentos: [],
       indice_vectorial: {
         dimensiones: 0,
@@ -815,42 +817,42 @@ function buildFrontendCompatibilityFields(lawyerBrief, localData) {
     analisis_estrategico: {
       cronologia: [],
       inconsistencias: [],
-      omisiones_posibles: lawyerBrief.limitaciones,
-      puntos_revision: lawyerBrief.puntos_de_atencion.map((point) => ({
-        descripcion: `${point.descripcion} ${point.motivo}`.trim(),
-        prioridad: point.prioridad,
+      omisiones_posibles: informeJuridico.limitaciones,
+      puntos_revision: informeJuridico.puntos_de_atencion.map((punto) => ({
+        descripcion: `${punto.descripcion} ${punto.motivo}`.trim(),
+        prioridad: punto.prioridad,
         tipo: "revision_abogado",
       })),
     },
     alertas: [],
     scoring_confianza: {
       factores: [],
-      nivel: lawyerBrief.nivel_confianza,
-      puntaje: confidenceScore(lawyerBrief.nivel_confianza),
-      requiere_revision: lawyerBrief.nivel_confianza !== "alto",
+      nivel: informeJuridico.nivel_confianza,
+      puntaje: calcularPuntajeDeConfianza(informeJuridico.nivel_confianza),
+      requiere_revision: informeJuridico.nivel_confianza !== "alto",
     },
   };
 }
 
-function confidenceScore(level) {
-  return { alto: 80, medio: 60, bajo: 35 }[level] || 35;
+function calcularPuntajeDeConfianza(nivel) {
+  return { alto: 80, medio: 60, bajo: 35 }[nivel] || 35;
 }
 
-function buildSimpleCaseDataPayload(text, sourceFile) {
+function prepararDatosBasicosDelExpediente(texto, archivoFuente) {
   return {
-    datos_causa: extractSimpleCaseData(text),
+    datos_causa: extraerDatosBasicosDelExpediente(texto),
     _metadata: {
       engine: "local_rag_simple_extractor",
-      source_file: sourceFile || null,
+      source_file: archivoFuente || null,
     },
   };
 }
 
-function buildSourceFileMetadata(sourceFile) {
-  return sourceFile ? { source_file: sourceFile } : {};
+function extraerMetadatosDelArchivo(archivoFuente) {
+  return archivoFuente ? { source_file: archivoFuente } : {};
 }
 
-function getUploadErrorMessage(error) {
+function obtenerMensajeDeErrorDeCarga(error) {
   if (error.code === "LIMIT_FILE_SIZE") {
     return "El archivo supera el limite de 15 MB.";
   }
@@ -858,197 +860,197 @@ function getUploadErrorMessage(error) {
   return error.message;
 }
 
-function validateLocalOnlyMode(mode) {
-  if (!mode || mode === "local") {
+function validarModoSoloLocal(modo) {
+  if (!modo || modo === "local") {
     return null;
   }
 
   return "Solo esta habilitada la API local. El unico modo disponible es 'local'.";
 }
 
-function getLocalAIErrorStatus(error) {
+function obtenerEstadoHttpDelErrorDeIA(error) {
   return /API local|Ollama|ECONNREFUSED|ENOTFOUND|tiempo de espera/i.test(error.message)
     ? 503
     : 500;
 }
 
-function isMultipartRequest(req) {
-  return String(req.headers["content-type"] || "").toLowerCase().includes("multipart/form-data");
+function esSolicitudMultipart(solicitud) {
+  return String(solicitud.headers["content-type"] || "").toLowerCase().includes("multipart/form-data");
 }
 
-function parseTextFileUpload(req, callback, options = {}) {
-  const contentType = req.headers["content-type"] || "";
-  const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
+function procesarCargaDeArchivo(solicitud, alCompletar, opciones = {}) {
+  const tipoDeContenido = solicitud.headers["content-type"] || "";
+  const coincidenciaDelimitador = tipoDeContenido.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
 
-  if (!boundaryMatch) {
-    callback(new Error("La solicitud debe usar multipart/form-data."));
+  if (!coincidenciaDelimitador) {
+    alCompletar(new Error("La solicitud debe usar multipart/form-data."));
     return;
   }
 
-  const boundary = boundaryMatch[1] || boundaryMatch[2];
-  const chunks = [];
+  const delimitador = coincidenciaDelimitador[1] || coincidenciaDelimitador[2];
+  const fragmentos = [];
   let totalBytes = 0;
-  let finished = false;
+  let finalizado = false;
 
-  req.on("data", (chunk) => {
-    totalBytes += chunk.length;
+  solicitud.on("data", (fragmento) => {
+    totalBytes += fragmento.length;
 
-    if (totalBytes > MAX_TEXT_FILE_SIZE_BYTES + 1024 * 256) {
-      finished = true;
+    if (totalBytes > MAXIMO_BYTES_ARCHIVO_TEXTO + 1024 * 256) {
+      finalizado = true;
       const error = new Error("El archivo supera el limite de 15 MB.");
       error.code = "LIMIT_FILE_SIZE";
-      callback(error);
-      req.destroy();
+      alCompletar(error);
+      solicitud.destroy();
       return;
     }
 
-    chunks.push(chunk);
+    fragmentos.push(fragmento);
   });
 
-  req.on("error", (error) => {
-    if (!finished) {
-      finished = true;
-      callback(error);
+  solicitud.on("error", (error) => {
+    if (!finalizado) {
+      finalizado = true;
+      alCompletar(error);
     }
   });
 
-  req.on("end", () => {
-    if (finished) {
+  solicitud.on("end", () => {
+    if (finalizado) {
       return;
     }
 
     try {
-      const parsed = parseMultipartBuffer(Buffer.concat(chunks), boundary);
+      const interpretado = leerBufferMultipart(Buffer.concat(fragmentos), delimitador);
 
-      if (!parsed.file) {
+      if (!interpretado.file) {
         throw new Error("No se recibio un archivo TXT para analizar.");
       }
 
-      if (parsed.file.size > MAX_TEXT_FILE_SIZE_BYTES) {
+      if (interpretado.file.size > MAXIMO_BYTES_ARCHIVO_TEXTO) {
         const error = new Error("El archivo supera el limite de 15 MB.");
         error.code = "LIMIT_FILE_SIZE";
         throw error;
       }
 
-      if (options.allowAllDocuments ? !isSupportedDocument(parsed.file) : !isTxtFile(parsed.file) && !(options.allowPdf && isPdfFile(parsed.file))) {
-        throw new Error(options.allowPdf
+      if (opciones.allowAllDocuments ? !esDocumentoCompatible(interpretado.file) : !esArchivoDeTexto(interpretado.file) && !(opciones.allowPdf && esArchivoPdf(interpretado.file))) {
+        throw new Error(opciones.allowPdf
           ? "Por ahora solo se admiten archivos .txt o .pdf."
-          : options.allowAllDocuments ? "Se admiten archivos .pdf, .docx, .txt, .md o .csv." : "Por ahora solo se admiten archivos .txt.");
+          : opciones.allowAllDocuments ? "Se admiten archivos .pdf, .docx, .txt, .md o .csv." : "Por ahora solo se admiten archivos .txt.");
       }
 
-      req.file = parsed.file;
-      req.body = parsed.fields;
-      finished = true;
-      callback(null);
+      solicitud.file = interpretado.file;
+      solicitud.body = interpretado.fields;
+      finalizado = true;
+      alCompletar(null);
     } catch (error) {
-      finished = true;
-      callback(error);
+      finalizado = true;
+      alCompletar(error);
     }
   });
 }
 
-function parseMultipartBuffer(buffer, boundary) {
-  const raw = buffer.toString("binary");
-  const boundaryToken = `--${boundary}`;
-  const sections = raw.split(boundaryToken).slice(1, -1);
-  const fields = {};
-  let file = null;
+function leerBufferMultipart(contenidoBinario, delimitador) {
+  const textoSinProcesar = contenidoBinario.toString("binary");
+  const tokenDelimitador = `--${delimitador}`;
+  const secciones = textoSinProcesar.split(tokenDelimitador).slice(1, -1);
+  const campos = {};
+  let archivo = null;
 
-  for (const section of sections) {
-    const normalizedSection = section.replace(/^\r\n/, "");
-    const separatorIndex = normalizedSection.indexOf("\r\n\r\n");
+  for (const seccion of secciones) {
+    const seccionNormalizada = seccion.replace(/^\r\n/, "");
+    const indiceSeparador = seccionNormalizada.indexOf("\r\n\r\n");
 
-    if (separatorIndex < 0) {
+    if (indiceSeparador < 0) {
       continue;
     }
 
-    const rawHeaders = normalizedSection.slice(0, separatorIndex);
-    const rawBody = normalizedSection
-      .slice(separatorIndex + 4)
+    const encabezadosSinProcesar = seccionNormalizada.slice(0, indiceSeparador);
+    const cuerpoSinProcesar = seccionNormalizada
+      .slice(indiceSeparador + 4)
       .replace(/\r\n$/, "");
-    const headers = parseMultipartHeaders(rawHeaders);
-    const disposition = headers["content-disposition"] || "";
-    const name = getHeaderParameter(disposition, "name");
-    const filename = getHeaderParameter(disposition, "filename");
+    const encabezados = leerEncabezadosMultipart(encabezadosSinProcesar);
+    const disposicion = encabezados["content-disposition"] || "";
+    const nombre = obtenerParametroDeEncabezado(disposicion, "name");
+    const nombreArchivo = obtenerParametroDeEncabezado(disposicion, "filename");
 
-    if (!name) {
+    if (!nombre) {
       continue;
     }
 
-    if (filename) {
-      const fileBuffer = Buffer.from(rawBody, "binary");
-      file = {
-        originalname: filename,
-        mimetype: headers["content-type"] || "text/plain",
-        size: fileBuffer.length,
-        buffer: fileBuffer,
+    if (nombreArchivo) {
+      const bufferArchivo = Buffer.from(cuerpoSinProcesar, "binary");
+      archivo = {
+        originalname: nombreArchivo,
+        mimetype: encabezados["content-type"] || "text/plain",
+        size: bufferArchivo.length,
+        buffer: bufferArchivo,
       };
     } else {
-      fields[name] = Buffer.from(rawBody, "binary").toString("utf8");
+      campos[nombre] = Buffer.from(cuerpoSinProcesar, "binary").toString("utf8");
     }
   }
 
   return {
-    fields,
-    file,
+    fields: campos,
+    file: archivo,
   };
 }
 
-function parseMultipartHeaders(rawHeaders) {
-  return rawHeaders.split("\r\n").reduce((headers, line) => {
-    const index = line.indexOf(":");
+function leerEncabezadosMultipart(encabezadosSinProcesar) {
+  return encabezadosSinProcesar.split("\r\n").reduce((encabezados, linea) => {
+    const indice = linea.indexOf(":");
 
-    if (index < 0) {
-      return headers;
+    if (indice < 0) {
+      return encabezados;
     }
 
-    headers[line.slice(0, index).trim().toLowerCase()] = line
-      .slice(index + 1)
+    encabezados[linea.slice(0, indice).trim().toLowerCase()] = linea
+      .slice(indice + 1)
       .trim();
-    return headers;
+    return encabezados;
   }, {});
 }
 
-function getHeaderParameter(header, parameter) {
-  const match = header.match(new RegExp(`${parameter}="([^"]*)"`, "i"));
+function obtenerParametroDeEncabezado(encabezado, parametro) {
+  const coincidencia = encabezado.match(new RegExp(`${parametro}="([^"]*)"`, "i"));
 
-  return match?.[1] || "";
+  return coincidencia?.[1] || "";
 }
 
-function parseBoolean(value) {
-  return value === true || value === "true" || value === "1";
+function leerBooleano(valor) {
+  return valor === true || valor === "true" || valor === "1";
 }
 
-function vectorCosine(left = [], right = []) {
-  if (!left.length || left.length !== right.length) return 0;
-  let dot = 0; let leftNorm = 0; let rightNorm = 0;
-  for (let index = 0; index < left.length; index += 1) { dot += left[index] * right[index]; leftNorm += left[index] ** 2; rightNorm += right[index] ** 2; }
-  return dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm) || 1);
+function calcularSimilitudCoseno(izquierda = [], derecha = []) {
+  if (!izquierda.length || izquierda.length !== derecha.length) return 0;
+  let productoEscalar = 0; let normaIzquierda = 0; let normaDerecha = 0;
+  for (let indice = 0; indice < izquierda.length; indice += 1) { productoEscalar += izquierda[indice] * derecha[indice]; normaIzquierda += izquierda[indice] ** 2; normaDerecha += derecha[indice] ** 2; }
+  return productoEscalar / (Math.sqrt(normaIzquierda) * Math.sqrt(normaDerecha) || 1);
 }
 
-function fuseCaseRankings(lexicalChunks, semanticChunks, limit) {
-  const fused = new Map();
-  const add = (chunk, rank, weight) => {
-    const key = `${chunk.document_id}:${chunk.chunk_index}`;
-    const current = fused.get(key) || { ...chunk, score: 0 };
-    current.score += weight / (60 + rank + 1);
-    if (chunk.semantic_score != null) current.semantic_score = chunk.semantic_score;
-    if (chunk.lexical_score != null) current.lexical_score = chunk.lexical_score;
-    fused.set(key, current);
+function fusionarResultadosDelExpediente(fragmentosLexicos, fragmentosSemanticos, limite) {
+  const resultadosFusionados = new Map();
+  const agregarResultado = (fragmento, posicion, peso) => {
+    const clave = `${fragmento.document_id}:${fragmento.chunk_index}`;
+    const actual = resultadosFusionados.get(clave) || { ...fragmento, score: 0 };
+    actual.score += peso / (60 + posicion + 1);
+    if (fragmento.semantic_score != null) actual.semantic_score = fragmento.semantic_score;
+    if (fragmento.lexical_score != null) actual.lexical_score = fragmento.lexical_score;
+    resultadosFusionados.set(clave, actual);
   };
-  lexicalChunks.forEach((chunk, rank) => add(chunk, rank, 0.45));
-  semanticChunks.forEach((chunk, rank) => add(chunk, rank, 0.55));
-  const maximum = 1 / 61;
-  return [...fused.values()].map((chunk) => ({ ...chunk, score: Math.min(1, chunk.score / maximum) }))
-    .sort((left, right) => right.score - left.score).slice(0, limit);
+  fragmentosLexicos.forEach((fragmento, posicion) => agregarResultado(fragmento, posicion, 0.45));
+  fragmentosSemanticos.forEach((fragmento, posicion) => agregarResultado(fragmento, posicion, 0.55));
+  const maximo = 1 / 61;
+  return [...resultadosFusionados.values()].map((fragmento) => ({ ...fragmento, score: Math.min(1, fragmento.score / maximo) }))
+    .sort((izquierda, derecha) => derecha.score - izquierda.score).slice(0, limite);
 }
 
-function parseOptionalNumericId(value) {
-  if (value === undefined || value === null || value === "") {
+function leerIdNumericoOpcional(valor) {
+  if (valor === undefined || valor === null || valor === "") {
     return null;
   }
 
-  const id = Number(value);
+  const id = Number(valor);
 
   if (!Number.isInteger(id) || id <= 0) {
     return null;
@@ -1057,8 +1059,8 @@ function parseOptionalNumericId(value) {
   return id;
 }
 
-function parseRequiredNumericId(value) {
-  const id = parseOptionalNumericId(value);
+function leerIdNumericoObligatorio(valor) {
+  const id = leerIdNumericoOpcional(valor);
 
   if (!id) {
     const error = new Error("El id de causa debe ser numerico.");
@@ -1069,4 +1071,4 @@ function parseRequiredNumericId(value) {
   return id;
 }
 
-module.exports = router;
+module.exports = enrutador;

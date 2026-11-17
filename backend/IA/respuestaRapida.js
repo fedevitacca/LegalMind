@@ -1,4 +1,4 @@
-const TITLES = {
+const TITULOS = {
   resumen_expediente: "Resumen rápido del expediente",
   comparar_documentos: "Comparación documental",
   comparar_imputados: "Pasajes de las fichas de imputados",
@@ -8,20 +8,20 @@ const TITLES = {
   teoria_del_caso: "Teoría del caso provisional",
 };
 
-function buildFastToolResult({ toolId, chunks = [], query = "", scopeLabel = "las fuentes seleccionadas" }) {
-  const passages = toolId.startsWith("comparar_")
-    ? [...new Set(chunks.map((chunk) => chunk.document_id))].flatMap((id) => selectPassages(chunks.filter((chunk) => chunk.document_id === id), query, 2))
-    : selectPassages(chunks, query, toolId === "cronologia" ? 6 : 5);
-  const points = passages.map((item) => `${item.documentName}: ${item.text}`);
-  const emptyMessage = `No se encontró información suficiente en ${scopeLabel} para responder con respaldo.`;
+function construirResultadoRapido({ toolId: idHerramienta, chunks: fragmentos = [], query: consulta = "", scopeLabel: etiquetaAlcance = "las fuentes seleccionadas" }) {
+  const pasajes = idHerramienta.startsWith("comparar_")
+    ? [...new Set(fragmentos.map((fragmento) => fragmento.document_id))].flatMap((id) => seleccionarPasajes(fragmentos.filter((fragmento) => fragmento.document_id === id), consulta, 2))
+    : seleccionarPasajes(fragmentos, consulta, idHerramienta === "cronologia" ? 6 : 5);
+  const puntos = pasajes.map((elemento) => `${elemento.documentName}: ${elemento.text}`);
+  const mensajeVacio = `No se encontró información suficiente en ${etiquetaAlcance} para responder con respaldo.`;
 
-  if (!points.length) {
+  if (!puntos.length) {
     return {
-      titulo: TITLES[toolId] || "Análisis documental",
-      conclusion: emptyMessage,
-      puntos_clave: [emptyMessage],
+      titulo: TITULOS[idHerramienta] || "Análisis documental",
+      conclusion: mensajeVacio,
+      puntos_clave: [mensajeVacio],
       desarrollo: [
-        { titulo: "Resultado de la búsqueda", contenido: emptyMessage },
+        { titulo: "Resultado de la búsqueda", contenido: mensajeVacio },
         { titulo: "Alcance", contenido: "No se agregaron datos externos ni se completaron vacíos por inferencia." },
       ],
       acciones_sugeridas: ["Reformular la consulta o incorporar documentación con texto extraíble."],
@@ -29,121 +29,121 @@ function buildFastToolResult({ toolId, chunks = [], query = "", scopeLabel = "la
     };
   }
 
-  const conclusion = buildConclusion(toolId, passages, scopeLabel);
+  const conclusion = construirConclusion(idHerramienta, pasajes, etiquetaAlcance);
   return {
-    titulo: TITLES[toolId] || "Análisis documental",
+    titulo: TITULOS[idHerramienta] || "Análisis documental",
     conclusion,
-    puntos_clave: points.slice(0, 5),
-    desarrollo: buildSections(toolId, passages, query),
-    acciones_sugeridas: buildActions(toolId),
+    puntos_clave: puntos.slice(0, 5),
+    desarrollo: construirSecciones(idHerramienta, pasajes, consulta),
+    acciones_sugeridas: construirAcciones(idHerramienta),
     limitaciones: [
       "Respuesta extractiva rápida: verifique los pasajes citados antes de incorporarla a una presentación.",
     ],
   };
 }
 
-function selectPassages(chunks, query, limit) {
-  const queryTerms = tokenize(query);
-  const candidates = [];
+function seleccionarPasajes(fragmentos, consulta, limite) {
+  const terminosConsulta = separarTerminos(consulta);
+  const candidatos = [];
 
-  for (const chunk of chunks) {
-    for (const sentence of splitSentences(chunk.text)) {
-      if (sentence.length < 18) continue;
-      const sentenceTerms = tokenize(sentence);
-      const overlap = queryTerms.filter((term) => sentenceTerms.includes(term)).length;
-      const dateBonus = /\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b|\b\d{1,2}\s+de\s+[a-záéíóúñ]+\s+de\s+\d{4}\b/i.test(sentence) ? 0.25 : 0;
-      candidates.push({
-        documentName: chunk.document_name || "Fuente",
-        text: limitText(sentence, 52),
-        score: Number(chunk.score || 0) + overlap * 0.35 + dateBonus,
+  for (const fragmento of fragmentos) {
+    for (const oracion of separarOraciones(fragmento.text)) {
+      if (oracion.length < 18) continue;
+      const terminosOracion = separarTerminos(oracion);
+      const calcularCoincidencia = terminosConsulta.filter((termino) => terminosOracion.includes(termino)).length;
+      const bonificacionFecha = /\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b|\b\d{1,2}\s+de\s+[a-záéíóúñ]+\s+de\s+\d{4}\b/i.test(oracion) ? 0.25 : 0;
+      candidatos.push({
+        documentName: fragmento.document_name || "Fuente",
+        text: limitarTexto(oracion, 52),
+        score: Number(fragmento.score || 0) + calcularCoincidencia * 0.35 + bonificacionFecha,
       });
     }
   }
 
-  return candidates
-    .sort((left, right) => right.score - left.score)
-    .filter((item, index, items) => items.findIndex((other) => normalize(other.text) === normalize(item.text)) === index)
-    .slice(0, limit);
+  return candidatos
+    .sort((izquierda, derecha) => derecha.score - izquierda.score)
+    .filter((elemento, indice, elementos) => elementos.findIndex((otro) => normalizar(otro.text) === normalizar(elemento.text)) === indice)
+    .slice(0, limite);
 }
 
-function buildConclusion(toolId, passages, scopeLabel) {
-  const first = passages[0];
-  const second = passages.find((item) => item.documentName !== first.documentName) || passages[1];
-  const joined = [first, second]
+function construirConclusion(idHerramienta, pasajes, etiquetaAlcance) {
+  const primero = pasajes[0];
+  const segundo = pasajes.find((elemento) => elemento.documentName !== primero.documentName) || pasajes[1];
+  const textoUnido = [primero, segundo]
     .filter(Boolean)
-    .map((item) => `${item.documentName} indica que ${lowercaseStart(item.text)}`)
+    .map((elemento) => `${elemento.documentName} indica que ${iniciarEnMinuscula(elemento.text)}`)
     .join(" ");
 
-  if (toolId === "consulta_rag") return `Según ${scopeLabel}, ${lowercaseStart(joined)}`;
-  if (toolId === "cronologia") return `Se localizaron ${passages.length} referencias temporales o procesales relevantes. ${joined}`;
-  if (toolId.startsWith("comparar_")) {
-    return `La comparación rápida identificó los siguientes pasajes centrales. ${joined}`;
+  if (idHerramienta === "consulta_rag") return `Según ${etiquetaAlcance}, ${iniciarEnMinuscula(textoUnido)}`;
+  if (idHerramienta === "cronologia") return `Se localizaron ${pasajes.length} referencias temporales o procesales relevantes. ${textoUnido}`;
+  if (idHerramienta.startsWith("comparar_")) {
+    return `La comparación rápida identificó los siguientes pasajes centrales. ${textoUnido}`;
   }
-  if (toolId === "teoria_del_caso") return `Como base provisional de trabajo, ${lowercaseStart(joined)}`;
-  return `La síntesis de ${scopeLabel} muestra que ${lowercaseStart(joined)}`;
+  if (idHerramienta === "teoria_del_caso") return `Como base provisional de trabajo, ${iniciarEnMinuscula(textoUnido)}`;
+  return `La síntesis de ${etiquetaAlcance} muestra que ${iniciarEnMinuscula(textoUnido)}`;
 }
 
-function buildSections(toolId, passages, query) {
-  if (toolId.startsWith("comparar_")) {
+function construirSecciones(idHerramienta, pasajes, consulta) {
+  if (idHerramienta.startsWith("comparar_")) {
     return [
-      ...[...new Set(passages.map((item) => item.documentName))].map((name) => ({
-        titulo: name,
-        contenido: passages.filter((item) => item.documentName === name).map((item) => item.text).join("\n"),
+      ...[...new Set(pasajes.map((elemento) => elemento.documentName))].map((nombre) => ({
+        titulo: nombre,
+        contenido: pasajes.filter((elemento) => elemento.documentName === nombre).map((elemento) => elemento.text).join("\n"),
       })),
       { titulo: "Alcance de la extracción", contenido: "Estos son pasajes de ambas fuentes. La extracción no determina por sí sola coincidencias, contradicciones ni conclusiones jurídicas." },
     ];
   }
-  const midpoint = Math.max(1, Math.ceil(passages.length / 2));
-  const first = passages.slice(0, midpoint).map(formatPassage).join("\n");
-  const second = passages.slice(midpoint).map(formatPassage).join("\n") || "No surgieron otros pasajes distintos con igual nivel de pertinencia.";
-  const labels = toolId === "cronologia"
+  const puntoMedio = Math.max(1, Math.ceil(pasajes.length / 2));
+  const primero = pasajes.slice(0, puntoMedio).map(formatearPasaje).join("\n");
+  const segundo = pasajes.slice(puntoMedio).map(formatearPasaje).join("\n") || "No surgieron otros pasajes distintos con igual nivel de pertinencia.";
+  const etiquetas = idHerramienta === "cronologia"
     ? ["Hitos localizados", "Controles temporales"]
-    : toolId.startsWith("comparar_")
+    : idHerramienta.startsWith("comparar_")
       ? ["Fuente y coincidencias", "Diferencias para revisar"]
-      : toolId === "teoria_del_caso"
+      : idHerramienta === "teoria_del_caso"
         ? ["Base fáctica", "Aspectos por contrastar"]
-      : toolId === "consulta_rag"
+      : idHerramienta === "consulta_rag"
           ? ["Respuesta documental", "Contexto relacionado"]
           : ["Información central", "Contexto complementario"];
 
   return [
-    { titulo: labels[0], contenido: first },
-    { titulo: labels[1], contenido: second + (query ? `\nConsulta aplicada: ${limitText(query, 35)}` : "") },
+    { titulo: etiquetas[0], contenido: primero },
+    { titulo: etiquetas[1], contenido: segundo + (consulta ? `\nConsulta aplicada: ${limitarTexto(consulta, 35)}` : "") },
   ];
 }
 
-function buildActions(toolId) {
-  if (toolId === "cronologia") return ["Confirmar cada fecha contra la actuación original y controlar el punto de inicio de los plazos."];
-  if (toolId.startsWith("comparar_")) return ["Revisar ambas fuentes completas antes de calificar una diferencia como contradicción material."];
-  if (toolId === "teoria_del_caso") return ["Separar hechos acreditados, inferencias e hipótesis al definir la estrategia."];
+function construirAcciones(idHerramienta) {
+  if (idHerramienta === "cronologia") return ["Confirmar cada fecha contra la actuación original y controlar el punto de inicio de los plazos."];
+  if (idHerramienta.startsWith("comparar_")) return ["Revisar ambas fuentes completas antes de calificar una diferencia como contradicción material."];
+  if (idHerramienta === "teoria_del_caso") return ["Separar hechos acreditados, inferencias e hipótesis al definir la estrategia."];
   return ["Abrir las fuentes citadas y comprobar el contexto completo de los pasajes relevantes."];
 }
 
-function formatPassage(item) {
-  return `${item.documentName}: ${item.text}`;
+function formatearPasaje(elemento) {
+  return `${elemento.documentName}: ${elemento.text}`;
 }
 
-function splitSentences(value) {
-  return String(value || "")
+function separarOraciones(valor) {
+  return String(valor || "")
     .replace(/\s+/g, " ")
-    .match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((item) => item.trim()).filter(Boolean) || [];
+    .match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((elemento) => elemento.trim()).filter(Boolean) || [];
 }
 
-function tokenize(value) {
-  return normalize(value).split(/[^a-z0-9áéíóúñ]+/).filter((term) => term.length > 2);
+function separarTerminos(valor) {
+  return normalizar(valor).split(/[^a-z0-9áéíóúñ]+/).filter((termino) => termino.length > 2);
 }
 
-function normalize(value) {
-  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+function normalizar(valor) {
+  return String(valor || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
-function limitText(value, maximumWords) {
-  const words = String(value || "").trim().split(/\s+/);
-  return words.length <= maximumWords ? words.join(" ") : `${words.slice(0, maximumWords).join(" ")}…`;
+function limitarTexto(valor, maximoPalabras) {
+  const palabras = String(valor || "").trim().split(/\s+/);
+  return palabras.length <= maximoPalabras ? palabras.join(" ") : `${palabras.slice(0, maximoPalabras).join(" ")}…`;
 }
 
-function lowercaseStart(value) {
-  return value ? value[0].toLowerCase() + value.slice(1) : value;
+function iniciarEnMinuscula(valor) {
+  return valor ? valor[0].toLowerCase() + valor.slice(1) : valor;
 }
 
-module.exports = { buildFastToolResult, selectPassages };
+module.exports = { construirResultadoRapido, seleccionarPasajes };

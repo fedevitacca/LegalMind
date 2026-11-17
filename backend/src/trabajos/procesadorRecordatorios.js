@@ -1,5 +1,5 @@
 const { pool } = require("../configuracion/baseDatos");
-const { isEmailConfigured, getTransporter, reminderMessage } = require("../servicios/correo");
+const { estaConfiguradoElCorreo, obtenerTransportadorDeCorreo, redactarCorreoDeRecordatorio } = require("../servicios/correo");
 const { syncAgendaReminders } = require("../modelos/repositorioNotificaciones");
 
 let timer;
@@ -50,15 +50,15 @@ async function processNextReminder(options = {}) {
       WHERE id=$1`, [reminder.id]);
 
     if (reminder.canal === "email" && !["enviado", "cancelado"].includes(reminder.email_estado)) {
-      if (!options.transporter && !isEmailConfigured()) {
+      if (!options.transporter && !estaConfiguradoElCorreo()) {
         // No consumir intentos mientras el servidor no tenga correo configurado.
         await client.query(`UPDATE recordatorios_vencimientos SET email_estado='pendiente',
           email_proximo_intento=NOW()+INTERVAL '5 minutes', updated_at=NOW() WHERE id=$1`, [reminder.id]);
       } else {
         try {
           if (!reminder.destinatario_email) throw new Error("La cuenta no tiene correo de destino.");
-          const mailer = options.transporter || getTransporter();
-          const sent = await mailer.sendMail(reminderMessage(reminder));
+          const mailer = options.transporter || obtenerTransportadorDeCorreo();
+          const sent = await mailer.sendMail(redactarCorreoDeRecordatorio(reminder));
           if (sent?.rejected?.length) throw new Error("El servidor de correo rechazó al destinatario.");
           await client.query(`UPDATE recordatorios_vencimientos
             SET email_estado='enviado', email_enviado_at=NOW(), email_intentos=email_intentos+1,

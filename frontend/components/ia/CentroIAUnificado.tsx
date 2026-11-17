@@ -6,35 +6,35 @@ import ChatExpediente from "./ChatExpediente";
 
 export default function CentroIAUnificado() {
   const [cases, setCases] = useState<CaseListItem[]>([]);
-  const [caseId, setCaseId] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [idExpediente, setCaseId] = useState("");
+  const [cargando, cambiarCarga] = useState(true);
+  const [error, cambiarError] = useState("");
 
   useEffect(() => {
-    let active = true;
+    let activo = true;
     const requested = new URLSearchParams(window.location.search).get("case_id") || "";
-    fetchCases().then((items) => {
-      if (!active) return;
-      setCases(items);
-      const available = items.some((item) => String(item.id) === requested);
-      setCaseId(available ? requested : items[0] ? String(items[0].id) : "");
+    fetchCases().then((elementos) => {
+      if (!activo) return;
+      setCases(elementos);
+      const available = elementos.some((elemento) => String(elemento.id) === requested);
+      setCaseId(available ? requested : elementos[0] ? String(elementos[0].id) : "");
     }).catch((cause) => {
-      if (active) setError(cause instanceof Error ? cause.message : "No se pudieron cargar los expedientes.");
+      if (activo) cambiarError(cause instanceof Error ? cause.message : "No se pudieron cargar los expedientes.");
     }).finally(() => {
-      if (active) setLoading(false);
+      if (activo) cambiarCarga(false);
     });
-    return () => { active = false; };
+    return () => { activo = false; };
   }, []);
 
   const selectedCase = useMemo(
-    () => cases.find((item) => String(item.id) === caseId),
-    [caseId, cases],
+    () => cases.find((elemento) => String(elemento.id) === idExpediente),
+    [idExpediente, cases],
   );
 
-  function selectCase(value: string) {
-    setCaseId(value);
+  function seleccionarExpediente(valor: string) {
+    setCaseId(valor);
     const url = new URL(window.location.href);
-    if (value) url.searchParams.set("case_id", value);
+    if (valor) url.searchParams.set("case_id", valor);
     else url.searchParams.delete("case_id");
     window.history.replaceState(null, "", url);
   }
@@ -48,20 +48,20 @@ export default function CentroIAUnificado() {
         </div>
         <label className="w-full sm:w-[430px]">
           <span className="mb-1 block text-xs font-bold uppercase tracking-[.08em] text-[#0F2044]/55">Expediente</span>
-          <select value={caseId} onChange={(event) => selectCase(event.target.value)} disabled={loading}
+          <select value={idExpediente} onChange={(evento) => seleccionarExpediente(evento.target.value)} disabled={cargando}
             className="h-11 w-full rounded-xl border-2 border-[#88A9C8] bg-white px-3 text-sm font-semibold outline-none focus:border-[#546FC0]">
             <option value="">Seleccionar expediente</option>
-            {cases.map((item) => <option key={item.id} value={item.id}>{item.identificador ? `${item.identificador} · ` : ""}{item.name}</option>)}
+            {cases.map((elemento) => <option key={elemento.id} value={elemento.id}>{elemento.identificador ? `${elemento.identificador} · ` : ""}{elemento.name}</option>)}
           </select>
         </label>
       </header>
 
       {error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-red-800">{error}</p>}
       <div className="min-h-0 flex-1">
-        {selectedCase ? <ChatExpediente key={caseId} caseId={caseId} caseName={selectedCase.name} embedded /> : (
+        {selectedCase ? <ChatExpediente key={idExpediente} caseId={idExpediente} caseName={selectedCase.name} embedded /> : (
           <div className="grid h-full min-h-[420px] place-items-center rounded-[23px] border-2 border-[#88A9C8] bg-white p-8 text-center">
-            <div><h2 className="text-xl font-semibold">{loading ? "Cargando expedientes..." : "No hay un expediente seleccionado"}</h2>
-              {!loading && !error && <p className="mt-2 text-sm text-[#0F2044]/60">Creá o seleccioná un caso para consultar sus documentos y usar las herramientas.</p>}</div>
+            <div><h2 className="text-xl font-semibold">{cargando ? "Cargando expedientes..." : "No hay un expediente seleccionado"}</h2>
+              {!cargando && !error && <p className="mt-2 text-sm text-[#0F2044]/60">Creá o seleccioná un caso para consultar sus documentos y usar las herramientas.</p>}</div>
           </div>
         )}
       </div>

@@ -1,56 +1,56 @@
 const assert = require("node:assert/strict");
 const { afterEach, describe, it } = require("node:test");
-const { listTools, toolResultSchema } = require("./motorHerramientas");
+const { listarHerramientas, esquemaResultadoHerramienta } = require("./motorHerramientas");
 const {
-  resetLocalAIClientFactoryForTests,
-  runLegalToolWithLocalAI,
-  setLocalAIClientFactoryForTests,
+  restablecerClienteDeIAParaPruebas,
+  ejecutarHerramientaJuridicaConIA,
+  configurarClienteDeIAParaPruebas,
 } = require("./analizadorLocal");
 
 describe("motorHerramientas", () => {
-  afterEach(() => resetLocalAIClientFactoryForTests());
+  afterEach(() => restablecerClienteDeIAParaPruebas());
 
   it("solicita un informe desarrollado y específico para cada herramienta", async () => {
-    const payloads = [];
-    setLocalAIClientFactoryForTests(() => ({
-      chat: async (payload) => {
-        payloads.push(payload);
-        return JSON.stringify(sampleExpandedResult());
+    const solicitudesEnviadas = [];
+    configurarClienteDeIAParaPruebas(() => ({
+      chat: async (datosDeEnvio) => {
+        solicitudesEnviadas.push(datosDeEnvio);
+        return JSON.stringify(resultadoAmpliadoDePrueba());
       },
     }));
 
-    for (const tool of listTools()) {
-      const result = await runLegalToolWithLocalAI({
-        toolId: tool.id,
+    for (const herramienta of listarHerramientas()) {
+      const resultado = await ejecutarHerramientaJuridicaConIA({
+        toolId: herramienta.id,
         primaryText: "Documento jurídico de prueba.",
-        secondaryText: tool.inputs === 2 ? "Segundo documento jurídico de prueba." : "",
+        secondaryText: herramienta.inputs === 2 ? "Segundo documento jurídico de prueba." : "",
         query: "Preparar una revisión profesional.",
         context: ["[fuente:0] Pasaje documental pertinente."],
       });
 
-      assert.equal(result.desarrollo.length, 2);
-      assert.equal(result.puntos_clave.length, 3);
-      assert.equal(result.acciones_sugeridas.length, 2);
-      assert.equal(result.limitaciones.length, 1);
+      assert.equal(resultado.desarrollo.length, 2);
+      assert.equal(resultado.puntos_clave.length, 3);
+      assert.equal(resultado.acciones_sugeridas.length, 2);
+      assert.equal(resultado.limitaciones.length, 1);
     }
 
-    assert.equal(payloads.length, listTools().length);
-    payloads.forEach((payload, index) => {
-      assert.equal(payload.maxOutputTokens, listTools()[index].maxOutputTokens);
-      assert.match(payload.messages[0].content, new RegExp(escapeRegExp(listTools()[index].instruction.slice(0, 35)), "i"));
-      assert.match(payload.messages[1].content, /PASAJES DOCUMENTALES SELECCIONADOS POR PERTINENCIA/);
+    assert.equal(solicitudesEnviadas.length, listarHerramientas().length);
+    solicitudesEnviadas.forEach((datosDeEnvio, indice) => {
+      assert.equal(datosDeEnvio.maxOutputTokens, listarHerramientas()[indice].maxOutputTokens);
+      assert.match(datosDeEnvio.messages[0].content, new RegExp(escaparExpresionRegular(listarHerramientas()[indice].instruction.slice(0, 35)), "i"));
+      assert.match(datosDeEnvio.messages[1].content, /PASAJES DOCUMENTALES SELECCIONADOS POR PERTINENCIA/);
     });
-    assert.ok(toolResultSchema.required.includes("desarrollo"));
-    assert.ok(toolResultSchema.required.includes("acciones_sugeridas"));
-    assert.ok(toolResultSchema.required.includes("limitaciones"));
+    assert.ok(esquemaResultadoHerramienta.required.includes("desarrollo"));
+    assert.ok(esquemaResultadoHerramienta.required.includes("acciones_sugeridas"));
+    assert.ok(esquemaResultadoHerramienta.required.includes("limitaciones"));
   });
 
   it("respeta el límite de tiempo indicado aunque el cliente no responda", async () => {
-    setLocalAIClientFactoryForTests(() => ({ chat: () => new Promise(() => undefined) }));
-    const startedAt = Date.now();
+    configurarClienteDeIAParaPruebas(() => ({ chat: () => new Promise(() => undefined) }));
+    const inicioMs = Date.now();
 
     await assert.rejects(
-      runLegalToolWithLocalAI({
+      ejecutarHerramientaJuridicaConIA({
         toolId: "consulta_rag",
         primaryText: "Fuente de prueba.",
         query: "¿Qué informa?",
@@ -58,11 +58,11 @@ describe("motorHerramientas", () => {
       }),
       /excedio el tiempo de espera/i
     );
-    assert.ok(Date.now() - startedAt < 500);
+    assert.ok(Date.now() - inicioMs < 500);
   });
 });
 
-function sampleExpandedResult() {
+function resultadoAmpliadoDePrueba() {
   return {
     titulo: "Informe jurídico de prueba",
     conclusion: "La documentación permite una conclusión preliminar fundada. Deben verificarse los extremos que la fuente no desarrolla.",
@@ -76,6 +76,6 @@ function sampleExpandedResult() {
   };
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function escaparExpresionRegular(valor) {
+  return valor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -1,45 +1,45 @@
 const DEFAULT_CHUNK_SIZE = 1800;
 const DEFAULT_OVERLAP = 240;
 
-function fragmentLegalDocument({ text = "", pages = [] }, options = {}) {
-  const size = Math.max(500, Number(options.size) || DEFAULT_CHUNK_SIZE);
-  const overlap = Math.min(size - 100, Math.max(0, Number(options.overlap) || DEFAULT_OVERLAP));
-  const sources = pages.length ? pages.map((page) => ({ page: page.numero || page.number, text: page.texto || page.text || "" })) : [{ page: null, text }];
-  const chunks = [];
+function fragmentarDocumentoJuridico({ text: texto = "", pages: paginas = [] }, opciones = {}) {
+  const tamanio = Math.max(500, Number(opciones.size) || DEFAULT_CHUNK_SIZE);
+  const calcularCoincidencia = Math.min(tamanio - 100, Math.max(0, Number(opciones.overlap) || DEFAULT_OVERLAP));
+  const fuentes = paginas.length ? paginas.map((pagina) => ({ page: pagina.numero || pagina.number, text: pagina.texto || pagina.text || "" })) : [{ page: null, text: texto }];
+  const fragmentos = [];
   let globalOffset = 0;
-  for (const source of sources) {
-    const clean = normalizeText(source.text);
-    let start = 0;
-    while (start < clean.length) {
-      let end = Math.min(clean.length, start + size);
-      if (end < clean.length) end = findLegalBoundary(clean, start, end);
-      const chunkText = clean.slice(start, end).trim();
-      if (chunkText) chunks.push({ order: chunks.length, page: source.page || null, text: chunkText,
-        start: globalOffset + start, end: globalOffset + end,
-        metadata: { section: detectSection(chunkText), characters: chunkText.length } });
-      if (end >= clean.length) break;
-      start = Math.max(start + 1, end - overlap);
+  for (const fuente of fuentes) {
+    const limpio = normalizarTexto(fuente.text);
+    let inicio = 0;
+    while (inicio < limpio.length) {
+      let fin = Math.min(limpio.length, inicio + tamanio);
+      if (fin < limpio.length) fin = buscarLimiteDelFragmento(limpio, inicio, fin);
+      const chunkText = limpio.slice(inicio, fin).trim();
+      if (chunkText) fragmentos.push({ order: fragmentos.length, page: fuente.page || null, text: chunkText,
+        start: globalOffset + inicio, end: globalOffset + fin,
+        metadata: { section: detectarSeccion(chunkText), characters: chunkText.length } });
+      if (fin >= limpio.length) break;
+      inicio = Math.max(inicio + 1, fin - calcularCoincidencia);
     }
-    globalOffset += clean.length + 1;
+    globalOffset += limpio.length + 1;
   }
-  return chunks;
+  return fragmentos;
 }
 
-function findLegalBoundary(text, start, candidate) {
-  const windowStart = Math.max(start + 400, candidate - 350);
-  const window = text.slice(windowStart, candidate);
-  const patterns = [/\n(?=(?:ART[IÍ]CULO|ART\.|RESUELVE|CONSIDERANDO|RESULTA|FALLO|POR ELLO)\b)/gi, /\n\n/g, /[.!?]\s+/g];
-  for (const pattern of patterns) {
-    let match; let last;
-    while ((match = pattern.exec(window))) last = match;
+function buscarLimiteDelFragmento(texto, inicio, candidato) {
+  const windowStart = Math.max(inicio + 400, candidato - 350);
+  const window = texto.slice(windowStart, candidato);
+  const patrones = [/\n(?=(?:ART[IÍ]CULO|ART\.|RESUELVE|CONSIDERANDO|RESULTA|FALLO|POR ELLO)\b)/gi, /\n\n/g, /[.!?]\s+/g];
+  for (const pattern of patrones) {
+    let coincidencia; let last;
+    while ((coincidencia = pattern.exec(window))) last = coincidencia;
     if (last) return windowStart + last.index + last[0].length;
   }
-  return candidate;
+  return candidato;
 }
 
-function detectSection(text) {
-  const match = text.match(/^(ART[IÍ]CULO\s+\d+|CONSIDERANDO|RESULTA|RESUELVE|FALLO|POR ELLO)/i);
-  return match ? match[1].toUpperCase() : null;
+function detectarSeccion(texto) {
+  const coincidencia = texto.match(/^(ART[IÍ]CULO\s+\d+|CONSIDERANDO|RESULTA|RESUELVE|FALLO|POR ELLO)/i);
+  return coincidencia ? coincidencia[1].toUpperCase() : null;
 }
-function normalizeText(text) { return String(text || "").replace(/\r\n/g, "\n").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim(); }
-module.exports = { fragmentLegalDocument };
+function normalizarTexto(texto) { return String(texto || "").replace(/\r\n/g, "\n").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim(); }
+module.exports = { fragmentarDocumentoJuridico };

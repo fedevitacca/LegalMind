@@ -801,24 +801,24 @@ function parseDocumentFilters(query) {
     categoria: getOptionalText(query.categoria),
     estado: getOptionalText(query.estado),
     expediente: getOptionalText(query.expediente),
-    imputadoId: parseOptionalNumericId(query.imputado_id),
+    imputadoId: leerIdNumericoOpcional(query.imputado_id),
     q: getOptionalText(query.q),
   };
 }
 
 function parseActionFilters(query) {
   return {
-    documentoId: parseOptionalNumericId(query.documento_id),
+    documentoId: leerIdNumericoOpcional(query.documento_id),
     estado: getOptionalText(query.estado),
     fuente: getOptionalText(query.fuente),
-    imputadoId: parseOptionalNumericId(query.imputado_id),
+    imputadoId: leerIdNumericoOpcional(query.imputado_id),
     q: getOptionalText(query.q),
   };
 }
 
 function parseComparisonFilters(query) {
   return {
-    imputadoId: parseOptionalNumericId(query.imputado_id),
+    imputadoId: leerIdNumericoOpcional(query.imputado_id),
     tipo: getOptionalText(query.tipo),
   };
 }
@@ -830,7 +830,7 @@ function parseDeadlineFilters(query, userId) {
     desde: getOptionalText(query.desde),
     estado: getOptionalText(query.estado),
     hasta: getOptionalText(query.hasta),
-    limit: parseOptionalNumericId(query.limit) || 100,
+    limit: leerIdNumericoOpcional(query.limit) || 100,
     responsableUserId: mineOnly ? userId : getOptionalText(query.responsable_user_id),
   };
 }
@@ -846,7 +846,7 @@ function parseReminderFilters(query) {
   return {
     estado: getOptionalText(query.estado),
     hasta: getOptionalText(query.hasta),
-    limit: parseOptionalNumericId(query.limit) || 100,
+    limit: leerIdNumericoOpcional(query.limit) || 100,
   };
 }
 
@@ -855,7 +855,7 @@ function normalizeComparisonPayload(body) {
     criterio: getOptionalText(body.criterio) || "comparacion_interna",
     destino_id: Number(body.destino_id),
     destino_tipo: body.destino_tipo,
-    imputado_id: parseOptionalNumericId(body.imputado_id),
+    imputado_id: leerIdNumericoOpcional(body.imputado_id),
     metadata: typeof body.metadata === "object" && body.metadata !== null ? body.metadata : {},
     origen_id: Number(body.origen_id),
     origen_tipo: body.origen_tipo,
@@ -1134,7 +1134,7 @@ function validateOptionalTextBody(body, field) {
   return null;
 }
 
-function parseOptionalNumericId(value) {
+function leerIdNumericoOpcional(value) {
   if (value === undefined || value === null || value === "") {
     return null;
   }

@@ -8,7 +8,7 @@ import {
   printPlainTextReport,
 } from "../../lib/legalReport";
 
-type Citation = {
+type Cita = {
   citation_id?: string;
   document_name: string;
   chunk_index: number;
@@ -33,7 +33,7 @@ type QueryItem = {
     acciones_sugeridas?: string[];
     limitaciones?: string[];
   };
-  citations?: Citation[];
+  citations?: Cita[];
   created_at: string;
 };
 
@@ -48,57 +48,57 @@ const labels: Record<string, string> = {
   teoria_del_caso: "Teoría del caso",
 };
 
-export default function HistorialConsultasIA({ caseId }: { caseId: string }) {
-  const [items, setItems] = useState<QueryItem[]>([]);
-  const [selected, setSelected] = useState<QueryItem>();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+export default function HistorialConsultasIA({ caseId: idExpediente }: { caseId: string }) {
+  const [elementos, setItems] = useState<QueryItem[]>([]);
+  const [seleccionados, setSelected] = useState<QueryItem>();
+  const [cargando, cambiarCarga] = useState(true);
+  const [error, cambiarError] = useState("");
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
-    fetch(`${apiUrl}/api/ia/cases/${caseId}/queries`, {
+    fetch(`${apiUrl}/api/ia/cases/${idExpediente}/queries`, {
       credentials: "include",
     })
-      .then(async (response) => {
-        const body = await response.json();
-        if (!response.ok)
-          throw new Error(body.error || "No se pudo cargar el historial.");
-        return body;
+      .then(async (respuesta) => {
+        const cuerpo = await respuesta.json();
+        if (!respuesta.ok)
+          throw new Error(cuerpo.error || "No se pudo cargar el historial.");
+        return cuerpo;
       })
-      .then((body) => {
-        const visibleQueries = (body.queries || []).filter(
-          (item: QueryItem) => item.tool_id !== "preparar_audiencia",
+      .then((cuerpo) => {
+        const visibleQueries = (cuerpo.queries || []).filter(
+          (elemento: QueryItem) => elemento.tool_id !== "preparar_audiencia",
         );
         setItems(visibleQueries);
         setSelected(visibleQueries[0]);
       })
-      .catch((cause) => setError(cause.message))
-      .finally(() => setLoading(false));
-  }, [caseId]);
+      .catch((cause) => cambiarError(cause.message))
+      .finally(() => cambiarCarga(false));
+  }, [idExpediente]);
 
-  async function remove(id: number) {
+  async function eliminarConsulta(id: number) {
     if (!window.confirm("¿Eliminar esta consulta guardada?")) return;
-    const response = await fetch(
-      `${apiUrl}/api/ia/cases/${caseId}/queries/${id}`,
+    const respuesta = await fetch(
+      `${apiUrl}/api/ia/cases/${idExpediente}/queries/${id}`,
       { method: "DELETE", credentials: "include" },
     );
-    if (!response.ok) {
-      setError("No se pudo eliminar el registro.");
+    if (!respuesta.ok) {
+      cambiarError("No se pudo eliminar el registro.");
       return;
     }
-    const next = items.filter((item) => item.id !== id);
-    setItems(next);
-    setSelected((current) => (current?.id === id ? next[0] : current));
+    const siguiente = elementos.filter((elemento) => elemento.id !== id);
+    setItems(siguiente);
+    setSelected((actual) => (actual?.id === id ? siguiente[0] : actual));
   }
 
-  function download(item: QueryItem) {
-    downloadPlainTextReport(item.title, formatStoredReport(item));
+  function descargarConsulta(elemento: QueryItem) {
+    downloadPlainTextReport(elemento.title, formatearInformeGuardado(elemento));
     setNotice("Registro descargado.");
   }
 
-  function print(item: QueryItem) {
+  function imprimirConsulta(elemento: QueryItem) {
     try {
-      printPlainTextReport(item.title, formatStoredReport(item));
+      printPlainTextReport(elemento.title, formatearInformeGuardado(elemento));
       setNotice("Vista de impresión abierta.");
     } catch (cause) {
       setNotice(
@@ -112,11 +112,11 @@ export default function HistorialConsultasIA({ caseId }: { caseId: string }) {
   return (
     <section className="h-full overflow-y-auto bg-[#F4F7F5] px-4 py-5 text-[#0F2044] sm:px-8">
       <div className="mx-auto max-w-[1450px] space-y-5">
-        <NavegacionAreasCaso activeArea="Consultas" caseSlug={caseId} />
+        <NavegacionAreasCaso activeArea="Consultas" caseSlug={idExpediente} />
         <header className="flex flex-wrap items-center justify-between gap-4 rounded-[23px] border-2 border-[#88A9C8] bg-white px-5 py-5">
           <h1 className="text-3xl font-semibold">Consultas guardadas</h1>
           <Link
-            href={`/analisis?case_id=${caseId}`}
+            href={`/analisis?case_id=${idExpediente}`}
             className="rounded-xl bg-[#0F2044] px-5 py-3 text-sm font-semibold text-white"
           >
             Nuevo análisis
@@ -127,45 +127,45 @@ export default function HistorialConsultasIA({ caseId }: { caseId: string }) {
             {error}
           </p>
         )}
-        {loading ? (
+        {cargando ? (
           <p className="rounded-[23px] border-2 border-[#88A9C8] bg-white p-8 text-center text-sm text-[#0F2044]/60">
             Cargando registros…
           </p>
-        ) : !items.length ? (
+        ) : !elementos.length ? (
           <div className="rounded-[23px] border-2 border-[#88A9C8] bg-white p-10">
             <h2 className="text-lg font-semibold">No hay análisis guardados</h2>
           </div>
         ) : (
           <div className="grid gap-5 @min-[1024px]:grid-cols-[340px_minmax(0,1fr)]">
             <aside className="overflow-hidden rounded-[23px] border-2 border-[#88A9C8] bg-white">
-              {items.map((item) => (
+              {elementos.map((elemento) => (
                 <button
                   onClick={() => {
-                    setSelected(item);
+                    setSelected(elemento);
                     setNotice("");
                   }}
-                  key={item.id}
-                  className={`block w-full border-b border-[#88A9C8]/35 px-4 py-4 text-left last:border-b-0 ${selected?.id === item.id ? "border-l-[3px] border-l-[#546FC0] bg-[#EEF3F8] pl-[13px]" : "hover:bg-[#F4F7F5]"}`}
+                  key={elemento.id}
+                  className={`block w-full border-b border-[#88A9C8]/35 px-4 py-4 text-left last:border-b-0 ${seleccionados?.id === elemento.id ? "border-l-[3px] border-l-[#546FC0] bg-[#EEF3F8] pl-[13px]" : "hover:bg-[#F4F7F5]"}`}
                 >
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-[#546FC0]">
-                    {labels[item.tool_id] || item.tool_id}
+                    {labels[elemento.tool_id] || elemento.tool_id}
                   </span>
                   <strong className="mt-1 block line-clamp-2 text-sm">
-                    {item.title}
+                    {elemento.title}
                   </strong>
                   <span className="mt-2 block text-xs text-[#747d7b]">
-                    {new Date(item.created_at).toLocaleString("es-AR")}
+                    {new Date(elemento.created_at).toLocaleString("es-AR")}
                   </span>
                 </button>
               ))}
             </aside>
-            {selected && (
-              <StoredReport
-                item={selected}
+            {seleccionados && (
+              <InformeGuardado
+                item={seleccionados}
                 notice={notice}
-                onDelete={() => void remove(selected.id)}
-                onDownload={() => download(selected)}
-                onPrint={() => print(selected)}
+                onDelete={() => void eliminarConsulta(seleccionados.id)}
+                onDownload={() => descargarConsulta(seleccionados)}
+                onPrint={() => imprimirConsulta(seleccionados)}
               />
             )}
           </div>
@@ -175,8 +175,8 @@ export default function HistorialConsultasIA({ caseId }: { caseId: string }) {
   );
 }
 
-function StoredReport({
-  item,
+function InformeGuardado({
+  item: elemento,
   notice,
   onDelete,
   onDownload,
@@ -193,15 +193,15 @@ function StoredReport({
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#e1e3e0] pb-4">
         <div>
           <span className="text-xs font-semibold uppercase tracking-[.08em] text-[#546FC0]">
-            {labels[item.tool_id] || item.tool_id}
+            {labels[elemento.tool_id] || elemento.tool_id}
           </span>
-          <h2 className="mt-1 text-2xl font-semibold">{item.title}</h2>
+          <h2 className="mt-1 text-2xl font-semibold">{elemento.title}</h2>
           <p className="mt-2 text-xs text-[#0F2044]/50">
-            {new Date(item.created_at).toLocaleString("es-AR")}
+            {new Date(elemento.created_at).toLocaleString("es-AR")}
           </p>
-          {item.query && (
+          {elemento.query && (
             <p className="mt-3 text-sm text-[#596473]">
-              <strong>Consulta:</strong> {item.query}
+              <strong>Consulta:</strong> {elemento.query}
             </p>
           )}
         </div>
@@ -233,20 +233,20 @@ function StoredReport({
       )}
       <div className="rounded-xl bg-[#F4F7F5] p-4">
         <p className="whitespace-pre-line leading-7 text-[#0F2044]/80">
-          {item.result.conclusion ||
-            item.result.resumen ||
+          {elemento.result.conclusion ||
+            elemento.result.resumen ||
             "Sin respuesta registrada."}
         </p>
       </div>
-      {item.result.desarrollo?.length ? (
+      {elemento.result.desarrollo?.length ? (
         <section>
           <h3 className="text-sm font-semibold text-[#283446]">
             Análisis desarrollado
           </h3>
           <div className="mt-3 grid gap-3 @min-[1280px]:grid-cols-2">
-            {item.result.desarrollo.map((section, index) => (
+            {elemento.result.desarrollo.map((section, indice) => (
               <div
-                key={`${section.titulo}-${index}`}
+                key={`${section.titulo}-${indice}`}
                 className="rounded-xl border border-[#88A9C8]/45 bg-white p-4"
               >
                 <h4 className="text-sm font-semibold text-[#34413f]">
@@ -260,72 +260,72 @@ function StoredReport({
           </div>
         </section>
       ) : null}
-      {item.result.puntos_clave?.length ? (
+      {elemento.result.puntos_clave?.length ? (
         <section className="border-t border-[#e1e3e0] pt-4">
           <h3 className="text-sm font-semibold text-[#283446]">Puntos clave</h3>
           <ul className="mt-3 space-y-2">
-            {item.result.puntos_clave.map((point, index) => (
+            {elemento.result.puntos_clave.map((point, indice) => (
               <li
-                key={index}
+                key={indice}
                 className="flex gap-2 text-sm leading-6 text-[#596473]"
               >
-                <strong className="text-[#546FC0]">{index + 1}.</strong>
+                <strong className="text-[#546FC0]">{indice + 1}.</strong>
                 <span>{point}</span>
               </li>
             ))}
           </ul>
         </section>
       ) : null}
-      {item.result.acciones_sugeridas?.length ||
-      item.result.limitaciones?.length ? (
+      {elemento.result.acciones_sugeridas?.length ||
+      elemento.result.limitaciones?.length ? (
         <div className="grid gap-3 border-t border-[#e1e3e0] pt-4 @min-[1280px]:grid-cols-2">
-          {item.result.acciones_sugeridas?.length ? (
-            <StoredList
+          {elemento.result.acciones_sugeridas?.length ? (
+            <ListaGuardada
               title="Controles sugeridos"
-              items={item.result.acciones_sugeridas}
+              items={elemento.result.acciones_sugeridas}
             />
           ) : null}
-          {item.result.limitaciones?.length ? (
-            <StoredList
+          {elemento.result.limitaciones?.length ? (
+            <ListaGuardada
               title="Alcance y datos pendientes"
-              items={item.result.limitaciones}
+              items={elemento.result.limitaciones}
               muted
             />
           ) : null}
         </div>
       ) : null}
-      {item.citations?.length ? (
+      {elemento.citations?.length ? (
         <details>
           <summary className="cursor-pointer text-sm font-semibold text-[#546FC0]">
-            {item.tool_id === "consulta_rag"
+            {elemento.tool_id === "consulta_rag"
               ? "Pasajes considerados"
               : "Ver fuentes"}{" "}
-            ({item.citations.length})
+            ({elemento.citations.length})
           </summary>
           <div className="mt-3 divide-y divide-[#88A9C8]/35 rounded-xl border border-[#88A9C8]/45">
-            {item.citations.map((citation, index) => (
+            {elemento.citations.map((cita, indice) => (
               <details
-                key={citation.citation_id || index}
+                key={cita.citation_id || indice}
                 className="px-4 py-3"
               >
                 <summary className="cursor-pointer text-sm font-semibold">
-                  {item.tool_id === "consulta_rag"
-                    ? `Pasaje ${index + 1}`
-                    : `Fuente ${index + 1}`}{" "}
-                  · {citation.document_name}
-                  {citation.location_label ? (
+                  {elemento.tool_id === "consulta_rag"
+                    ? `Pasaje ${indice + 1}`
+                    : `Fuente ${indice + 1}`}{" "}
+                  · {cita.document_name}
+                  {cita.location_label ? (
                     <span className="ml-2 text-xs font-normal text-[#74807e]">
-                      · {citation.location_label}
+                      · {cita.location_label}
                     </span>
                   ) : null}
                 </summary>
                 <blockquote className="mt-3 border-l-2 border-[#88A9C8] pl-3 text-sm leading-6 text-[#0F2044]/65">
-                  {citation.text}
+                  {cita.text}
                 </blockquote>
-                {citation.document_url && (
+                {cita.document_url && (
                   <a
                     className="mt-2 inline-block text-xs font-semibold text-[#546FC0]"
-                    href={citation.document_url}
+                    href={cita.document_url}
                   >
                     Abrir documento →
                   </a>
@@ -339,9 +339,9 @@ function StoredReport({
   );
 }
 
-function StoredList({
-  title,
-  items,
+function ListaGuardada({
+  title: titulo,
+  items: elementos,
   muted = false,
 }: {
   title: string;
@@ -356,15 +356,15 @@ function StoredList({
           : "rounded-xl border border-[#88A9C8]/45 bg-[#F4F7F5] p-4"
       }
     >
-      <h3 className="text-sm font-semibold text-[#34413f]">{title}</h3>
+      <h3 className="text-sm font-semibold text-[#34413f]">{titulo}</h3>
       <ul className="mt-3 space-y-2">
-        {items.map((item, index) => (
+        {elementos.map((elemento, indice) => (
           <li
-            key={index}
+            key={indice}
             className="flex gap-2 text-sm leading-6 text-[#596473]"
           >
             <span className="text-[#546FC0]">•</span>
-            <span>{item}</span>
+            <span>{elemento}</span>
           </li>
         ))}
       </ul>
@@ -372,57 +372,57 @@ function StoredList({
   );
 }
 
-function formatStoredReport(item: QueryItem) {
-  const lines = [
-    item.title,
+function formatearInformeGuardado(elemento: QueryItem) {
+  const lineas = [
+    elemento.title,
     "",
-    `Tipo: ${labels[item.tool_id] || item.tool_id}`,
-    `Fecha: ${new Date(item.created_at).toLocaleString("es-AR")}`,
-    item.query ? `Consulta: ${item.query}` : "",
+    `Tipo: ${labels[elemento.tool_id] || elemento.tool_id}`,
+    `Fecha: ${new Date(elemento.created_at).toLocaleString("es-AR")}`,
+    elemento.query ? `Consulta: ${elemento.query}` : "",
     "",
-    item.result.conclusion ||
-      item.result.resumen ||
+    elemento.result.conclusion ||
+      elemento.result.resumen ||
       "Sin respuesta registrada.",
     "",
   ];
-  if (item.result.desarrollo?.length) {
-    lines.push("ANÁLISIS DESARROLLADO");
-    item.result.desarrollo.forEach((section) =>
-      lines.push(section.titulo, section.contenido, ""),
+  if (elemento.result.desarrollo?.length) {
+    lineas.push("ANÁLISIS DESARROLLADO");
+    elemento.result.desarrollo.forEach((section) =>
+      lineas.push(section.titulo, section.contenido, ""),
     );
   }
-  if (item.result.puntos_clave?.length)
-    lines.push(
-      ...item.result.puntos_clave.map(
-        (point, index) => `${index + 1}. ${point}`,
+  if (elemento.result.puntos_clave?.length)
+    lineas.push(
+      ...elemento.result.puntos_clave.map(
+        (point, indice) => `${indice + 1}. ${point}`,
       ),
       "",
     );
-  if (item.result.acciones_sugeridas?.length)
-    lines.push(
+  if (elemento.result.acciones_sugeridas?.length)
+    lineas.push(
       "CONTROLES SUGERIDOS",
-      ...item.result.acciones_sugeridas.map((entry) => `- ${entry}`),
+      ...elemento.result.acciones_sugeridas.map((entry) => `- ${entry}`),
       "",
     );
-  if (item.result.limitaciones?.length)
-    lines.push(
+  if (elemento.result.limitaciones?.length)
+    lineas.push(
       "ALCANCE Y DATOS PENDIENTES",
-      ...item.result.limitaciones.map((entry) => `- ${entry}`),
+      ...elemento.result.limitaciones.map((entry) => `- ${entry}`),
       "",
     );
-  if (item.citations?.length) {
-    lines.push("FUENTES");
-    item.citations.forEach((citation, index) =>
-      lines.push(
-        `${index + 1}. ${citation.document_name}${citation.location_label ? ` · ${citation.location_label}` : ""}`,
-        citation.text,
+  if (elemento.citations?.length) {
+    lineas.push("FUENTES");
+    elemento.citations.forEach((cita, indice) =>
+      lineas.push(
+        `${indice + 1}. ${cita.document_name}${cita.location_label ? ` · ${cita.location_label}` : ""}`,
+        cita.text,
         "",
       ),
     );
   }
-  lines.push("Documento de trabajo sujeto a revisión profesional.");
-  return lines
-    .filter((line, index) => line !== "" || lines[index - 1] !== "")
+  lineas.push("Documento de trabajo sujeto a revisión profesional.");
+  return lineas
+    .filter((linea, indice) => linea !== "" || lineas[indice - 1] !== "")
     .join("\n")
     .trim();
 }

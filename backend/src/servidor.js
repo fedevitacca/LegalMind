@@ -5,7 +5,7 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env"), quiet: true
 const app = require("./aplicacion");
 const { testConnection } = require("./configuracion/baseDatos");
 const { runMigrations } = require("./configuracion/migraciones");
-const { startDocumentWorker } = require("./trabajos/procesadorDocumental");
+const { iniciarProcesadorDocumental } = require("./trabajos/procesadorDocumental");
 const { startReminderWorker } = require("./trabajos/procesadorRecordatorios");
 
 const PORT = process.env.PORT || 5000;
@@ -15,7 +15,7 @@ const startServer = async () => {
     if (process.env.DATABASE_URL) {
       await testConnection();
       await runMigrations();
-      startDocumentWorker();
+      iniciarProcesadorDocumental();
       startReminderWorker();
     } else {
       console.warn("DATABASE_URL is not configured. Starting without PostgreSQL connection check.");

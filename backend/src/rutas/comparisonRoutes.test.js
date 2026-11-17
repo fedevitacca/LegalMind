@@ -5,8 +5,8 @@ const { pool } = require("../configuracion/baseDatos");
 const app = require("../aplicacion");
 const { setSessionResolverForTests, resetSessionResolverForTests } = require("../autenticacion/sesion");
 const { setAuthorizationResolverForTests, resetAuthorizationResolverForTests } = require("../autenticacion/autorizacion");
-const { setLocalAIClientFactoryForTests, resetLocalAIClientFactoryForTests } = require("../../IA/analizadorLocal");
-const { resetQueriesTableForTests } = require("../modelos/repositorioConsultasIA");
+const { configurarClienteDeIAParaPruebas, restablecerClienteDeIAParaPruebas } = require("../../IA/analizadorLocal");
+const { reiniciarTablaDeConsultasParaPruebas } = require("../modelos/repositorioConsultasIA");
 const originalQuery = pool.query;
 
 describe("comparación de imputados y documentos", () => {
@@ -17,7 +17,7 @@ describe("comparación de imputados y documentos", () => {
   });
   beforeEach(() => {
     lastPrompt = undefined; savedInput = undefined;
-    resetQueriesTableForTests();
+    reiniciarTablaDeConsultasParaPruebas();
     setAuthorizationResolverForTests(async (req, kind) => kind === "context" ? { organizationId: 1, userId: req.user.id, role: "abogado" } : true);
     pool.query = async (sql, values) => {
       if (/FROM causa_imputados/.test(sql)) {
@@ -33,13 +33,13 @@ describe("comparación de imputados y documentos", () => {
       }
       return { rows: [], rowCount: 0 };
     };
-    setLocalAIClientFactoryForTests(() => ({ chat: async (payload) => {
+    configurarClienteDeIAParaPruebas(() => ({ chat: async (payload) => {
       lastPrompt = payload.messages.map((message) => message.content).join("\n");
       return JSON.stringify({ titulo: "Comparación de fichas", conclusion: "Las fichas registran actuaciones distintas.", puntos_clave: ["Revisar ambas fichas."], desarrollo: [{ titulo: "Fuentes", contenido: "Ana Pérez y Juan Gómez tienen actuaciones registradas diferentes." }], acciones_sugeridas: ["Verificar los documentos originales."], limitaciones: ["Se comparan fichas, sin inferir responsabilidad."] });
     } }));
   });
-  afterEach(() => { pool.query = originalQuery; resetLocalAIClientFactoryForTests(); });
-  after(async () => { resetSessionResolverForTests(); resetAuthorizationResolverForTests(); resetQueriesTableForTests(); await new Promise((resolve) => server.close(resolve)); });
+  afterEach(() => { pool.query = originalQuery; restablecerClienteDeIAParaPruebas(); });
+  after(async () => { resetSessionResolverForTests(); resetAuthorizationResolverForTests(); reiniciarTablaDeConsultasParaPruebas(); await new Promise((resolve) => server.close(resolve)); });
   function run(tool, body) { return fetch(`${baseUrl}/${tool}/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); }
 
   it("compara dos fichas del expediente, cita ambas y guarda los IDs seleccionados", async () => {
@@ -82,7 +82,7 @@ describe("comparación de imputados y documentos", () => {
   });
 
   it("si falla la IA devuelve pasajes de ambas fichas e identifica el modo extractivo", async () => {
-    setLocalAIClientFactoryForTests(() => ({ chat: async () => { throw new Error("Modelo no disponible"); } }));
+    configurarClienteDeIAParaPruebas(() => ({ chat: async () => { throw new Error("Modelo no disponible"); } }));
     const response = await run("comparar_imputados", { case_id: 7, defendant_ids: [11, 12] });
     const body = await response.json();
     assert.equal(response.status, 200);

@@ -1,86 +1,86 @@
-const path = require("node:path");
+const rutasDeArchivos = require("node:path");
 const { PDFParse } = require("pdf-parse");
 const mammoth = require("mammoth");
 
-const MAX_TEXT_FILE_SIZE_BYTES = 15 * 1024 * 1024;
+const MAXIMO_BYTES_ARCHIVO_TEXTO = 15 * 1024 * 1024;
 
-function isTxtFile(file) {
-  return [".txt", ".md", ".csv"].includes(path.extname(file.originalname || "").toLowerCase());
+function esArchivoDeTexto(archivo) {
+  return [".txt", ".md", ".csv"].includes(rutasDeArchivos.extname(archivo.originalname || "").toLowerCase());
 }
 
-function isPdfFile(file) {
-  return path.extname(file.originalname || "").toLowerCase() === ".pdf";
+function esArchivoPdf(archivo) {
+  return rutasDeArchivos.extname(archivo.originalname || "").toLowerCase() === ".pdf";
 }
 
-function isDocxFile(file) { return path.extname(file.originalname || "").toLowerCase() === ".docx"; }
+function esArchivoDocx(archivo) { return rutasDeArchivos.extname(archivo.originalname || "").toLowerCase() === ".docx"; }
 
-function extractTextFromTxtFile(file) {
-  if (!file || !Buffer.isBuffer(file.buffer)) {
+function extraerTextoPlano(archivo) {
+  if (!archivo || !Buffer.isBuffer(archivo.buffer)) {
     throw new Error("No se recibio un archivo TXT para analizar.");
   }
 
-  if (!isTxtFile(file)) {
+  if (!esArchivoDeTexto(archivo)) {
     throw new Error("Por ahora solo se admiten archivos .txt.");
   }
 
-  const text = file.buffer.toString("utf8").replace(/^\uFEFF/, "").trim();
+  const texto = archivo.buffer.toString("utf8").replace(/^\uFEFF/, "").trim();
 
-  if (!text) {
+  if (!texto) {
     throw new Error("El archivo TXT no contiene texto para analizar.");
   }
 
-  return text;
+  return texto;
 }
 
-async function extractTextFromPdfFile(file) {
-  if (!file || !Buffer.isBuffer(file.buffer)) {
+async function extraerTextoDePdf(archivo) {
+  if (!archivo || !Buffer.isBuffer(archivo.buffer)) {
     throw new Error("No se recibio un archivo PDF para analizar.");
   }
 
-  if (!isPdfFile(file)) {
+  if (!esArchivoPdf(archivo)) {
     throw new Error("Por ahora solo se admiten archivos .pdf para esta extraccion.");
   }
 
-  const parser = new PDFParse({ data: file.buffer });
-  const parsed = await parser.getText();
-  await parser.destroy();
-  const text = String(parsed.text || "").trim();
+  const lectorPdf = new PDFParse({ data: archivo.buffer });
+  const interpretado = await lectorPdf.getText();
+  await lectorPdf.destroy();
+  const texto = String(interpretado.text || "").trim();
 
-  if (!text) {
+  if (!texto) {
     throw new Error("El archivo PDF no contiene texto extraible.");
   }
 
-  return text;
+  return texto;
 }
 
-async function extractTextFromSupportedFile(file) {
-  if (isTxtFile(file)) {
-    return extractTextFromTxtFile(file);
+async function extraerTextoDeArchivo(archivo) {
+  if (esArchivoDeTexto(archivo)) {
+    return extraerTextoPlano(archivo);
   }
 
-  if (isPdfFile(file)) {
-    return extractTextFromPdfFile(file);
+  if (esArchivoPdf(archivo)) {
+    return extraerTextoDePdf(archivo);
   }
 
-  if (isDocxFile(file)) {
-    const parsed = await mammoth.extractRawText({ buffer: file.buffer });
-    const text = String(parsed.value || "").replace(/\n{3,}/g, "\n\n").trim();
-    if (!text) throw new Error("El archivo DOCX no contiene texto extraible.");
-    return text;
+  if (esArchivoDocx(archivo)) {
+    const interpretado = await mammoth.extractRawText({ buffer: archivo.buffer });
+    const texto = String(interpretado.value || "").replace(/\n{3,}/g, "\n\n").trim();
+    if (!texto) throw new Error("El archivo DOCX no contiene texto extraible.");
+    return texto;
   }
 
   throw new Error("Se admiten archivos .pdf, .docx, .txt, .md o .csv.");
 }
 
-function isSupportedDocument(file) { return isTxtFile(file) || isPdfFile(file) || isDocxFile(file); }
+function esDocumentoCompatible(archivo) { return esArchivoDeTexto(archivo) || esArchivoPdf(archivo) || esArchivoDocx(archivo); }
 
 module.exports = {
-  MAX_TEXT_FILE_SIZE_BYTES,
-  extractTextFromPdfFile,
-  extractTextFromSupportedFile,
-  extractTextFromTxtFile,
-  isPdfFile,
-  isDocxFile,
-  isSupportedDocument,
-  isTxtFile,
+  MAXIMO_BYTES_ARCHIVO_TEXTO,
+  extraerTextoDePdf,
+  extraerTextoDeArchivo,
+  extraerTextoPlano,
+  esArchivoPdf,
+  esArchivoDocx,
+  esDocumentoCompatible,
+  esArchivoDeTexto,
 };

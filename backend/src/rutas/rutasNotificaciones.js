@@ -2,14 +2,14 @@ const express = require("express");
 const { requireSession } = require("../autenticacion/sesion");
 const { attachSecurityContext, recordAudit } = require("../autenticacion/autorizacion");
 const { listNotifications, createNotification, updateNotification, markAllRead } = require("../modelos/repositorioNotificaciones");
-const { isEmailConfigured } = require("../servicios/correo");
+const { estaConfiguradoElCorreo } = require("../servicios/correo");
 const router = express.Router();
 router.use(requireSession, attachSecurityContext);
 
 router.get("/", async (req, res, next) => {
   try {
     const result = await listNotifications(req.security);
-    res.json({ ...result, email_disponible: isEmailConfigured() });
+    res.json({ ...result, email_disponible: estaConfiguradoElCorreo() });
   } catch (error) { next(error); }
 });
 
@@ -33,7 +33,7 @@ router.post("/", async (req, res, next) => {
       titulo: body.titulo.trim(), mensaje: body.mensaje.trim(), programado_para: when.toISOString(), email: body.email !== false,
     });
     await recordAudit(req, { action: "notificacion.creada", resourceType: "recordatorio_vencimiento", resourceId: notification.id });
-    return res.status(201).json({ notificacion: notification, email_disponible: isEmailConfigured() });
+    return res.status(201).json({ notificacion: notification, email_disponible: estaConfiguradoElCorreo() });
   } catch (error) { return next(error); }
 });
 

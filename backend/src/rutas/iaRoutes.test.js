@@ -4,8 +4,8 @@ const PDFDocument = require("pdfkit");
 
 const app = require("../aplicacion");
 const {
-  resetLocalAIClientFactoryForTests,
-  setLocalAIClientFactoryForTests,
+  restablecerClienteDeIAParaPruebas,
+  configurarClienteDeIAParaPruebas,
 } = require("../../IA/analizadorLocal");
 const { setSessionResolverForTests, resetSessionResolverForTests } = require("../autenticacion/sesion");
 const { setAuthorizationResolverForTests, resetAuthorizationResolverForTests } = require("../autenticacion/autorizacion");
@@ -17,7 +17,7 @@ describe("IA file routes", () => {
   before(async () => {
     setSessionResolverForTests(async () => ({ user: { id: "test-user", name: "Test", email: "test@legalmind.local" } }));
     setAuthorizationResolverForTests(async (req, kind) => kind === "context" ? { organizationId: 1, role: "administrador", userId: req.user.id } : true);
-    setLocalAIClientFactoryForTests(() => ({
+    configurarClienteDeIAParaPruebas(() => ({
       chat: async (payload) => JSON.stringify(payload.messages.some((message) => message.content.includes("motor RAG juridico"))
         ? createSampleRagSearch()
         : payload.messages.some((message) => message.content.includes("Schema esperado:"))
@@ -36,7 +36,7 @@ describe("IA file routes", () => {
 
   after(async () => {
     resetSessionResolverForTests(); resetAuthorizationResolverForTests();
-    resetLocalAIClientFactoryForTests();
+    restablecerClienteDeIAParaPruebas();
 
     await new Promise((resolve, reject) => {
       server.close((error) => {

@@ -1,12 +1,12 @@
 const { pool } = require("../configuracion/baseDatos");
-const { expandLegalQuery } = require("../../IA/terminologiaRag");
+const { ampliarConsultaJuridica } = require("../../IA/terminologiaRag");
 
-async function searchLegalLibrary({ query, queryEmbedding, limit = 8 }, deps = {}) {
+async function buscarNormativaOficial({ query: consulta, queryEmbedding: embeddingConsulta, limit: limite = 8 }, deps = {}) {
   const database = deps.pool || pool;
-  const safeLimit = Math.min(20, Math.max(1, Number(limit) || 8));
+  const safeLimit = Math.min(20, Math.max(1, Number(limite) || 8));
   const candidateLimit = Math.min(80, safeLimit * 4);
-  const expandedQuery = buildFtsWebQuery(query);
-  const lexical = await database.query(`WITH consulta AS (
+  const expandedQuery = construirConsultaDeTextoCompleto(consulta);
+  const lexico = await database.query(`WITH consulta AS (
     SELECT websearch_to_tsquery('spanish', $1) AS valor
   ) SELECT fj.id, fj.orden, fj.identificador, fj.encabezado, fj.texto, fj.metadata_json,
       f.id AS fuente_id, f.clave, f.tipo, f.titulo, f.numero_norma, f.organismo, f.url_oficial,
@@ -19,64 +19,64 @@ async function searchLegalLibrary({ query, queryEmbedding, limit = 8 }, deps = {
       AND fj.texto_busqueda @@ consulta.valor
     ORDER BY lexical_score DESC, fuente_id, orden LIMIT $2`, [expandedQuery, candidateLimit]);
 
-  let semanticRows = [];
-  if (Array.isArray(queryEmbedding) && queryEmbedding.length === 768) {
-    const semantic = await database.query(`SELECT fj.id, fj.orden, fj.identificador, fj.encabezado, fj.texto,
+  let filasSemanticas = [];
+  if (Array.isArray(embeddingConsulta) && embeddingConsulta.length === 768) {
+    const semantico = await database.query(`SELECT fj.id, fj.orden, fj.identificador, fj.encabezado, fj.texto,
       fj.metadata_json, f.id AS fuente_id, f.clave, f.tipo, f.titulo, f.numero_norma, f.organismo, f.url_oficial,
       NULL::double precision AS lexical_score, 1-(fj.embedding <=> $1::vector) AS semantic_score
       FROM fragmentos_juridicos fj JOIN fuentes_juridicas f ON f.id=fj.fuente_id
       WHERE f.vigente=TRUE AND f.jurisdiccion='nacional_federal' AND fj.embedding IS NOT NULL
-      ORDER BY fj.embedding <=> $1::vector LIMIT $2`, [vectorLiteral(queryEmbedding), candidateLimit]);
-    semanticRows = semantic.rows;
+      ORDER BY fj.embedding <=> $1::vector LIMIT $2`, [convertirVectorAFormatoSql(embeddingConsulta), candidateLimit]);
+    filasSemanticas = semantico.rows;
   }
-  return fuseRankings(lexical.rows, semanticRows, safeLimit).map(mapLibraryChunk);
+  return fusionarResultados(lexico.rows, filasSemanticas, safeLimit).map(convertirArticuloEnFragmento);
 }
 
-function buildFtsWebQuery(query) {
-  return [...new Set(expandLegalQuery(query).toLowerCase().normalize("NFD")
+function construirConsultaDeTextoCompleto(consulta) {
+  return [...new Set(ampliarConsultaJuridica(consulta).toLowerCase().normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "").match(/[a-z0-9]{3,}/g) || [])].join(" OR ");
 }
 
-function mapLibraryChunk(row) {
+function convertirArticuloEnFragmento(fila) {
   return {
-    id: `norma-${row.id}`,
-    document_id: `norma-${row.fuente_id}`,
-    document_name: row.titulo,
-    chunk_index: Number(row.orden),
-    text: row.texto,
-    score: Math.min(1, Math.max(0, Number(row.score) || 0)),
-    lexical_score: row.lexical_score == null ? null : Number(row.lexical_score),
-    semantic_score: row.semantic_score == null ? null : Number(row.semantic_score),
-    source_type: row.tipo,
-    source_url: row.url_oficial,
+    id: `norma-${fila.id}`,
+    document_id: `norma-${fila.fuente_id}`,
+    document_name: fila.titulo,
+    chunk_index: Number(fila.orden),
+    text: fila.texto,
+    score: Math.min(1, Math.max(0, Number(fila.score) || 0)),
+    lexical_score: fila.lexical_score == null ? null : Number(fila.lexical_score),
+    semantic_score: fila.semantic_score == null ? null : Number(fila.semantic_score),
+    source_type: fila.tipo,
+    source_url: fila.url_oficial,
     metadata: {
-      ...(row.metadata_json || {}),
-      article: row.identificador || null,
-      heading: row.encabezado || null,
-      law_number: row.numero_norma || null,
-      official_body: row.organismo || null,
-      source_key: row.clave,
+      ...(fila.metadata_json || {}),
+      article: fila.identificador || null,
+      heading: fila.encabezado || null,
+      law_number: fila.numero_norma || null,
+      official_body: fila.organismo || null,
+      source_key: fila.clave,
     },
   };
 }
 
-function fuseRankings(lexicalRows, semanticRows, limit) {
-  const fused = new Map();
-  const add = (row, rank, weight, scoreField) => {
-    const current = fused.get(row.id) || { ...row, score: 0, lexical_score: null, semantic_score: null };
-    current.score += weight / (60 + rank + 1);
-    if (row[scoreField] != null) current[scoreField] = Number(row[scoreField]);
-    fused.set(row.id, current);
+function fusionarResultados(filasLexicas, filasSemanticas, limite) {
+  const resultadosFusionados = new Map();
+  const agregarResultado = (fila, posicion, peso, scoreField) => {
+    const actual = resultadosFusionados.get(fila.id) || { ...fila, score: 0, lexical_score: null, semantic_score: null };
+    actual.score += peso / (60 + posicion + 1);
+    if (fila[scoreField] != null) actual[scoreField] = Number(fila[scoreField]);
+    resultadosFusionados.set(fila.id, actual);
   };
-  lexicalRows.forEach((row, rank) => add(row, rank, 0.45, "lexical_score"));
-  semanticRows.forEach((row, rank) => add(row, rank, 0.55, "semantic_score"));
-  const maximum = 1 / 61;
-  return [...fused.values()].map((row) => ({ ...row, score: row.score / maximum }))
-    .sort((left, right) => right.score - left.score).slice(0, limit);
+  filasLexicas.forEach((fila, posicion) => agregarResultado(fila, posicion, 0.45, "lexical_score"));
+  filasSemanticas.forEach((fila, posicion) => agregarResultado(fila, posicion, 0.55, "semantic_score"));
+  const maximo = 1 / 61;
+  return [...resultadosFusionados.values()].map((fila) => ({ ...fila, score: fila.score / maximo }))
+    .sort((izquierda, derecha) => derecha.score - izquierda.score).slice(0, limite);
 }
 
-function vectorLiteral(vector) {
-  return `[${vector.map((value) => Number(value).toFixed(8)).join(",")}]`;
+function convertirVectorAFormatoSql(vector) {
+  return `[${vector.map((valor) => Number(valor).toFixed(8)).join(",")}]`;
 }
 
-module.exports = { buildFtsWebQuery, fuseRankings, mapLibraryChunk, searchLegalLibrary, vectorLiteral };
+module.exports = { construirConsultaDeTextoCompleto, fusionarResultados, convertirArticuloEnFragmento, buscarNormativaOficial, convertirVectorAFormatoSql };

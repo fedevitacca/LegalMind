@@ -36,7 +36,7 @@ type Result = {
   acciones_sugeridas?: string[];
   limitaciones?: string[];
 };
-type Citation = {
+type Cita = {
   citation_id: string;
   document_id: string;
   document_name: string;
@@ -196,58 +196,58 @@ export default function CentroHerramientasIA({
 }: {
   compact?: boolean;
 }) {
-  const [tools, setTools] = useState<Tool[]>(fallbackTools);
-  const [toolId, setToolId] = useState("resumen_expediente");
+  const [herramientas, setTools] = useState<Tool[]>(fallbackTools);
+  const [idHerramienta, cambiarIdHerramienta] = useState("resumen_expediente");
   const [cases, setCases] = useState<CaseOption[]>([]);
-  const [caseId, setCaseId] = useState("");
+  const [idExpediente, setCaseId] = useState("");
   const [caseDocuments, setCaseDocuments] = useState<CaseDocument[]>([]);
-  const [defendants, setDefendants] = useState<Defendant[]>([]);
-  const [scope, setScope] = useState<Scope>("documents");
+  const [imputados, setDefendants] = useState<Defendant[]>([]);
+  const [alcance, setScope] = useState<Scope>("documents");
   const [defendantId, setDefendantId] = useState("");
   const [defendantPair, setDefendantPair] = useState<[string, string]>(["", ""]);
   const [primary, setPrimary] = useState("");
   const [secondary, setSecondary] = useState("");
-  const [query, setQuery] = useState("");
-  const [result, setResult] = useState<Result>();
-  const [citations, setCitations] = useState<Citation[]>([]);
+  const [consulta, setQuery] = useState("");
+  const [resultado, setResult] = useState<Result>();
+  const [citas, setCitations] = useState<Cita[]>([]);
   const [savedId, setSavedId] = useState<number>();
   const [loadingCases, setLoadingCases] = useState(true);
   const [loadingContext, setLoadingContext] = useState(false);
-  const [contextError, setContextError] = useState("");
+  const [errorDeContexto, cambiarErrorDeContexto] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, cambiarError] = useState("");
   const [notice, setNotice] = useState("");
   const requestController = useRef<AbortController | null>(null);
   const requestTimedOut = useRef(false);
 
-  const tool = useMemo(
-    () => tools.find((item) => item.id === toolId) || tools[0],
-    [toolId, tools],
+  const herramienta = useMemo(
+    () => herramientas.find((elemento) => elemento.id === idHerramienta) || herramientas[0],
+    [idHerramienta, herramientas],
   );
-  const ui = toolUi[toolId] || toolUi.consulta_rag;
+  const ui = toolUi[idHerramienta] || toolUi.consulta_rag;
   const readyDocuments = useMemo(
-    () => caseDocuments.filter((item) => Boolean(item.extracted_text?.trim())),
+    () => caseDocuments.filter((elemento) => Boolean(elemento.extracted_text?.trim())),
     [caseDocuments],
   );
-  const usesCaseContext = Boolean(caseId) && tool?.inputs === 1;
-  const effectiveScope: Scope = toolId === "consulta_rag" ? scope : "case";
-  const selectedDefendant = defendants.find(
-    (item) => String(item.id) === defendantId,
+  const usesCaseContext = Boolean(idExpediente) && herramienta?.inputs === 1;
+  const effectiveScope: Scope = idHerramienta === "consulta_rag" ? alcance : "case";
+  const selectedDefendant = imputados.find(
+    (elemento) => String(elemento.id) === defendantId,
   );
   const canExecute =
-    Boolean(tool) &&
+    Boolean(herramienta) &&
     !busy &&
-    (toolId === "comparar_imputados"
-      ? Boolean(caseId) && !loadingContext && !contextError && defendantPair.every((id) => defendants.some((item) => String(item.id) === id)) && defendantPair[0] !== defendantPair[1]
+    (idHerramienta === "comparar_imputados"
+      ? Boolean(idExpediente) && !loadingContext && !errorDeContexto && defendantPair.every((id) => imputados.some((elemento) => String(elemento.id) === id)) && defendantPair[0] !== defendantPair[1]
       : usesCaseContext
       ? !loadingContext &&
-        !contextError &&
+        !errorDeContexto &&
         (effectiveScope !== "documents" || readyDocuments.length > 0) &&
         (effectiveScope !== "defendant" || Boolean(defendantId)) &&
-        (toolId !== "consulta_rag" || Boolean(query.trim()))
+        (idHerramienta !== "consulta_rag" || Boolean(consulta.trim()))
       : Boolean(primary.trim()) &&
-        (tool.inputs !== 2 || Boolean(secondary.trim())) &&
-        (toolId !== "consulta_rag" || Boolean(query.trim())));
+        (herramienta.inputs !== 2 || Boolean(secondary.trim())) &&
+        (idHerramienta !== "consulta_rag" || Boolean(consulta.trim())));
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -255,41 +255,41 @@ export default function CentroHerramientasIA({
     const requestedTool = searchParams.get("tool");
     const requestedQuery = searchParams.get("query");
     if (requestedCase) setCaseId(requestedCase);
-    if (requestedTool && toolUi[requestedTool]) setToolId(requestedTool);
+    if (requestedTool && toolUi[requestedTool]) cambiarIdHerramienta(requestedTool);
     if (requestedQuery) setQuery(requestedQuery);
     void fetch(`${apiUrl}/api/ia/tools`)
-      .then((response) => response.json())
-      .then((body) => {
-        if (body.tools?.length) setTools(body.tools);
+      .then((respuesta) => respuesta.json())
+      .then((cuerpo) => {
+        if (cuerpo.tools?.length) setTools(cuerpo.tools);
       })
       .catch(() => undefined);
-    void loadCases();
+    void cargarExpedientes();
   }, []);
 
   useEffect(() => {
     setDefendantPair(["", ""]);
-    if (!caseId) {
+    if (!idExpediente) {
       setCaseDocuments([]);
       setDefendants([]);
-      setContextError("");
+      cambiarErrorDeContexto("");
       setLoadingContext(false);
       setDefendantId("");
       return;
     }
-    const controller = new AbortController();
+    const controlador = new AbortController();
     setLoadingContext(true);
-    setContextError("");
+    cambiarErrorDeContexto("");
     setCaseDocuments([]);
     setDefendants([]);
     setDefendantId("");
     void Promise.all([
-      fetch(`${apiUrl}/api/ia/cases/${caseId}/documents?include_text=true`, {
+      fetch(`${apiUrl}/api/ia/cases/${idExpediente}/documents?include_text=true`, {
         credentials: "include",
-        signal: controller.signal,
+        signal: controlador.signal,
       }),
-      fetch(`${apiUrl}/api/casos/${caseId}/imputados`, {
+      fetch(`${apiUrl}/api/casos/${idExpediente}/imputados`, {
         credentials: "include",
-        signal: controller.signal,
+        signal: controlador.signal,
       }),
     ])
       .then(async ([documentsResponse, defendantsResponse]) => {
@@ -309,31 +309,31 @@ export default function CentroHerramientasIA({
       .catch((cause) => {
         if (cause instanceof DOMException && cause.name === "AbortError")
           return;
-        setContextError(
+        cambiarErrorDeContexto(
           cause instanceof Error
             ? cause.message
             : "No se pudo cargar el expediente.",
         );
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoadingContext(false);
+        if (!controlador.signal.aborted) setLoadingContext(false);
       });
-    return () => controller.abort();
-  }, [caseId]);
+    return () => controlador.abort();
+  }, [idExpediente]);
 
-  async function loadCases() {
+  async function cargarExpedientes() {
     setLoadingCases(true);
     try {
-      const response = await fetch(`${apiUrl}/api/casos`, {
+      const respuesta = await fetch(`${apiUrl}/api/casos`, {
         credentials: "include",
         signal: AbortSignal.timeout(6000),
       });
-      const body = await response.json();
-      if (!response.ok)
-        throw new Error(body.error || "No se pudieron cargar los expedientes.");
-      setCases(body.cases || []);
+      const cuerpo = await respuesta.json();
+      if (!respuesta.ok)
+        throw new Error(cuerpo.error || "No se pudieron cargar los expedientes.");
+      setCases(cuerpo.cases || []);
     } catch (cause) {
-      setError(
+      cambiarError(
         cause instanceof Error
           ? cause.message
           : "No se pudieron cargar los expedientes.",
@@ -343,9 +343,9 @@ export default function CentroHerramientasIA({
     }
   }
 
-  function selectTool(nextTool: Tool) {
+  function seleccionarHerramienta(nextTool: Tool) {
     requestController.current?.abort();
-    setToolId(nextTool.id);
+    cambiarIdHerramienta(nextTool.id);
     setPrimary("");
     setSecondary("");
     setQuery("");
@@ -353,58 +353,58 @@ export default function CentroHerramientasIA({
     setResult(undefined);
     setCitations([]);
     setSavedId(undefined);
-    setError("");
+    cambiarError("");
     setNotice("");
   }
 
-  async function execute() {
+  async function ejecutarHerramienta() {
     if (!canExecute) return;
     setBusy(true);
-    setError("");
+    cambiarError("");
     setNotice("");
     setResult(undefined);
     setCitations([]);
     setSavedId(undefined);
-    const controller = new AbortController();
-    requestController.current = controller;
+    const controlador = new AbortController();
+    requestController.current = controlador;
     requestTimedOut.current = false;
     const timeout = window.setTimeout(() => {
       requestTimedOut.current = true;
-      controller.abort();
+      controlador.abort();
     }, 9800);
     try {
-      const response = await fetch(`${apiUrl}/api/ia/tools/${toolId}/run`, {
+      const respuesta = await fetch(`${apiUrl}/api/ia/tools/${idHerramienta}/run`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
+        signal: controlador.signal,
         body: JSON.stringify({
           primary_text: primary,
           secondary_text: secondary,
-          query,
-          case_id: caseId ? Number(caseId) : null,
+          query: consulta,
+          case_id: idExpediente ? Number(idExpediente) : null,
           scope: effectiveScope,
           defendant_id:
             effectiveScope === "defendant" && defendantId
               ? Number(defendantId)
               : null,
-          defendant_ids: toolId === "comparar_imputados" ? defendantPair.map(Number) : undefined,
+          defendant_ids: idHerramienta === "comparar_imputados" ? defendantPair.map(Number) : undefined,
           use_case_context: usesCaseContext,
         }),
       });
-      const body = await response.json();
-      if (!response.ok)
-        throw new Error([body.error, body.details].filter(Boolean).join(" "));
-      setResult(body.result);
-      setCitations(body.citations || []);
-      setSavedId(body.saved_query?.id);
-      if (body._metadata?.engine === "fast_extractive_rag") {
+      const cuerpo = await respuesta.json();
+      if (!respuesta.ok)
+        throw new Error([cuerpo.error, cuerpo.details].filter(Boolean).join(" "));
+      setResult(cuerpo.result);
+      setCitations(cuerpo.citations || []);
+      setSavedId(cuerpo.saved_query?.id);
+      if (cuerpo._metadata?.engine === "fast_extractive_rag") {
         setNotice("Se muestran pasajes extraídos de las fuentes porque la IA no pudo completar el análisis. Revisá ambas fuentes antes de interpretar coincidencias o diferencias.");
       }
     } catch (cause) {
       const aborted =
         cause instanceof DOMException && cause.name === "AbortError";
-      setError(
+      cambiarError(
         aborted
           ? requestTimedOut.current
             ? "No se pudo completar. Probá con una consulta más breve."
@@ -420,7 +420,7 @@ export default function CentroHerramientasIA({
     }
   }
 
-  const report = result ? formatReport(result, citations) : "";
+  const report = resultado ? formatearInforme(resultado, citas) : "";
 
   return (
     <div className={compact ? "space-y-4" : "space-y-6"}>
@@ -431,25 +431,25 @@ export default function CentroHerramientasIA({
         <div
           className={`grid gap-3 ${compact ? "@min-[640px]:grid-cols-2" : "@min-[640px]:grid-cols-2 @min-[1280px]:grid-cols-3"}`}
         >
-          {tools.map((item) => {
-            const itemUi = toolUi[item.id] || toolUi.consulta_rag;
-            const active = item.id === toolId;
+          {herramientas.map((elemento) => {
+            const itemUi = toolUi[elemento.id] || toolUi.consulta_rag;
+            const activo = elemento.id === idHerramienta;
             return (
               <button
                 type="button"
-                key={item.id}
-                onClick={() => selectTool(item)}
-                aria-pressed={active}
-                className={`group flex items-center gap-3 rounded-[15px] border-2 text-left transition ${compact ? "min-h-16 p-3" : "min-h-[72px] p-3"} ${active ? itemUi.active : "border-[#88A9C8]/45 bg-[#F4F7F5] hover:border-[#546FC0] hover:bg-white"}`}
+                key={elemento.id}
+                onClick={() => seleccionarHerramienta(elemento)}
+                aria-pressed={activo}
+                className={`group flex items-center gap-3 rounded-[15px] border-2 text-left transition ${compact ? "min-h-16 p-3" : "min-h-[72px] p-3"} ${activo ? itemUi.active : "border-[#88A9C8]/45 bg-[#F4F7F5] hover:border-[#546FC0] hover:bg-white"}`}
               >
                 <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xs font-black tracking-wider ${active ? itemUi.header : "bg-[#e8ece9] text-[#46524f]"}`}
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xs font-black tracking-wider ${activo ? itemUi.header : "bg-[#e8ece9] text-[#46524f]"}`}
                 >
                   {itemUi.code}
                 </span>
                 <span>
                   <strong className="block text-sm text-[#0F2044]">
-                    {item.label}
+                    {elemento.label}
                   </strong>
                 </span>
               </button>
@@ -468,7 +468,7 @@ export default function CentroHerramientasIA({
                 {ui.code}
               </span>
               <div>
-                <h1 className="text-[22px] font-semibold">{tool?.label}</h1>
+                <h1 className="text-[22px] font-semibold">{herramienta?.label}</h1>
                 <p className="mt-1 text-sm text-[#0F2044]/60">
                   {ui.instruction}
                 </p>
@@ -484,21 +484,21 @@ export default function CentroHerramientasIA({
                 Expediente de trabajo
               </span>
               <select
-                value={caseId}
-                onChange={(event) => {
-                  setCaseId(event.target.value);
+                value={idExpediente}
+                onChange={(evento) => {
+                  setCaseId(evento.target.value);
                   setDefendantPair(["", ""]);
                   setPrimary(""); setSecondary(""); setCitations([]); setSavedId(undefined);
                   setResult(undefined);
-                  setError("");
+                  cambiarError("");
                 }}
                 className="mt-2 h-11 w-full rounded-lg border border-[#bfc4c1] bg-white px-3 text-sm outline-none"
               >
-                <option value="">{toolId === "comparar_imputados" ? "Seleccionar expediente" : "Sin expediente · usar fuentes manuales"}</option>
-                {cases.map((item) => (
-                  <option value={item.id} key={item.id}>
-                    {item.identificador ? `${item.identificador} · ` : ""}
-                    {item.name || item.caratula || `Expediente ${item.id}`}
+                <option value="">{idHerramienta === "comparar_imputados" ? "Seleccionar expediente" : "Sin expediente · usar fuentes manuales"}</option>
+                {cases.map((elemento) => (
+                  <option value={elemento.id} key={elemento.id}>
+                    {elemento.identificador ? `${elemento.identificador} · ` : ""}
+                    {elemento.name || elemento.caratula || `Expediente ${elemento.id}`}
                   </option>
                 ))}
               </select>
@@ -510,75 +510,75 @@ export default function CentroHerramientasIA({
             )}
           </div>
 
-          {toolId === "consulta_rag" && caseId && (
-            <ScopeSelector
-              scope={scope}
-              onChange={(next) => {
-                setScope(next);
+          {idHerramienta === "consulta_rag" && idExpediente && (
+            <SelectorDeAlcance
+              scope={alcance}
+              onChange={(siguiente) => {
+                setScope(siguiente);
                 setResult(undefined);
-                setError("");
+                cambiarError("");
               }}
-              defendants={defendants}
+              defendants={imputados}
               defendantId={defendantId}
               setDefendantId={setDefendantId}
             />
           )}
 
-          {toolId === "comparar_imputados" ? (
+          {idHerramienta === "comparar_imputados" ? (
             <div className={compact ? "p-4" : "p-6"}>
               <p className="mb-4 text-sm text-[#0F2044]/70">Seleccioná dos personas distintas. Se comparan sus fichas registradas; los documentos del expediente no se incluyen automáticamente.</p>
               <div className="grid gap-4 @min-[640px]:grid-cols-2">
-                {([0, 1] as const).map((index) => (
-                  <label key={index} className="text-sm font-semibold">
-                    Imputado {index === 0 ? "A" : "B"}
-                    <select className="input mt-2" value={defendantPair[index]} disabled={!caseId || loadingContext || busy} onChange={(event) => {
-                      const next: [string, string] = [...defendantPair];
-                      next[index] = event.target.value;
-                      setDefendantPair(next); setResult(undefined); setError("");
+                {([0, 1] as const).map((indice) => (
+                  <label key={indice} className="text-sm font-semibold">
+                    Imputado {indice === 0 ? "A" : "B"}
+                    <select className="input mt-2" value={defendantPair[indice]} disabled={!idExpediente || loadingContext || busy} onChange={(evento) => {
+                      const siguiente: [string, string] = [...defendantPair];
+                      siguiente[indice] = evento.target.value;
+                      setDefendantPair(siguiente); setResult(undefined); cambiarError("");
                     }}>
                       <option value="">Seleccionar imputado</option>
-                      {defendants.map((item) => <option key={item.id} value={item.id} disabled={String(item.id) === defendantPair[index === 0 ? 1 : 0]}>{item.nombre}{item.rol ? ` · ${item.rol}` : ""}</option>)}
+                      {imputados.map((elemento) => <option key={elemento.id} value={elemento.id} disabled={String(elemento.id) === defendantPair[indice === 0 ? 1 : 0]}>{elemento.nombre}{elemento.rol ? ` · ${elemento.rol}` : ""}</option>)}
                     </select>
                   </label>
                 ))}
               </div>
               {loadingContext ? <p role="status" className="mt-3 text-sm">Cargando fichas…</p> : null}
-              {contextError ? <p role="alert" className="mt-3 text-sm text-red-700">{contextError}</p> : null}
-              {caseId && !loadingContext && !contextError && defendants.length < 2 ? <p className="mt-3 text-sm">Este expediente necesita al menos dos imputados registrados para comparar.</p> : null}
+              {errorDeContexto ? <p role="alert" className="mt-3 text-sm text-red-700">{errorDeContexto}</p> : null}
+              {idExpediente && !loadingContext && !errorDeContexto && imputados.length < 2 ? <p className="mt-3 text-sm">Este expediente necesita al menos dos imputados registrados para comparar.</p> : null}
             </div>
           ) : usesCaseContext ? (
             effectiveScope === "documents" ? (
-              <CaseCorpus
+              <FuentesDelExpediente
                 documents={caseDocuments}
                 loading={loadingContext}
-                error={contextError}
+                error={errorDeContexto}
               />
             ) : (
-              <ContextSummary
+              <ResumenDelContexto
                 scope={effectiveScope}
                 documents={readyDocuments}
-                defendants={defendants}
+                defendants={imputados}
                 selectedDefendant={selectedDefendant}
                 loading={loadingContext}
-                error={contextError}
+                error={errorDeContexto}
               />
             )
           ) : (
             <div
-              className={`grid gap-5 ${compact ? "p-4" : "p-6"} ${tool?.inputs === 2 && !compact ? "@min-[1024px]:grid-cols-2" : ""}`}
+              className={`grid gap-5 ${compact ? "p-4" : "p-6"} ${herramienta?.inputs === 2 && !compact ? "@min-[1024px]:grid-cols-2" : ""}`}
             >
-              <Source
-                key={`${caseId}-${toolId}-a`}
-                label={tool?.inputs === 2 ? "Fuente A" : "Material jurídico"}
+              <PanelDeFuente
+                key={`${idExpediente}-${idHerramienta}-a`}
+                label={herramienta?.inputs === 2 ? "Fuente A" : "Material jurídico"}
                 value={primary}
                 onChange={setPrimary}
                 documents={readyDocuments}
                 focusClass={ui.focus}
                 compact={compact}
               />
-              {tool?.inputs === 2 && (
-                <Source
-                  key={`${caseId}-${toolId}-b`}
+              {herramienta?.inputs === 2 && (
+                <PanelDeFuente
+                  key={`${idExpediente}-${idHerramienta}-b`}
                   label="Fuente B"
                   value={secondary}
                   onChange={setSecondary}
@@ -594,13 +594,13 @@ export default function CentroHerramientasIA({
             className={`border-t border-[#e1e3e0] ${compact ? "px-4 py-4" : "px-6 py-5"}`}
           >
             <label className="text-xs font-bold uppercase tracking-[.08em] text-[#59636f]">
-              {toolId === "consulta_rag"
+              {idHerramienta === "consulta_rag"
                 ? "Pregunta concreta"
                 : "Objetivo o enfoque (opcional)"}
             </label>
-            {toolId === "consulta_rag" && caseId && (
+            {idHerramienta === "consulta_rag" && idExpediente && (
               <div className="mt-3 flex flex-wrap gap-2">
-                {questionExamples[scope].map((example) => (
+                {questionExamples[alcance].map((example) => (
                   <button
                     type="button"
                     key={example}
@@ -615,10 +615,10 @@ export default function CentroHerramientasIA({
             <div className="mt-3 flex flex-col gap-3 lg:flex-row">
               <textarea
                 rows={2}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                value={consulta}
+                onChange={(evento) => setQuery(evento.target.value)}
                 placeholder={
-                  toolId === "consulta_rag"
+                  idHerramienta === "consulta_rag"
                     ? "Escribí tu pregunta"
                     : "Enfoque opcional"
                 }
@@ -627,7 +627,7 @@ export default function CentroHerramientasIA({
               <button
                 type="button"
                 disabled={!canExecute}
-                onClick={() => void execute()}
+                onClick={() => void ejecutarHerramienta()}
                 className={`min-h-12 rounded-xl px-6 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-45 ${ui.button}`}
               >
                 {busy ? "Procesando…" : ui.action}
@@ -656,19 +656,19 @@ export default function CentroHerramientasIA({
           </div>
         </section>
 
-        {savedId && caseId && (
+        {savedId && idExpediente && (
           <a
-            href={`/casos/${caseId}/consultas?consulta=${savedId}`}
+            href={`/casos/${idExpediente}/consultas?consulta=${savedId}`}
             className="block rounded-[18px] border-2 border-[#88A9C8] bg-white px-5 py-4 text-sm font-semibold text-[#0F2044]"
           >
             Ver consulta guardada →
           </a>
         )}
-        {!result ? (
-          <EmptyState busy={busy} tool={tool} />
+        {!resultado ? (
+          <EstadoVacio busy={busy} tool={herramienta} />
         ) : (
           <>
-            <ReportActions
+            <AccionesDelInforme
               notice={notice}
               onCopy={async () => {
                 try {
@@ -680,21 +680,21 @@ export default function CentroHerramientasIA({
               }}
               onDownload={() => {
                 downloadPlainTextReport(
-                  result.titulo || tool?.label || "informe",
+                  resultado.titulo || herramienta?.label || "informe",
                   report,
                 );
                 setNotice("Informe descargado.");
               }}
               onPrint={() => {
                 try {
-                  printPlainTextReport(result.titulo, report);
+                  printPlainTextReport(resultado.titulo, report);
                   setNotice("Vista de impresión abierta.");
                 } catch {
                   setNotice("No se pudo abrir la impresión.");
                 }
               }}
             />
-            <Results result={result} citations={citations} />
+            <Resultados result={resultado} citations={citas} />
           </>
         )}
       </main>
@@ -702,18 +702,18 @@ export default function CentroHerramientasIA({
   );
 }
 
-function ScopeSelector({
-  scope,
+function SelectorDeAlcance({
+  scope: alcance,
   onChange,
-  defendants,
+  defendants: imputados,
   defendantId,
   setDefendantId,
 }: {
   scope: Scope;
-  onChange: (scope: Scope) => void;
+  onChange: (alcance: Scope) => void;
   defendants: Defendant[];
   defendantId: string;
-  setDefendantId: (value: string) => void;
+  setDefendantId: (valor: string) => void;
 }) {
   return (
     <section className="border-b border-[#88A9C8]/45 px-6 py-5">
@@ -726,7 +726,7 @@ function ScopeSelector({
             type="button"
             key={option.id}
             onClick={() => onChange(option.id)}
-            className={`rounded-xl border-2 px-4 py-3 text-left transition ${scope === option.id ? "border-[#546FC0] bg-[#EEF3F8]" : "border-[#88A9C8]/45 bg-white hover:border-[#546FC0]"}`}
+            className={`rounded-xl border-2 px-4 py-3 text-left transition ${alcance === option.id ? "border-[#546FC0] bg-[#EEF3F8]" : "border-[#88A9C8]/45 bg-white hover:border-[#546FC0]"}`}
           >
             <span className="text-sm font-semibold text-[#0F2044]">
               {option.label}
@@ -734,25 +734,25 @@ function ScopeSelector({
           </button>
         ))}
       </div>
-      {scope === "defendant" && (
+      {alcance === "defendant" && (
         <label className="mt-4 block max-w-xl">
           <span className="text-xs font-semibold text-[#0F2044]/60">
             Imputado
           </span>
           <select
             value={defendantId}
-            onChange={(event) => setDefendantId(event.target.value)}
+            onChange={(evento) => setDefendantId(evento.target.value)}
             className="mt-2 h-11 w-full rounded-lg border border-[#88A9C8] bg-white px-3 text-sm"
           >
             <option value="">Seleccionar…</option>
-            {defendants.map((item) => (
-              <option value={item.id} key={item.id}>
-                {item.nombre}
-                {item.rol ? ` · ${item.rol}` : ""}
+            {imputados.map((elemento) => (
+              <option value={elemento.id} key={elemento.id}>
+                {elemento.nombre}
+                {elemento.rol ? ` · ${elemento.rol}` : ""}
               </option>
             ))}
           </select>
-          {!defendants.length && (
+          {!imputados.length && (
             <span className="mt-2 block text-xs text-[#0F2044]/55">
               No hay imputados registrados.
             </span>
@@ -763,12 +763,12 @@ function ScopeSelector({
   );
 }
 
-function ContextSummary({
-  scope,
-  documents,
-  defendants,
+function ResumenDelContexto({
+  scope: alcance,
+  documents: documentos,
+  defendants: imputados,
   selectedDefendant,
-  loading,
+  loading: cargando,
   error,
 }: {
   scope: Scope;
@@ -782,14 +782,14 @@ function ContextSummary({
     <section className="p-6">
       <div className="rounded-xl border-2 border-[#88A9C8]/55 bg-[#F4F7F5] p-5">
         <p className="text-xs font-bold uppercase tracking-[.08em] text-[#0F2044]/55">
-          {scope === "defendant" ? "Imputado" : "Expediente"}
+          {alcance === "defendant" ? "Imputado" : "Expediente"}
         </p>
         <h3 className="mt-1 text-lg font-semibold text-[#0F2044]">
-          {loading
+          {cargando
             ? "Cargando…"
-            : scope === "defendant"
+            : alcance === "defendant"
               ? selectedDefendant?.nombre || "Seleccioná un imputado"
-              : `${documents.length} documentos · ${defendants.length} imputados`}
+              : `${documentos.length} documentos · ${imputados.length} imputados`}
         </h3>
         {selectedDefendant && (
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
@@ -811,17 +811,17 @@ function ContextSummary({
   );
 }
 
-function CaseCorpus({
-  documents,
-  loading,
+function FuentesDelExpediente({
+  documents: documentos,
+  loading: cargando,
   error,
 }: {
   documents: CaseDocument[];
   loading: boolean;
   error: string;
 }) {
-  const ready = documents.filter((item) =>
-    Boolean(item.extracted_text?.trim()),
+  const ready = documentos.filter((elemento) =>
+    Boolean(elemento.extracted_text?.trim()),
   );
   return (
     <section className="p-6">
@@ -830,24 +830,24 @@ function CaseCorpus({
           Documentos
         </p>
         <h3 className="mt-1 text-lg font-semibold text-[#0F2044]">
-          {loading ? "Cargando…" : `${ready.length} disponibles`}
+          {cargando ? "Cargando…" : `${ready.length} disponibles`}
         </h3>
         {error && (
           <p className="mt-4 text-sm font-medium text-red-700">{error}</p>
         )}
-        {!loading && !error && ready.length === 0 && (
+        {!cargando && !error && ready.length === 0 && (
           <p className="mt-4 text-sm text-[#0F2044]/60">
             No hay documentos procesados.
           </p>
         )}
         {ready.length > 0 && (
           <ul className="mt-4 grid gap-2 @min-[640px]:grid-cols-2">
-            {ready.map((item) => (
+            {ready.map((elemento) => (
               <li
-                key={item.id}
+                key={elemento.id}
                 className="truncate rounded-lg border border-[#88A9C8]/45 bg-white px-3 py-2 text-xs font-medium text-[#0F2044]/75"
               >
-                {item.name}
+                {elemento.name}
               </li>
             ))}
           </ul>
@@ -857,17 +857,17 @@ function CaseCorpus({
   );
 }
 
-function Source({
+function PanelDeFuente({
   label,
-  value,
+  value: valor,
   onChange,
-  documents,
+  documents: documentos,
   focusClass,
   compact = false,
 }: {
   label: string;
   value: string;
-  onChange: (value: string) => void;
+  onChange: (valor: string) => void;
   documents: CaseDocument[];
   focusClass: string;
   compact?: boolean;
@@ -875,24 +875,24 @@ function Source({
   const [fileName, setFileName] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
-  async function extract(file?: File) {
-    if (!file) return;
+  async function extraerTexto(archivo?: File) {
+    if (!archivo) return;
     setUploading(true);
     setUploadError("");
     try {
       const data = new FormData();
-      data.set("file", file);
-      const response = await fetch(`${apiUrl}/api/ia/extract-file`, {
+      data.set("file", archivo);
+      const respuesta = await fetch(`${apiUrl}/api/ia/extract-file`, {
         method: "POST",
         credentials: "include",
         body: data,
         signal: AbortSignal.timeout(8000),
       });
-      const body = await response.json();
-      if (!response.ok)
-        throw new Error(body.error || "No se pudo leer el archivo.");
-      onChange(body.document.text);
-      setFileName(body.document.name);
+      const cuerpo = await respuesta.json();
+      if (!respuesta.ok)
+        throw new Error(cuerpo.error || "No se pudo leer el archivo.");
+      onChange(cuerpo.document.text);
+      setFileName(cuerpo.document.name);
     } catch (cause) {
       setUploadError(
         cause instanceof Error ? cause.message : "No se pudo leer el archivo.",
@@ -907,25 +907,25 @@ function Source({
         <span className="text-xs font-bold uppercase tracking-[.08em] text-[#0F2044]/60">
           {label}
         </span>
-        {documents.length > 0 && (
+        {documentos.length > 0 && (
           <select
             aria-label={`Documento para ${label}`}
             defaultValue=""
-            onChange={(event) => {
-              const item = documents.find(
-                (document) => String(document.id) === event.target.value,
+            onChange={(evento) => {
+              const elemento = documentos.find(
+                (documento) => String(documento.id) === evento.target.value,
               );
-              if (item?.extracted_text) {
-                onChange(item.extracted_text);
-                setFileName(item.name);
+              if (elemento?.extracted_text) {
+                onChange(elemento.extracted_text);
+                setFileName(elemento.name);
               }
             }}
             className="rounded-lg border border-[#88A9C8] bg-white px-2 py-1 text-xs"
           >
             <option value="">Elegir documento…</option>
-            {documents.map((item) => (
-              <option value={item.id} key={item.id}>
-                {item.name}
+            {documentos.map((elemento) => (
+              <option value={elemento.id} key={elemento.id}>
+                {elemento.name}
               </option>
             ))}
           </select>
@@ -947,7 +947,7 @@ function Source({
           type="file"
           accept=".pdf,.docx,.txt,.md,.csv"
           className="hidden"
-          onChange={(event) => void extract(event.target.files?.[0])}
+          onChange={(evento) => void extraerTexto(evento.target.files?.[0])}
         />
       </label>
       {fileName && (
@@ -957,8 +957,8 @@ function Source({
         <p className="mt-2 text-xs font-semibold text-red-700">{uploadError}</p>
       )}
       <textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
+        value={valor}
+        onChange={(evento) => onChange(evento.target.value)}
         placeholder="Pegá el contenido o adjuntá un archivo."
         className={`mt-2 w-full resize-y rounded-xl border-2 border-[#88A9C8]/60 p-4 text-sm leading-6 outline-none ${compact ? "min-h-36" : "min-h-52"} ${focusClass}`}
       />
@@ -966,19 +966,19 @@ function Source({
   );
 }
 
-function EmptyState({ busy, tool }: { busy: boolean; tool?: Tool }) {
+function EstadoVacio({ busy, tool: herramienta }: { busy: boolean; tool?: Tool }) {
   return (
     <section className="rounded-[23px] border-2 border-dashed border-[#88A9C8] bg-white px-6 py-6">
       <p className="text-sm font-semibold text-[#0F2044]/65">
         {busy
           ? "Procesando…"
-          : `${tool?.label || "Herramienta"} lista para usar.`}
+          : `${herramienta?.label || "Herramienta"} lista para usar.`}
       </p>
     </section>
   );
 }
 
-function ReportActions({
+function AccionesDelInforme({
   notice,
   onCopy,
   onDownload,
@@ -1019,29 +1019,29 @@ function ReportActions({
   );
 }
 
-function Results({
-  result,
-  citations,
+function Resultados({
+  result: resultado,
+  citations: citas,
 }: {
   result: Result;
-  citations: Citation[];
+  citations: Cita[];
 }) {
   return (
     <section className="space-y-3">
       <article className="rounded-[23px] border-2 border-[#88A9C8] bg-white p-6">
         <h2 className="text-[22px] font-semibold text-[#0F2044]">
-          {result.titulo || "Resultado"}
+          {resultado.titulo || "Resultado"}
         </h2>
         <div className="mt-4 rounded-[15px] bg-[#F4F7F5] px-5 py-4">
           <p className="whitespace-pre-line text-base leading-7 text-[#0F2044]/80">
-            {result.conclusion || result.resumen || "Sin respuesta."}
+            {resultado.conclusion || resultado.resumen || "Sin respuesta."}
           </p>
         </div>
-        {result.desarrollo?.length ? (
+        {resultado.desarrollo?.length ? (
           <div className="mt-5 grid gap-3 @min-[1024px]:grid-cols-2">
-            {result.desarrollo.map((section, index) => (
+            {resultado.desarrollo.map((section, indice) => (
               <section
-                key={`${section.titulo}-${index}`}
+                key={`${section.titulo}-${indice}`}
                 className="rounded-[15px] border border-[#88A9C8]/50 bg-white p-4"
               >
                 <h3 className="text-sm font-semibold">{section.titulo}</h3>
@@ -1052,16 +1052,16 @@ function Results({
             ))}
           </div>
         ) : null}
-        {result.puntos_clave?.length ? (
+        {resultado.puntos_clave?.length ? (
           <div className="mt-5 border-t border-[#88A9C8]/40 pt-4">
             <h3 className="text-sm font-semibold">Puntos clave</h3>
             <ol className="mt-3 space-y-2">
-              {result.puntos_clave.map((point, index) => (
+              {resultado.puntos_clave.map((point, indice) => (
                 <li
-                  key={index}
+                  key={indice}
                   className="flex gap-3 text-sm leading-6 text-[#0F2044]/70"
                 >
-                  <span className="font-bold text-[#546FC0]">{index + 1}.</span>
+                  <span className="font-bold text-[#546FC0]">{indice + 1}.</span>
                   <span>{point}</span>
                 </li>
               ))}
@@ -1069,38 +1069,38 @@ function Results({
           </div>
         ) : null}
         <div className="mt-5 grid gap-3 border-t border-[#88A9C8]/40 pt-4 @min-[768px]:grid-cols-2">
-          {result.acciones_sugeridas?.length ? (
-            <ResultList
+          {resultado.acciones_sugeridas?.length ? (
+            <ListaDeResultados
               title="Próximos pasos"
-              items={result.acciones_sugeridas}
+              items={resultado.acciones_sugeridas}
             />
           ) : null}
-          {result.limitaciones?.length ? (
-            <ResultList
+          {resultado.limitaciones?.length ? (
+            <ListaDeResultados
               title="A tener en cuenta"
-              items={result.limitaciones}
+              items={resultado.limitaciones}
               muted
             />
           ) : null}
         </div>
       </article>
-      {citations.length > 0 && (
+      {citas.length > 0 && (
         <details className="rounded-[18px] border-2 border-[#88A9C8] bg-white px-5 py-4">
           <summary className="cursor-pointer text-sm font-semibold">
-            Fuentes ({citations.length})
+            Fuentes ({citas.length})
           </summary>
           <div className="mt-4 divide-y rounded-lg border border-[#88A9C8]/40">
-            {citations.map((item, index) => (
-              <details key={item.citation_id} className="px-4 py-3">
+            {citas.map((elemento, indice) => (
+              <details key={elemento.citation_id} className="px-4 py-3">
                 <summary className="cursor-pointer text-sm font-semibold">
-                  {index + 1}. {item.document_name}
+                  {indice + 1}. {elemento.document_name}
                 </summary>
                 <blockquote className="mt-3 border-l-2 border-[#88A9C8] pl-3 text-sm leading-6 text-[#0F2044]/65">
-                  {item.text}
+                  {elemento.text}
                 </blockquote>
-                {item.document_url && (
+                {elemento.document_url && (
                   <a
-                    href={item.document_url}
+                    href={elemento.document_url}
                     className="mt-3 inline-block text-xs font-semibold text-[#546FC0]"
                   >
                     Abrir documento →
@@ -1115,9 +1115,9 @@ function Results({
   );
 }
 
-function ResultList({
-  title,
-  items,
+function ListaDeResultados({
+  title: titulo,
+  items: elementos,
   muted = false,
 }: {
   title: string;
@@ -1128,15 +1128,15 @@ function ResultList({
     <section
       className={`rounded-xl border border-[#88A9C8]/50 p-4 ${muted ? "bg-white" : "bg-[#F4F7F5]"}`}
     >
-      <h3 className="text-sm font-semibold text-[#0F2044]">{title}</h3>
+      <h3 className="text-sm font-semibold text-[#0F2044]">{titulo}</h3>
       <ul className="mt-3 space-y-2">
-        {items.map((item, index) => (
+        {elementos.map((elemento, indice) => (
           <li
-            key={index}
+            key={indice}
             className="flex gap-2 text-sm leading-6 text-[#0F2044]/65"
           >
             <span>•</span>
-            <span>{item}</span>
+            <span>{elemento}</span>
           </li>
         ))}
       </ul>
@@ -1144,37 +1144,37 @@ function ResultList({
   );
 }
 
-function formatReport(result: Result, citations: Citation[]) {
-  const lines = [
-    result.titulo || "Resultado",
+function formatearInforme(resultado: Result, citas: Cita[]) {
+  const lineas = [
+    resultado.titulo || "Resultado",
     "",
-    result.conclusion || result.resumen || "Sin respuesta.",
+    resultado.conclusion || resultado.resumen || "Sin respuesta.",
     "",
   ];
-  result.desarrollo?.forEach((section) =>
-    lines.push(section.titulo.toUpperCase(), section.contenido, ""),
+  resultado.desarrollo?.forEach((section) =>
+    lineas.push(section.titulo.toUpperCase(), section.contenido, ""),
   );
-  result.puntos_clave?.forEach((point, index) =>
-    lines.push(`${index + 1}. ${point}`),
+  resultado.puntos_clave?.forEach((point, indice) =>
+    lineas.push(`${indice + 1}. ${point}`),
   );
-  if (result.acciones_sugeridas?.length)
-    lines.push(
+  if (resultado.acciones_sugeridas?.length)
+    lineas.push(
       "",
       "CONTROLES SUGERIDOS",
-      ...result.acciones_sugeridas.map((item) => `- ${item}`),
+      ...resultado.acciones_sugeridas.map((elemento) => `- ${elemento}`),
     );
-  if (result.limitaciones?.length)
-    lines.push(
+  if (resultado.limitaciones?.length)
+    lineas.push(
       "",
       "ALCANCE Y LÍMITES",
-      ...result.limitaciones.map((item) => `- ${item}`),
+      ...resultado.limitaciones.map((elemento) => `- ${elemento}`),
     );
-  if (citations.length) {
-    lines.push("", "FUENTES");
-    citations.forEach((item, index) =>
-      lines.push(`${index + 1}. ${item.document_name}`, item.text, ""),
+  if (citas.length) {
+    lineas.push("", "FUENTES");
+    citas.forEach((elemento, indice) =>
+      lineas.push(`${indice + 1}. ${elemento.document_name}`, elemento.text, ""),
     );
   }
-  lines.push("LegalMind · Documento de trabajo sujeto a revisión profesional.");
-  return lines.join("\n").trim();
+  lineas.push("LegalMind · Documento de trabajo sujeto a revisión profesional.");
+  return lineas.join("\n").trim();
 }

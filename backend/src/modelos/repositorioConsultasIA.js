@@ -1,7 +1,7 @@
 const { pool } = require("../configuracion/baseDatos");
 
 let initialized = false;
-async function ensureTable() {
+async function asegurarTabla() {
   if (initialized) return;
   await pool.query(`
     CREATE TABLE IF NOT EXISTS consultas_ia (
@@ -25,52 +25,52 @@ async function ensureTable() {
   initialized = true;
 }
 
-async function createAIQuery(payload) {
-  if (!payload.userId) throw new Error("No se puede guardar un análisis sin usuario propietario.");
-  await ensureTable();
-  const result = await pool.query(`
+async function guardarConsultaDeIA(datosDeEnvio) {
+  if (!datosDeEnvio.userId) throw new Error("No se puede guardar un análisis sin usuario propietario.");
+  await asegurarTabla();
+  const resultado = await pool.query(`
     INSERT INTO consultas_ia (causa_id, user_id, herramienta, titulo, consulta, entrada_json, resultado_json, citas_json, metadata_json)
     VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9::jsonb)
     RETURNING *
-  `, [payload.caseId, payload.userId, payload.toolId, payload.title, payload.query || null,
-    JSON.stringify(payload.input), JSON.stringify(payload.result), JSON.stringify(payload.citations), JSON.stringify(payload.metadata)]);
-  await pool.query("UPDATE causas SET updated_at = NOW() WHERE id = $1", [payload.caseId]);
-  return mapRow(result.rows[0]);
+  `, [datosDeEnvio.caseId, datosDeEnvio.userId, datosDeEnvio.toolId, datosDeEnvio.title, datosDeEnvio.query || null,
+    JSON.stringify(datosDeEnvio.input), JSON.stringify(datosDeEnvio.result), JSON.stringify(datosDeEnvio.citations), JSON.stringify(datosDeEnvio.metadata)]);
+  await pool.query("UPDATE causas SET updated_at = NOW() WHERE id = $1", [datosDeEnvio.caseId]);
+  return mapearFila(resultado.rows[0]);
 }
 
-async function listAIQueries(caseId, userId) {
-  if (!userId) throw new Error("El usuario es obligatorio para consultar el historial.");
-  await ensureTable();
-  const result = await pool.query(`
+async function listarConsultasDeIA(idExpediente, idUsuario) {
+  if (!idUsuario) throw new Error("El usuario es obligatorio para consultar el historial.");
+  await asegurarTabla();
+  const resultado = await pool.query(`
     SELECT id, causa_id, user_id, herramienta, titulo, consulta, entrada_json, resultado_json, citas_json, metadata_json, created_at
     FROM consultas_ia
     WHERE causa_id = $1 AND user_id = $2
     ORDER BY created_at DESC, id DESC
-  `, [caseId, userId]);
-  return result.rows.map(mapRow);
+  `, [idExpediente, idUsuario]);
+  return resultado.rows.map(mapearFila);
 }
 
-async function getAIQuery(caseId, id, userId) {
-  if (!userId) throw new Error("El usuario es obligatorio para consultar el análisis.");
-  await ensureTable();
-  const result = await pool.query(`
+async function obtenerConsultaDeIA(idExpediente, id, idUsuario) {
+  if (!idUsuario) throw new Error("El usuario es obligatorio para consultar el análisis.");
+  await asegurarTabla();
+  const resultado = await pool.query(`
     SELECT id, causa_id, user_id, herramienta, titulo, consulta, entrada_json, resultado_json, citas_json, metadata_json, created_at
     FROM consultas_ia
     WHERE causa_id = $1 AND id = $2 AND user_id = $3
-  `, [caseId, id, userId]);
-  return result.rows[0] ? mapRow(result.rows[0]) : null;
+  `, [idExpediente, id, idUsuario]);
+  return resultado.rows[0] ? mapearFila(resultado.rows[0]) : null;
 }
 
-async function deleteAIQuery(caseId, id, userId) {
-  if (!userId) throw new Error("El usuario es obligatorio para eliminar el análisis.");
-  await ensureTable();
-  const result = await pool.query("DELETE FROM consultas_ia WHERE causa_id = $1 AND id = $2 AND user_id = $3 RETURNING id", [caseId, id, userId]);
-  return result.rowCount > 0;
+async function eliminarConsultaDeIA(idExpediente, id, idUsuario) {
+  if (!idUsuario) throw new Error("El usuario es obligatorio para eliminar el análisis.");
+  await asegurarTabla();
+  const resultado = await pool.query("DELETE FROM consultas_ia WHERE causa_id = $1 AND id = $2 AND user_id = $3 RETURNING id", [idExpediente, id, idUsuario]);
+  return resultado.rowCount > 0;
 }
 
-function mapRow(row) { return { id: Number(row.id), case_id: Number(row.causa_id), user_id: row.user_id, tool_id: row.herramienta, title: row.titulo,
-  query: row.consulta, input: row.entrada_json, result: row.resultado_json, citations: row.citas_json,
-  metadata: row.metadata_json, created_at: row.created_at }; }
+function mapearFila(fila) { return { id: Number(fila.id), case_id: Number(fila.causa_id), user_id: fila.user_id, tool_id: fila.herramienta, title: fila.titulo,
+  query: fila.consulta, input: fila.entrada_json, result: fila.resultado_json, citations: fila.citas_json,
+  metadata: fila.metadata_json, created_at: fila.created_at }; }
 
-function resetQueriesTableForTests() { initialized = false; }
-module.exports = { createAIQuery, deleteAIQuery, getAIQuery, listAIQueries, resetQueriesTableForTests };
+function reiniciarTablaDeConsultasParaPruebas() { initialized = false; }
+module.exports = { guardarConsultaDeIA, eliminarConsultaDeIA, obtenerConsultaDeIA, listarConsultasDeIA, reiniciarTablaDeConsultasParaPruebas };

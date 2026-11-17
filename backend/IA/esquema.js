@@ -1,9 +1,9 @@
-const stringArray = {
+const listaDeTextos = {
   type: "array",
   items: { type: "string" },
 };
 
-const defendantSchema = {
+const esquemaImputado = {
   type: "object",
   additionalProperties: false,
   required: [
@@ -15,14 +15,14 @@ const defendantSchema = {
   ],
   properties: {
     nombre: { type: "string" },
-    datos_asociados: stringArray,
-    imputaciones: stringArray,
-    hechos_vinculados: stringArray,
-    documentos_mencionados: stringArray,
+    datos_asociados: listaDeTextos,
+    imputaciones: listaDeTextos,
+    hechos_vinculados: listaDeTextos,
+    documentos_mencionados: listaDeTextos,
   },
 };
 
-const dateSchema = {
+const esquemaFecha = {
   type: "object",
   additionalProperties: false,
   required: ["fecha", "fecha_normalizada", "evento", "tipo", "requiere_alerta"],
@@ -38,7 +38,7 @@ const dateSchema = {
   },
 };
 
-const legalEntitiesSchema = {
+const esquemaEntidadesJuridicas = {
   type: "object",
   additionalProperties: false,
   required: [
@@ -68,8 +68,8 @@ const legalEntitiesSchema = {
           id: { type: "string" },
           identificador: { type: ["string", "null"] },
           caratula: { type: ["string", "null"] },
-          organos_intervinientes: stringArray,
-          datos_generales: stringArray,
+          organos_intervinientes: listaDeTextos,
+          datos_generales: listaDeTextos,
         },
       },
     },
@@ -91,10 +91,10 @@ const legalEntitiesSchema = {
           id: { type: "string" },
           nombre: { type: "string" },
           rol: { type: "string" },
-          datos_asociados: stringArray,
-          imputaciones: stringArray,
-          hechos_vinculados: stringArray,
-          documentos_mencionados: stringArray,
+          datos_asociados: listaDeTextos,
+          imputaciones: listaDeTextos,
+          hechos_vinculados: listaDeTextos,
+          documentos_mencionados: listaDeTextos,
         },
       },
     },
@@ -108,13 +108,13 @@ const legalEntitiesSchema = {
           id: { type: "string" },
           nombre: { type: "string" },
           rol: { type: "string" },
-          menciones: stringArray,
+          menciones: listaDeTextos,
         },
       },
     },
     delitos: {
       type: "array",
-      items: namedEntitySchema(["id", "nombre", "fuente"]),
+      items: crearEsquemaDeEntidad(["id", "nombre", "fuente"]),
     },
     organismos: {
       type: "array",
@@ -147,11 +147,11 @@ const legalEntitiesSchema = {
     fechas: {
       type: "array",
       items: {
-        ...dateSchema,
-        required: ["id", ...dateSchema.required],
+        ...esquemaFecha,
+        required: ["id", ...esquemaFecha.required],
         properties: {
           id: { type: "string" },
-          ...dateSchema.properties,
+          ...esquemaFecha.properties,
         },
       },
     },
@@ -172,7 +172,7 @@ const legalEntitiesSchema = {
   },
 };
 
-const graphSchema = {
+const esquemaGrafo = {
   type: "object",
   additionalProperties: false,
   required: ["nodos", "relaciones"],
@@ -216,7 +216,7 @@ const graphSchema = {
   },
 };
 
-const ragSchema = {
+const esquemaRag = {
   type: "object",
   additionalProperties: false,
   required: ["fragmentos", "indice_vectorial", "consultas_sugeridas"],
@@ -244,8 +244,8 @@ const ragSchema = {
           texto: { type: "string" },
           caracteres_inicio: { type: "number" },
           caracteres_fin: { type: "number" },
-          categorias: stringArray,
-          entidades: stringArray,
+          categorias: listaDeTextos,
+          entidades: listaDeTextos,
           embedding_id: { type: "string" },
           tokens_estimados: { type: "number" },
           relevancia_base: { type: "number" },
@@ -263,11 +263,11 @@ const ragSchema = {
         persistencia: { type: "string" },
       },
     },
-    consultas_sugeridas: stringArray,
+    consultas_sugeridas: listaDeTextos,
   },
 };
 
-const strategicAnalysisSchema = {
+const esquemaAnalisisEstrategico = {
   type: "object",
   additionalProperties: false,
   required: ["inconsistencias", "puntos_revision", "cronologia", "omisiones_posibles"],
@@ -281,7 +281,7 @@ const strategicAnalysisSchema = {
         properties: {
           tipo: { type: "string" },
           descripcion: { type: "string" },
-          evidencia: stringArray,
+          evidencia: listaDeTextos,
           severidad: { type: "string" },
         },
       },
@@ -313,11 +313,11 @@ const strategicAnalysisSchema = {
         },
       },
     },
-    omisiones_posibles: stringArray,
+    omisiones_posibles: listaDeTextos,
   },
 };
 
-const alertSchema = {
+const esquemaAlerta = {
   type: "object",
   additionalProperties: false,
   required: [
@@ -344,7 +344,7 @@ const alertSchema = {
   },
 };
 
-const confidenceScoreSchema = {
+const esquemaPuntajeConfianza = {
   type: "object",
   additionalProperties: false,
   required: ["puntaje", "nivel", "factores", "requiere_revision"],
@@ -354,12 +354,12 @@ const confidenceScoreSchema = {
       type: "string",
       enum: ["alto", "medio", "bajo", "muy_bajo"],
     },
-    factores: stringArray,
+    factores: listaDeTextos,
     requiere_revision: { type: "boolean" },
   },
 };
 
-const legalMindRagSearchSchema = {
+const esquemaBusquedaRag = {
   type: "object",
   additionalProperties: false,
   required: ["query", "results", "answer"],
@@ -375,8 +375,8 @@ const legalMindRagSearchSchema = {
           id: { type: "string" },
           orden: { type: "number" },
           texto: { type: "string" },
-          categorias: stringArray,
-          entidades: stringArray,
+          categorias: listaDeTextos,
+          entidades: listaDeTextos,
           score: { type: "number" },
         },
       },
@@ -406,7 +406,7 @@ const legalMindRagSearchSchema = {
   },
 };
 
-const legalMindLawyerBriefSchema = {
+const esquemaInformeJuridico = {
   type: "object",
   additionalProperties: false,
   required: [
@@ -452,8 +452,8 @@ const legalMindLawyerBriefSchema = {
         },
       },
     },
-    preguntas_utiles: stringArray,
-    limitaciones: stringArray,
+    preguntas_utiles: listaDeTextos,
+    limitaciones: listaDeTextos,
     nivel_confianza: {
       type: "string",
       enum: ["alto", "medio", "bajo", "muy_bajo"],
@@ -461,11 +461,11 @@ const legalMindLawyerBriefSchema = {
   },
 };
 
-function namedEntitySchema(required) {
+function crearEsquemaDeEntidad(camposObligatorios) {
   return {
     type: "object",
     additionalProperties: false,
-    required,
+    required: camposObligatorios,
     properties: {
       id: { type: "string" },
       nombre: { type: "string" },
@@ -474,7 +474,7 @@ function namedEntitySchema(required) {
   };
 }
 
-const legalMindAnalysisSchema = {
+const esquemaAnalisisJuridico = {
   type: "object",
   additionalProperties: false,
   required: [
@@ -508,39 +508,39 @@ const legalMindAnalysisSchema = {
       additionalProperties: false,
       required: ["datos_generales", "hechos_relevantes"],
       properties: {
-        datos_generales: stringArray,
-        hechos_relevantes: stringArray,
+        datos_generales: listaDeTextos,
+        hechos_relevantes: listaDeTextos,
       },
     },
     imputados: {
       type: "array",
-      items: defendantSchema,
+      items: esquemaImputado,
     },
     fechas_relevantes: {
       type: "array",
-      items: dateSchema,
+      items: esquemaFecha,
     },
-    categorias: stringArray,
-    actuaciones_pendientes: stringArray,
-    observaciones: stringArray,
+    categorias: listaDeTextos,
+    actuaciones_pendientes: listaDeTextos,
+    observaciones: listaDeTextos,
     nivel_confianza: {
       type: "string",
       enum: ["alto", "medio", "bajo", "muy_bajo"],
     },
-    entidades_juridicas: legalEntitiesSchema,
-    grafo_conocimiento: graphSchema,
-    rag_juridico: ragSchema,
-    analisis_estrategico: strategicAnalysisSchema,
+    entidades_juridicas: esquemaEntidadesJuridicas,
+    grafo_conocimiento: esquemaGrafo,
+    rag_juridico: esquemaRag,
+    analisis_estrategico: esquemaAnalisisEstrategico,
     alertas: {
       type: "array",
-      items: alertSchema,
+      items: esquemaAlerta,
     },
-    scoring_confianza: confidenceScoreSchema,
+    scoring_confianza: esquemaPuntajeConfianza,
   },
 };
 
 module.exports = {
-  legalMindAnalysisSchema,
-  legalMindLawyerBriefSchema,
-  legalMindRagSearchSchema,
+  esquemaAnalisisJuridico,
+  esquemaInformeJuridico,
+  esquemaBusquedaRag,
 };
