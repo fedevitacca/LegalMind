@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useSecondaryWindow } from "../../lib/useSecondaryWindow";
 import { secondarySettingsMessage } from "../../lib/workspaceAccess";
 import BotonSesion from "../../components/interfaz/BotonSesion";
+import MarcoAplicacion from "../../components/estructura/MarcoAplicacion";
 import {
   fetchUserPreferences,
   saveUserAccount,
@@ -29,13 +30,6 @@ type StudioForm = {
   phone: string;
   site: string;
 };
-
-const navItems = [
-  { href: "/dashboard", icon: HomeIcon, label: "Dashboard" },
-  { href: "/casos", icon: FolderIcon, label: "Casos" },
-  { href: "/agenda", icon: CalendarIcon, label: "Agenda" },
-  { href: "/configuracion", icon: SettingsIcon, label: "Configuracion" },
-];
 
 const defaultAccount: AccountForm = {
   dni: "12.345.678",
@@ -138,30 +132,8 @@ export default function ConfiguracionUsuario() {
   };
 
   return (
-    <div className="app-shell settings-page grid h-full min-h-0 grid-cols-[220px_minmax(0,1fr)] bg-[#F4F7F5] text-[#0F2044]">
-      <aside className="bg-[#0F2044] px-5 py-6 text-white">
-        <Link className="brand-font text-[32px] font-semibold leading-none" href="/dashboard">
-          LegalMind
-        </Link>
-
-        <nav className="mt-10 grid gap-7">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                className="flex items-center gap-3 text-[24px] leading-none text-white transition hover:text-white/75"
-                href={item.href}
-                key={item.label}
-              >
-                <Icon className="h-8 w-8 shrink-0" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
-
-      <section className="min-w-0 overflow-y-auto">
+    <MarcoAplicacion activeSection="Configuracion">
+      <section className="settings-page min-w-0 overflow-y-auto bg-[#F4F7F5] text-[#0F2044]">
         <header className="grid h-[46px] grid-cols-[minmax(180px,1fr)_minmax(260px,420px)_48px_190px] items-center gap-5 border-b-4 border-[#88A9C8] bg-[#F4F7F5] px-10">
           <h1 className="text-[26px] font-semibold leading-none">Configuracion</h1>
           <label className="relative block">
@@ -279,7 +251,7 @@ export default function ConfiguracionUsuario() {
           </div>
         </main>
       </section>
-    </div>
+    </MarcoAplicacion>
   );
 }
 
@@ -371,31 +343,6 @@ function SelectField({
         </span>
       </span>
     </label>
-  );
-}
-
-function HomeIcon({ className = "h-8 w-8" }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M3 10.8 12 3l9 7.8v9.7a.5.5 0 0 1-.5.5H15v-6.4H9V21H3.5a.5.5 0 0 1-.5-.5v-9.7Z" />
-    </svg>
-  );
-}
-
-function FolderIcon({ className = "h-8 w-8" }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M2.5 6.5A1.5 1.5 0 0 1 4 5h5.1l2 2H20a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 20 19H4a1.5 1.5 0 0 1-1.5-1.5v-11Z" />
-    </svg>
-  );
-}
-
-function CalendarIcon({ className = "h-8 w-8" }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none">
-      <path d="M6 3.5v3M18 3.5v3M4 8.5h16M5.5 5.5h13A1.5 1.5 0 0 1 20 7v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19V7a1.5 1.5 0 0 1 1.5-1.5Z" stroke="currentColor" strokeLinecap="round" strokeWidth="2.5" />
-      <path d="M9 12h6v5H9z" fill="currentColor" />
-    </svg>
   );
 }
 

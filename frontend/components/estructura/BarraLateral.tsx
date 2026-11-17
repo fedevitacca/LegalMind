@@ -39,6 +39,7 @@ export default function BarraLateral({
 
           return (
             <Link
+              aria-current={isActive ? "page" : undefined}
               className={`group relative flex min-h-12 items-center gap-3 overflow-hidden rounded-xl px-3 text-[19px] font-medium leading-none transition duration-200 ${
                 isActive
                   ? "bg-white/14 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.12)]"
@@ -55,7 +56,7 @@ export default function BarraLateral({
               >
                 <Icon />
               </span>
-              {item.label}
+              <span className="whitespace-nowrap">{item.label}</span>
             </Link>
           );
         })}
