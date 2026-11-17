@@ -74,6 +74,9 @@ Para instalar el sistema completo en un servidor del colegio mediante Docker,
 incluidos PostgreSQL, Ollama, los modelos y el proxy de acceso, consultar
 [`deploy/README.md`](deploy/README.md).
 
+Para frontend en Vercel y API en Render, consultar
+[`deploy/vercel-render.md`](deploy/vercel-render.md).
+
 ## Verificación
 
 ```bash
