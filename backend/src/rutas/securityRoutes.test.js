@@ -12,6 +12,7 @@ describe("seguridad de rutas juridicas", () => {
   it("rechaza casos y analisis privados sin sesion", async () => {
     const [cases, analysis] = await Promise.all([fetch(`${baseUrl}/api/casos`), fetch(`${baseUrl}/api/ia/rag/extract`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: "expediente privado" }) })]);
     assert.equal(cases.status, 401); assert.equal(analysis.status, 401);
+    assert.equal((await fetch(`${baseUrl}/api/biblioteca`)).status, 401);
   });
 
   it("impide escritura a un miembro de solo lectura", async () => {
@@ -19,5 +20,21 @@ describe("seguridad de rutas juridicas", () => {
     setAuthorizationResolverForTests(async (req, kind) => kind === "context" ? { organizationId: 2, role: "lectura", userId: req.user.id } : true);
     const response = await fetch(`${baseUrl}/api/casos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ caratula: "No autorizado" }) });
     assert.equal(response.status, 403);
+    const biblioteca = `${baseUrl}/api/biblioteca`;
+    const [carga, borrado] = await Promise.all([
+      fetch(biblioteca, { method: "POST" }),
+      fetch(`${biblioteca}/1`, { method: "DELETE" }),
+    ]);
+    assert.equal(carga.status, 403);
+    assert.equal(borrado.status, 403);
+  });
+
+  it("rechaza cargas de biblioteca desde orígenes ajenos a LegalMind", async () => {
+    setSessionResolverForTests(async () => ({ user: { id: "abogado" } }));
+    setAuthorizationResolverForTests(async () => ({ organizationId: 2, role: "abogado" }));
+    const respuesta = await fetch(`${baseUrl}/api/biblioteca`, {
+      method: "POST", headers: { Origin: "https://externo.example" },
+    });
+    assert.equal(respuesta.status, 403);
   });
 });

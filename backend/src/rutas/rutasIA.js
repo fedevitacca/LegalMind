@@ -31,6 +31,7 @@ const {
   guardarAnalisisJuridico,
 } = require("../modelos/repositorioIA");
 const { buscarNormativaOficial } = require("../modelos/repositorioBibliotecaJuridica");
+const { buscarFragmentosBiblioteca } = require("../modelos/repositorioBibliotecaEstudio");
 const { buscarFragmentosDeFormaHibrida } = require("../modelos/repositorioRagVectorial");
 const { listDatesByCase: listarFechasDelExpediente, listDefendantsByCase: listarImputadosDelExpediente } = require("../modelos/repositorioCasos");
 const { listCaseRecords: listarRegistrosDelExpediente, listTasks: listarTareas } = require("../modelos/repositorioTrabajoJuridico");
@@ -599,10 +600,19 @@ enrutador.post("/rag/query", exigirAccesoAlExpediente, async (solicitud, respues
     } catch (error) {
       console.warn("Biblioteca jurídica no disponible:", error.message);
     }
-    const fragmentos = [...fragmentosExpediente, ...fragmentosNormativa];
+    let fragmentosBiblioteca = [];
+    try {
+      fragmentosBiblioteca = await buscarFragmentosBiblioteca({ organizationId: solicitud.security.organizationId,
+        query: pregunta, queryEmbedding: embeddingConsulta, embeddingModel: obtenerConfiguracionDeIA().embeddingModel,
+        limit: Math.min(5, maximoFragmentos) });
+    } catch (error) {
+      console.warn("Archivos de la biblioteca del estudio no disponibles:", error.message);
+    }
+    const fragmentos = [...fragmentosExpediente, ...fragmentosNormativa, ...fragmentosBiblioteca];
     const citas = construirCitasJuridicas(fragmentos, { caseId: idExpediente });
     const evidencia = evaluarEvidencia(citas);
-    const resultado = construirRespuestaConEvidencia({ question: pregunta, caseChunks: fragmentosExpediente, legalChunks: fragmentosNormativa });
+    const resultado = construirRespuestaConEvidencia({ question: pregunta, caseChunks: fragmentosExpediente,
+      legalChunks: fragmentosNormativa, libraryChunks: fragmentosBiblioteca });
 
     return respuesta.json({
       answer: resultado.answer,
@@ -618,6 +628,7 @@ enrutador.post("/rag/query", exigirAccesoAlExpediente, async (solicitud, respues
       sources: {
         case_chunks: fragmentosExpediente.length,
         legal_chunks: fragmentosNormativa.length,
+        library_chunks: fragmentosBiblioteca.length,
         jurisdiction: "nacional_federal",
       },
     });

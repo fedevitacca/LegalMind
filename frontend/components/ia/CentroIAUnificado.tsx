@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { fetchCases, type CaseListItem } from "../../lib/legalmindApi";
 import ChatExpediente from "./ChatExpediente";
@@ -45,6 +46,7 @@ export default function CentroIAUnificado() {
         <div>
           <h1 className="text-[27px] font-semibold leading-none">Asistente jurídico</h1>
           <p className="mt-2 text-sm text-[#0F2044]/65">Preguntas, análisis y herramientas en una sola conversación.</p>
+          <Link href="/biblioteca" className="mt-2 inline-block text-sm font-semibold underline">Biblioteca jurídica</Link>
         </div>
         <label className="w-full sm:w-[430px]">
           <span className="mb-1 block text-xs font-bold uppercase tracking-[.08em] text-[#0F2044]/55">Expediente</span>

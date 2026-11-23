@@ -9,6 +9,7 @@ const { listarDocumentosDelExpediente } = require("../modelos/repositorioIA");
 const { listDatesByCase: listarFechasDelExpediente, listDefendantsByCase: listarImputadosDelExpediente, listJurisprudenceByCase: listarJurisprudenciaDelExpediente } = require("../modelos/repositorioCasos");
 const { listCaseRecords: listarRegistrosDelExpediente, listTasks: listarTareas } = require("../modelos/repositorioTrabajoJuridico");
 const { buscarNormativaOficial } = require("../modelos/repositorioBibliotecaJuridica");
+const { buscarFragmentosBiblioteca } = require("../modelos/repositorioBibliotecaEstudio");
 const { buscarFragmentosDeFormaHibrida } = require("../modelos/repositorioRagVectorial");
 const { evaluarEvidencia, construirCitasJuridicas } = require("./citasJuridicas");
 const { construirTablaDeEvidencia, obtenerColumnasDeTabla, leerTablaChat } = require("./tablaChat");
@@ -82,9 +83,16 @@ async function responderChatExpediente({
   try { fragmentosNormativa = await buscarNormativaOficial({ query: consultaDeBusqueda, queryEmbedding: embeddingConsulta, limit: 3 }); }
   catch (error) { console.warn("Chat sin biblioteca juridica:", error.message); }
 
+  let fragmentosBiblioteca = [];
+  if (!entradaHerramienta) {
+    try {
+      fragmentosBiblioteca = await buscarFragmentosBiblioteca({ organizationId: idOrganizacion, query: consultaDeBusqueda,
+        queryEmbedding: embeddingConsulta, embeddingModel: obtenerConfiguracionDeIA().embeddingModel, limit: 3 });
+    } catch (error) { console.warn("Chat sin archivos de la biblioteca del estudio:", error.message); }
+  }
   const fragmentos = entradaHerramienta?.fragmentos?.length
     ? combinarFragmentosHerramienta(entradaHerramienta.fragmentos, [...fragmentosExpediente, ...fragmentosNormativa], 9)
-    : [...fragmentosExpediente, ...fragmentosNormativa];
+    : [...fragmentosExpediente, ...fragmentosNormativa, ...fragmentosBiblioteca];
   const citas = construirCitasJuridicas(fragmentos, { caseId: idExpediente });
   const evidencia = evaluarEvidencia(citas);
   let respuestaRedactada;
@@ -110,7 +118,9 @@ async function responderChatExpediente({
       limiteTiempoMs: limiteGeneracionMs,
       maximoTokens: herramientaElegida ? Math.min(tokensDeGeneracion, herramientaElegida.maxOutputTokens) : tokensDeGeneracion,
       contexto: fragmentos.map((fragmento, indice) => ({
-        nombreDocumento: fragmento.document_name, ubicacion: citas[indice]?.location_label, texto: fragmento.text,
+        nombreDocumento: fragmento.source_type === "biblioteca_juridica"
+          ? `Biblioteca del estudio · ${fragmento.document_name}` : fragmento.document_name,
+        ubicacion: citas[indice]?.location_label, texto: fragmento.text,
       })),
     };
     try {
@@ -136,7 +146,8 @@ async function responderChatExpediente({
       limitaciones = resultado.limitaciones;
     } catch (error) {
       const respaldo = construirRespuestaConEvidencia({ question: consultaDeBusqueda,
-        caseChunks: entradaHerramienta?.fragmentos?.length ? entradaHerramienta.fragmentos : fragmentosExpediente, legalChunks: fragmentosNormativa });
+        caseChunks: entradaHerramienta?.fragmentos?.length ? entradaHerramienta.fragmentos : fragmentosExpediente,
+        legalChunks: fragmentosNormativa, libraryChunks: fragmentosBiblioteca });
       respuestaRedactada = respaldo.answer;
       limitaciones = ["Se muestran extractos recuperados como respaldo."];
       motor = "extractive_chat_fallback";
@@ -150,7 +161,7 @@ async function responderChatExpediente({
     ...(tablaRespuesta && { response_table: tablaRespuesta }),
     model: motor.startsWith("ollama") ? modelo : null,
     evidence: evidencia, suggested_questions: preguntasSugeridas.slice(0, 3), limitations: limitaciones.slice(0, 3),
-    case_chunks: fragmentosExpediente.length, legal_chunks: fragmentosNormativa.length,
+    case_chunks: fragmentosExpediente.length, legal_chunks: fragmentosNormativa.length, library_chunks: fragmentosBiblioteca.length,
     conversation_messages_used: Math.min(historial.length, 8), duration_ms: Date.now() - inicioMs,
     fallback_reason: motivoRespaldo } };
 }

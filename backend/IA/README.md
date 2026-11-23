@@ -2,7 +2,7 @@
 
 Este directorio contiene la capa de análisis jurídico de LegalMind. El sistema combina extracción determinista, recuperación documental, búsqueda normativa y herramientas asistidas por Ollama.
 
-La consulta principal de un expediente no depende de un modelo generativo. Busca evidencia en los documentos privados del caso y en una biblioteca jurídica oficial, y construye una respuesta extractiva con citas verificables.
+La consulta extractiva de un expediente busca evidencia en los documentos del caso, la biblioteca jurídica del estudio y el corpus oficial. El chat del expediente también puede redactar respuestas con Ollama a partir de los fragmentos recuperados.
 
 ## Principios
 
@@ -10,7 +10,7 @@ La consulta principal de un expediente no depende de un modelo generativo. Busca
 - Separar información del expediente y marco jurídico externo.
 - Mostrar los fragmentos utilizados para que un profesional pueda verificarlos.
 - Mantener aislados los documentos de cada organización.
-- Usar fuentes nacionales y federales; no incorporar normativa provincial.
+- Limitar el corpus oficial a fuentes nacionales y federales.
 - Mantener Ollama como herramienta auxiliar, no como fuente de conocimiento.
 - Tratar toda salida como asistencia sujeta a revisión profesional.
 
@@ -22,14 +22,17 @@ Pregunta del abogado
         ├── Documentos y datos del expediente
         │       └── BM25/trigramas + embeddings locales
         │
-        └── Biblioteca jurídica pública
+        ├── Corpus jurídico oficial
+        │       └── Full Text Search + pgvector
+        │
+        └── Biblioteca jurídica del estudio
                 └── Full Text Search + pgvector
                         │
                         ▼
              selección de evidencia relevante
                         │
                         ▼
-        respuesta extractiva + artículos + citas + URLs
+        respuesta extractiva o chat con Ollama + citas
 ```
 
 El endpoint principal es:
@@ -234,11 +237,17 @@ Estas herramientas pueden usar Ollama para redactar resultados estructurados. Su
 | `POST` | `/api/ia/analyze-file` | Informe sobre un archivo |
 | `GET` | `/api/ia/cases/:caseId/documents` | Documentos disponibles en una causa |
 | `GET` | `/api/ia/cases/:caseId/queries` | Historial de consultas de IA |
-| `POST` | `/api/ia/rag/query` | Consulta del caso y legislación, sin Ollama |
+| `POST` | `/api/ia/rag/query` | Consulta extractiva del caso, la biblioteca del estudio y el corpus oficial |
 | `POST` | `/api/ia/rag/search` | Búsqueda sobre texto enviado, asistida por Ollama |
 | `POST` | `/api/ia/rag/extract` | Extracción local simple |
 
-`/rag/query` y `/rag/search` son flujos diferentes. El primero consulta el expediente y la biblioteca oficial sin modelo generativo; el segundo opera sobre texto proporcionado directamente y conserva el comportamiento asistido por Ollama.
+`/rag/query` consulta el expediente, la biblioteca del estudio y el corpus oficial para construir una respuesta extractiva. `/rag/search` opera sobre texto proporcionado directamente y usa Ollama.
+
+## Biblioteca jurídica del estudio
+
+Desde **Biblioteca jurídica**, los abogados y administradores pueden cargar o quitar archivos de su organización. Se admiten PDF con texto, DOCX, TXT, MD y CSV de hasta 15 MB por archivo. Los integrantes del estudio pueden consultar la biblioteca y descargar los originales.
+
+La carga guarda el original y los fragmentos en PostgreSQL. Si el modelo de embeddings de Ollama devuelve vectores de 768 dimensiones, se indexan también para búsquedas por similitud. La búsqueda por texto sigue disponible si falla la indexación semántica. Las consultas de la biblioteca y el chat del expediente usan los pasajes pertinentes como referencias citadas.
 
 ## Configuración de Ollama
 
@@ -280,8 +289,8 @@ Estas pruebas cubren terminología, recuperación, jurisdicción, respuesta sin 
 
 ## Privacidad y seguridad
 
-- Los documentos del expediente no se envían a servicios externos por el flujo extractivo.
-- La biblioteca jurídica es pública y compartida; los expedientes siguen aislados por organización.
+- Los archivos de la biblioteca del estudio y sus índices se consultan con el alcance de la organización autenticada. El corpus oficial es compartido.
+- La indexación y el chat usan el servidor definido en `LOCAL_AI_BASE_URL`. La indexación envía fragmentos al modelo de embeddings y el chat envía los pasajes recuperados al modelo generativo.
 - Las URLs de sincronización están declaradas explícitamente.
 - El corpus se actualiza fuera del camino de las consultas de usuario.
 - Una consulta nunca descarga páginas oficiales en tiempo real.

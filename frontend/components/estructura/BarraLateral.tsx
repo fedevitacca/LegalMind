@@ -5,6 +5,7 @@ const sideItems = [
   { icon: HomeIcon, label: "Dashboard", href: "/dashboard" },
   { icon: FolderIcon, label: "Casos", href: "/casos" },
   { icon: SparkIcon, label: "Analisis", href: "/analisis" },
+  { icon: FolderIcon, label: "Biblioteca jurídica", href: "/biblioteca" },
   { icon: CalendarIcon, label: "Agenda", href: "/agenda" },
   { icon: SettingsIcon, label: "Configuracion", href: "/configuracion" },
 ];

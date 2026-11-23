@@ -42,8 +42,7 @@ async function extraerTextoDePdf(archivo) {
   }
 
   const lectorPdf = new PDFParse({ data: archivo.buffer });
-  const interpretado = await lectorPdf.getText();
-  await lectorPdf.destroy();
+  const interpretado = await lectorPdf.getText().finally(() => lectorPdf.destroy());
   const texto = String(interpretado.text || "").trim();
 
   if (!texto) {

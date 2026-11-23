@@ -337,6 +337,7 @@ function MensajeDeChat({ message: mensaje, onSuggestion: alElegirSugerencia }: {
       <div className="mt-2 space-y-2">{mensaje.citations?.map((cita, indice) => (
         <div key={cita.citation_id} className="rounded-lg bg-[#F4F7F5] p-3 text-xs">
           <div className="flex items-start justify-between gap-3"><strong>[{indice + 1}] {cita.document_name}</strong><span>{cita.location_label}</span></div>
+          {cita.source_type === "biblioteca_juridica" && <p className="mt-1 font-medium">Biblioteca jurídica del estudio</p>}
           <p className="mt-1 line-clamp-3 text-[#0F2044]/65">{cita.text}</p>
           {cita.document_url && <Link href={cita.document_url} className="mt-2 inline-block font-semibold text-[#546FC0]">Abrir fuente →</Link>}
         </div>

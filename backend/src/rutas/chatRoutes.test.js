@@ -32,6 +32,7 @@ describe("mensajes del chat del expediente", () => {
           if (values.length > 2) savedMetadata = JSON.parse(values[5]);
           return { rows: [{ id: values.length > 2 ? 11 : 10,
             rol: values.length > 2 ? "asistente" : "usuario", contenido: values[1],
+            citas_json: values[4] ? JSON.parse(values[4]) : [],
             metadata_json: savedMetadata || {} }] };
         }
         return { rows: [], rowCount: 0 };
@@ -74,6 +75,30 @@ describe("mensajes del chat del expediente", () => {
     assert.equal(savedMetadata.engine, "extractive_chat_fallback");
     assert.match(body.assistant_message.content, /12 de mayo/);
     assert.ok(statements.includes("COMMIT"));
+  });
+
+  it("incorpora archivos de la organización al contexto de Ollama y a las citas", async () => {
+    const query = pool.query;
+    pool.query = async (sql, params) => {
+      if (!/FROM fragmentos_biblioteca_juridica/.test(sql)) return query(sql, params);
+      assert.equal(params[0], 1);
+      assert.match(sql, /d\.organizacion_id=\$1/);
+      return { rows: [{ id: "biblioteca-7-0", documento_id: 7, nombre_archivo: "Protocolo.txt",
+        orden: 0, texto: "El estudio recomienda presentar una copia certificada.", lexical_score: 0.4 }] };
+    };
+    const solicitudes = [];
+    configurarClienteDeIAParaPruebas(() => ({ chat: async ({ messages, format }) => {
+      solicitudes.push(messages.at(-1).content);
+      const answer = "El protocolo recomienda presentar una copia certificada.";
+      return format ? JSON.stringify({ answer, suggested_questions: [], limitations: [] }) : answer;
+    } }));
+    const response = await send("¿Qué recomienda el protocolo sobre copias certificadas?");
+    assert.equal(response.status, 201);
+    assert.match(solicitudes[0], /Biblioteca del estudio · Protocolo\.txt/);
+    assert.match(solicitudes[0], /presentar una copia certificada/);
+    assert.equal(savedMetadata.library_chunks, 1);
+    const { assistant_message } = await response.json();
+    assert.ok(assistant_message.citations.some((cita) => cita.document_url === "/biblioteca#documento-7"));
   });
 
   it("resume en lenguaje conversacional y normaliza las citas al usar Ollama Cloud", async () => {

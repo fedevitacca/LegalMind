@@ -7,6 +7,7 @@ const { betterAuthRoute } = require("./rutas/rutasAuth");
 const { getCorsOrigin } = require("./configuracion/origenesPermitidos");
 const healthRoutes = require("./rutas/rutasSalud");
 const iaRoutes = require("./rutas/rutasIA");
+const libraryRoutes = require("./rutas/rutasBibliotecaJuridica");
 const caseRoutes = require("./rutas/rutasCasos");
 const userRoutes = require("./rutas/rutasUsuarios");
 const organizationRoutes = require("./rutas/rutasOrganizaciones");
@@ -70,6 +71,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/health", healthRoutes);
 app.use("/api/ia", iaRoutes);
+app.use("/api/biblioteca", libraryRoutes);
 app.use("/api/casos", caseRoutes);
 app.use("/api/usuarios", userRoutes);
 app.use("/api/organizaciones", organizationRoutes);

@@ -1,5 +1,6 @@
-function construirRespuestaConEvidencia({ question: pregunta, caseChunks: fragmentosExpediente = [], legalChunks: fragmentosNormativa = [] }) {
-  if (!fragmentosExpediente.length && !fragmentosNormativa.length) {
+function construirRespuestaConEvidencia({ question: pregunta, caseChunks: fragmentosExpediente = [],
+  legalChunks: fragmentosNormativa = [], libraryChunks: fragmentosBiblioteca = [] }) {
+  if (!fragmentosExpediente.length && !fragmentosNormativa.length && !fragmentosBiblioteca.length) {
     return {
       answer: "No se encontró evidencia suficiente en el expediente ni en la biblioteca jurídica nacional y federal.",
       confidence: "bajo",
@@ -10,8 +11,10 @@ function construirRespuestaConEvidencia({ question: pregunta, caseChunks: fragme
   const secciones = [];
   const evidenciaDelExpediente = seleccionarOracionesConEvidencia(pregunta, fragmentosExpediente, 3);
   const evidenciaNormativa = seleccionarOracionesConEvidencia(pregunta, fragmentosNormativa, 4);
+  const evidenciaBiblioteca = seleccionarOracionesConEvidencia(pregunta, fragmentosBiblioteca, 4);
   if (evidenciaDelExpediente.length) secciones.push(`Según el expediente:\n${formatearEvidencia(evidenciaDelExpediente)}`);
   if (evidenciaNormativa.length) secciones.push(`Marco normativo nacional y federal:\n${formatearEvidencia(evidenciaNormativa)}`);
+  if (evidenciaBiblioteca.length) secciones.push(`Biblioteca jurídica del estudio:\n${formatearEvidencia(evidenciaBiblioteca)}`);
   secciones.push("Conclusión: la respuesta se limita a los fragmentos citados. Debe verificarse su vigencia y aplicación al caso concreto.");
 
   return {

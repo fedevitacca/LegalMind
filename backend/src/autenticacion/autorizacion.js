@@ -22,8 +22,12 @@ async function attachSecurityContext(req, res, next) {
   } catch (error) { return next(error); }
 }
 
+function hasMinimumRole(security, minimumRole) {
+  return ROLE_LEVEL[security?.role] >= ROLE_LEVEL[minimumRole];
+}
+
 function requireRole(minimumRole) {
-  return (req, res, next) => ROLE_LEVEL[req.security?.role] >= ROLE_LEVEL[minimumRole]
+  return (req, res, next) => hasMinimumRole(req.security, minimumRole)
     ? next() : res.status(403).json({ error: "No tenes permisos suficientes para esta accion." });
 }
 
@@ -67,6 +71,6 @@ async function createPersonalWorkspace(user) {
   } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
 }
 
-module.exports = { attachSecurityContext, recordAudit, requireCaseAccess, requireOptionalCaseAccess, requireRole,
+module.exports = { attachSecurityContext, recordAudit, requireCaseAccess, requireOptionalCaseAccess, requireRole, hasMinimumRole,
   setAuthorizationResolverForTests: (resolver) => { authorizationResolverForTests = resolver; },
   resetAuthorizationResolverForTests: () => { authorizationResolverForTests = undefined; } };
